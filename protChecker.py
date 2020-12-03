@@ -27,7 +27,8 @@ class protChecker(bch.commChecker):
         #### put shit here for other organisms if necessary
         org_uri = "/pub/databases/GO/goa/YEAST/goa_yeast.gaf.gz"
         org_fn = org_uri.split('/')[-1]
-        data_folder = "../NetworkData/BioDBs/YeastPPI/"
+        # data_folder = "../NetworkData/BioDBs/YeastPPI/"
+        data_folder = "./GOfiles/"
 
 
         ### setting shit up
