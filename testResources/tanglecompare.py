@@ -1,24 +1,69 @@
-import csv
 import pandas as pd
 import collections
 import sys
 
-def extractVertices(textStr):
-    plain = textStr.replace("[", "").replace("]", "")
-    plainSet = set(plain.split(", "))
-    plainSet = {item.replace("'", "") for item in plainSet}
-    return plainSet
-
-# todo extractEdges
-def extractEdges(textStr):
-    plain = textStr.replace("[", "").replace("]", "")
-    plainSet = set(plain.split(", "))
-    plainSet = {item.replace("'", "") for item in plainSet}
-    return plainSet
-
+# this is the main function
 def compareSeps(filename1, filename2):
     seps1 = pd.read_csv(filename1, sep="\t")
     seps2 = pd.read_csv(filename2, sep="\t")
+
+    cuts1 = seps1["cut"].map(extractCuts)
+    cuts2 = seps2["cut"].map(extractCuts)
+
+    kmin1 = min(seps1["order"])
+    kmax1 = max(seps1["order"])
+
+    kmin2 = min(seps2["order"])
+    kmax2 = max(seps2["order"])
+
+    if kmin1 != kmin2:
+        sys.exit("min order {} in {} not equal to min order {} in {}".format(kmin1, filename1, kmin2, filename2))
+
+    for k in range(kmin1, max(kmax1, kmax2)+1):
+        kcuts1 = set(cuts1[cuts1.map(len) == k])
+        kcuts2 = set(cuts2[cuts2.map(len) == k])
+        in1not2 = kcuts1 - kcuts2
+        in2not1 = kcuts2 - kcuts1
+        if len(in1not2) != 0:
+            print("Order {} cuts:".format(k))
+            print("Cuts in {} but not in {}".format(filename1, filename2))
+            printCuts(in1not2)
+        if len(in2not1) != 0:
+            print("Order {} cuts:".format(k))
+            print("Cuts in {} but not in {}".format(filename2, filename1))
+            printCuts(in2not1)
+        if len(in1not2) == 0 and len(in2not1) == 0:
+            print("Order {} cuts all appear the same:".format(k))
+
+# todo printCuts - print out nicely. Also maybe add logic for flagging matching orders or summarising
+def printCuts(cuts):
+    # cuts is a set
+    for cut in cuts:
+        print(str(cut)
+              .replace("frozenset", "")
+              .replace("{'", "'")
+              .replace("'}","'")
+              .replace("({","{")
+              .replace("})","}")
+        )
+
+
+
+
+
+def extractCuts(cutStr):
+    plain = cutStr.replace("[", "").replace("]", "").replace("(", "").replace(" ", "")
+    plainSet = set(plain.split("),"))
+    plainSet = {item.replace("'", "").replace(")","") for item in plainSet}
+    setOfSets = frozenset(frozenset(item.split(",")) for item in plainSet)
+    return(setOfSets)
+
+
+# todo compareTangles is not tested!
+def compareTangles(filename1, filename2):
+    seps1 = pd.read_csv(filename1, sep="\t")
+    seps2 = pd.read_csv(filename2, sep="\t")
+
 
     groundset = extractVertices(seps1["side1"][0]) | extractVertices(seps1["side2"][0])
 
@@ -31,7 +76,7 @@ def compareSeps(filename1, filename2):
     missedSeps = [extractVertices(side) for side in missedSeps]
     print("Missed seps before: {}".format(len(missedSeps)))
 
-    print("len old, {} len new {}".format(len(seps2), len(seps1 )))
+    print("len old, {} len new {}".format(len(seps2), len(seps1)))
 
     additionalSmall = []
 
@@ -77,6 +122,21 @@ def compareSeps(filename1, filename2):
     print("Missed seps after stage 3: {}".format(len(missedSeps)))
     # print("\n".join([str(sep) for sep in missedSeps]))
     printMissed(seps2, missedSeps)
+
+
+def extractVertices(textStr):
+    plain = textStr.replace("[", "").replace("]", "")
+    plainSet = set(plain.split(", "))
+    plainSet = {item.replace("'", "") for item in plainSet}
+    return plainSet
+
+# todo extractEdges
+def extractEdges(textStr):
+    plain = textStr.replace("[", "").replace("]", "")
+    plainSet = set(plain.split(", "))
+    plainSet = {item.replace("'", "") for item in plainSet}
+    return plainSet
+
 
 
 def printMissed(fullData, seps):
@@ -143,5 +203,5 @@ def compare(filename1, filename2):
 
 
 print("---------------------------------------------")
-compareSeps("../outputDestupidification/YeastGSCompA-SepList.tsv", "../outputBacktoStupid/YeastGSCompA-SepList.tsv")
+compareSeps("../outputBacktoStupid/YeastGSCompB-SepList-GHU.tsv", "../outputBacktoStupid/YeastGSCompB-SepList.tsv")
 print("---------------------------------------------")
