@@ -73,7 +73,7 @@ class EdgeTangleSet(btang.TangleSet):
                 # print("---------------------------")
                 # print(i, j, s, t)
                 # print(GHPath)
-                GHPathVerts = [treeNames[v] for v in GHPath[0]]
+                # GHPathVerts = [treeNames[v] for v in GHPath[0]]
                 GHPathEdges = [(GHPath[0][vid], GHPath[0][vid+1])
                     for vid in range(len(GHPath[0])-1)]
                 # print(GHPathEdges)
