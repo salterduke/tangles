@@ -156,26 +156,36 @@ class EdgeTangleSet(btang.TangleSet):
             s = self.GHTree.vs[edge.source]["name"]
             t = self.GHTree.vs[edge.target]["name"]
             if testAllcuts:
+                print("About to run all_st_cuts. flow={}".format(k))
+                cutnum=0
                 for cut in self.Gdirected.all_st_cuts(s, t):
+                    cutnum+=1
+                    print("cut {}".format(cutnum))
                     cutEdges = frozenset(sorted(
                         [tuple(sorted((self.G.vs[edge.source]["name"], self.G.vs[edge.target]["name"]))) for edge in
                          cut.es]))
                     self.addToSepList(cut.partition, cutEdges)
 
             else:
+                print("About to run all_st_MINcuts. flow={}".format(k))
+                cutnum=0
                 for cut in self.Gdirected.all_st_mincuts(s, t):
+                    cutnum+=1
+                    print("cut {}".format(cutnum))
                     cutEdges = frozenset(sorted(
                         [tuple(sorted((self.G.vs[edge.source]["name"], self.G.vs[edge.target]["name"]))) for edge in
                          cut.es]))
                     self.addToSepList(cut.partition, cutEdges)
 
         # Adding singletons
+        # todo not sure I need to do this, with doing ALL_st_cuts
         for vert in self.G.vs.select(_degree_eq=k):
             side1 = {vert.index}
             side2 = set(self.G.vs.indices) - side1
             cutEdges = frozenset(sorted([tuple(
                 sorted((self.G.vs[self.G.es[edge].source]["name"], self.G.vs[self.G.es[edge].target]["name"]))) for
                                          edge in self.G.incident(vert)]))
+            # todo pretty sure I don't need this check - it *can't* be a superset, surely?
             if not cutIsSuperset(cutEdges):
                 self.addToSepList([side1, side2], cutEdges)
 

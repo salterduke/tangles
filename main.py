@@ -10,7 +10,8 @@ import shutil
 np.set_printoptions(precision=3)
 
 configFile = "config.txt"
-testName = "BacktoStupid"
+# testName = "BacktoStupid"
+testName = "GHU_all"
 
 log = logger.logger(testName)
 copyPics = False
