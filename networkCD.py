@@ -58,11 +58,12 @@ class graphCD():
             exit()
 
 
-        print("Number of nodes: {}".format(graph.vcount()))
-        print("Number of edges: {}".format(graph.ecount()))
 
         graph.simplify()
         self.giantComp = graph.clusters().giant()
+
+        print("Number of nodes: {}".format(self.giantComp.vcount()))
+        print("Number of edges: {}".format(self.giantComp.ecount()))
 
 
     ## Creates a list of colours evenly distributed around the hue spectrum

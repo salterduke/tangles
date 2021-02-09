@@ -9,9 +9,26 @@ import itertools as it
 import tools
 import ete3
 import sys
+import heapq
 
 import BaseTangleSet as btang
 
+class partialCut(object):
+    def __init__(self, weight=0, pcut=None, mincut=None):
+        self.weight = weight
+        self.pcut = pcut
+        self.mincut = mincut
+
+    def __lt__(self, other):
+        return self.weight < other.weight
+
+    def __str__(self):
+        # todo add more shit later?
+        return "wt {} S:{}".format(self.weight, self.pcut["S"])
+
+    def __repr__(self):
+        # todo add more shit later?
+        return "\nwt {} S:{}".format(self.weight, self.pcut["S"])
 
 
 
@@ -23,7 +40,8 @@ class EdgeTangleSet(btang.TangleSet):
         btang.TangleSet.__init__(self, job, log)
         self.cuts = set()
         self.Gdirected = self.G.as_directed()
-
+        # added even though g unweighted as some edges need weights later
+        self.Gdirected.es["weight"] = 1.0
 
         self.names = self.G.vs['name']
 
@@ -51,83 +69,82 @@ class EdgeTangleSet(btang.TangleSet):
         self.stupid = True
 
 
-    # todo - I think this was just checking shit, and not needed.
-    def findAllMinCuts(self):
-        # Gdirected = self.G.as_directed()
-        allMinCuts = pd.DataFrame(columns=list(self.G.vs["name"]),
-                                  index=list(self.G.vs["name"]))
-        treeNames = self.GHTree.vs["name"]
-
-        moreIntersCount = 0
-
-        for i in range(self.G.vcount()-1):
-            for j in range(i+1,self.G.vcount()):
-                # i = 3
-                # j = 6
-
-                s = self.G.vs[i]["name"]
-                t = self.G.vs[j]["name"]
-
-                # GHPath = self.GHTree.get_all_shortest_paths(s,t)
-                GHPath = self.GHTree.get_all_shortest_paths(i,j)
-                # print("---------------------------")
-                # print(i, j, s, t)
-                # print(GHPath)
-                # GHPathVerts = [treeNames[v] for v in GHPath[0]]
-                GHPathEdges = [(GHPath[0][vid], GHPath[0][vid+1])
-                    for vid in range(len(GHPath[0])-1)]
-                # print(GHPathEdges)
-                GHAdj = self.GHTree.get_adjacency(attribute="flow")
-
-                flowList = []
-                for e in GHPathEdges:
-                    # print("edge", e[0], e[1])
-                    # print(treeNames[e[0]], treeNames[e[1]])
-                    flow = GHAdj[e[0],e[1]]
-                    # print(flow)
-                    flowList.append(flow)
-
-                minFlow = min(flowList)
-                # todo Get min flow val - I would think there's an easier way
-
-                ##### calc num cuts between i, j
-                numCuts = len(self.Gdirected.all_st_mincuts(i, j))
-                allMinCuts.loc[s,t] = numCuts
-
-                numInterCuts = 0
-                for cutId in range(len(flowList)):
-                    if flowList[cutId] == minFlow:
-                        e = GHPathEdges[cutId]
-                        numInterCuts += len(self.Gdirected.all_st_mincuts(e[0],e[1]))
-                        # print(self.Gdirected.all_st_mincuts(e[0],e[1]))
-
-                # print("Total num cuts: {}".format(numCuts))
-                # # print(self.Gdirected.all_st_mincuts(i, j))
-                # print("Total Inter cuts: {}".format(numInterCuts))
-                if numCuts > numInterCuts:
-                    print("Shit!")
-                    # cuts1 = self.Gdirected.all_st_mincuts(3,4)
-                    # cuts2 = self.Gdirected.all_st_mincuts(10,4)
-                    # print([c.cut for c in cuts1])
-                    # print([c.cut for c in cuts2])
-                    exit()
-                elif numCuts < numInterCuts:
-                    # print("More inters")
-                    moreIntersCount+=1
-
-
-        #### ** remove later!!!!!
-        print("{} cuts had more inters".format(moreIntersCount))
-        # exit()
-        allMinCuts.to_csv("allMinCuts.csv")
-
-
-
     def findNextOrderSeparations(self, k = None):
-        if self.doGH:
+        self.cutfinder = True
+        if self.cutfinder:
+            self.findNextOrderSeparationsCutFinder(k)
+        elif self.doGH:
             self.findNextOrderSeparationsGH(k)
         else:
             self.findNextOrderSeparationsBrute(k)
+
+
+    # todo whack a numba thingy on this guy? - probably a wrapper
+    # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
+    def findNextOrderSeparationsCutFinder(self, k=None):
+        def cutIsSuperset(newCut):
+            for cut in self.cuts:
+                if newCut.issuperset(cut):
+                    return True
+            return False
+
+        # todo lets def as an inner fn here, that way if I numba it, I can fairly easily chuck it out into a separate jit-able fn.
+        # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
+        def basicPartition():
+            B0 = [] # initialise the heap
+            n = self.Gdirected.vcount()
+            # let s = node 0, (see Yeh and Wang) so start at 1
+            U = range(1,n)  # like this so easier to change later
+            S = [0]
+            # this is so we can do a Source-t cut,
+            self.Gdirected.add_vertices("Source") # this should have index n
+            for vi in U:
+                partcut = {
+                    "S": S.copy(),
+                    "T": [vi]
+                }
+                self.Gdirected.add_edges([(n, vi-1)], attributes={"weight": [self.G.ecount() + 1]})
+                mincut = self.Gdirected.mincut(source=n, target=vi, capacity="weight")
+                heapq.heappush(B0, partialCut(mincut.value,partcut,mincut))
+                S.append(vi)
+            return(B0)
+
+        def getNextPartCut():
+            if len(self.partcutHeap) > 0:
+                return heapq.heappop(self.partcutHeap)
+            else:
+                return None
+
+        def extractMinPart(partial):
+            # update the heap in here
+            pass
+
+
+        if k is None:  ### ie, first time running
+            # todo check initialise heap.
+            self.partcutHeap = basicPartition()
+            self.TangleTree.add_feature("cutsets", [])
+            # todo kmin
+            self.kmin = int(self.partcutHeap[0].weight)
+            k = self.kmin
+
+        while (partcut := getNextPartCut()) != None:
+            print("Getting an item {}".format(partcut))
+            if partcut.weight > k:
+                return
+            extractMinPart(partcut)
+            # todo format and add the mincut using addToSepList
+            # edgelist = [(self.Gdirected.vs[self.Gdirected.es[edge].source]["name"], self.Gdirected.vs[self.Gdirected.es[edge].target]["name"]) for edge in mincut.cut]
+            # print(edgelist)
+            cutEdges = frozenset(sorted(
+                [tuple(sorted((self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])))
+                 for edge in partcut.mincut.es]))
+            self.addToSepList(partcut.mincut.partition, cutEdges)
+            # todo note that the vertex IDs *should* be the same for G and Gdirected,
+            # todo - and this will break if they are not
+        # print("End of fn")
+        # sys.exit()
+
 
     def findNextOrderSeparationsGH(self, k=None):
         def cutIsSuperset(newCut):
@@ -206,9 +223,6 @@ class EdgeTangleSet(btang.TangleSet):
                     return True
             return False
 
-
-
-
         def printSepToFile(separation, cut, orientation):
             separation = sorted(separation, key=len)
 
@@ -219,6 +233,22 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
+
+        if len(components) > 2:
+            print("Arrgh, too many components, crack the shits!")
+            print(components)
+            print("============")
+            print(self.definitelySmall)
+            exit()
+
+        # add the condition in here to account for the added node in Gdirected for S,t cuts
+        for side in [0,1]:
+            try:
+                components[side].remove(self.G.vcount())
+                break # if there's no error, then value is found so no need to keep looking
+            except:
+                pass
+
         # smart: making sure the first side is the shortest
         components.sort(key=len)
 
@@ -228,12 +258,6 @@ class EdgeTangleSet(btang.TangleSet):
         sideSubGraph = self.G.subgraph(components[0])
         complementSubGraph = self.G.subgraph(components[1])
 
-        if len(components) > 2:
-            print("Arrgh, too many components, crack the shits!")
-            print(components)
-            print("============")
-            print(self.definitelySmall)
-            exit()
 
         size = len(cutEdges)
 
