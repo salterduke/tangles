@@ -14,10 +14,11 @@ import heapq
 import BaseTangleSet as btang
 
 class partialCut(object):
-    def __init__(self, weight=0, pcut=None, mincut=None):
+    def __init__(self, weight=0, pcut=None, mcut=None, cutEdges=None):
         self.weight = weight
         self.pcut = pcut
-        self.mincut = mincut
+        self.mcut = mcut
+        self.cutEdges = cutEdges
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -30,6 +31,7 @@ class partialCut(object):
         # todo add more shit later?
         return "\nwt {} S:{}".format(self.weight, self.pcut["S"])
 
+    # todo crack the shits if still all none?
 
 
 class EdgeTangleSet(btang.TangleSet):
@@ -94,30 +96,63 @@ class EdgeTangleSet(btang.TangleSet):
             B0 = [] # initialise the heap
             n = self.Gdirected.vcount()
             # let s = node 0, (see Yeh and Wang) so start at 1
-            U = range(1,n)  # like this so easier to change later
-            S = [0]
+            self.U = range(1,n)  # like this so easier to change later
+            S = set([0])
             # this is so we can do a Source-t cut,
             self.Gdirected.add_vertices("Source") # this should have index n
-            for vi in U:
+            for vi in self.U:
                 partcut = {
                     "S": S.copy(),
-                    "T": [vi]
+                    "T": set([vi])
                 }
-                self.Gdirected.add_edges([(n, vi-1)], attributes={"weight": [self.G.ecount() + 1]})
+                self.Gdirected.add_edges(es=[(n, vi-1)], attributes={"weight": [self.G.ecount() + 1]})
                 mincut = self.Gdirected.mincut(source=n, target=vi, capacity="weight")
-                heapq.heappush(B0, partialCut(mincut.value,partcut,mincut))
-                S.append(vi)
+                mincutpartition = [set(sideVs) for sideVs in mincut.partition]
+                heapq.heappush(B0, partialCut(mincut.value,partcut,mincutpartition,mincut.es))
+                S.add(vi)
             return(B0)
 
-        def getNextPartCut():
+        def getNextPartCut(self):
             if len(self.partcutHeap) > 0:
                 return heapq.heappop(self.partcutHeap)
             else:
                 return None
 
-        def extractMinPart(partial):
-            # update the heap in here
-            pass
+        def resetGroupSourceSink(self):
+            self.Gdirected.delete_vertices([n,n+1])
+            self.Gdirected.add_vertices("Source") # this should have index n
+            self.Gdirected.add_vertices("Sink") # this should have index n + 1
+            # todo Check this
+
+        def extractMinPart(self, partial):
+            # probably a nicer way of doing this....?
+            self.storeCutEdges = partial.cutEdges
+            self.resetGroupSourceSink()
+            extractMinBranch(partial.pcut, partial.mcut, 0)
+
+
+
+        def extractMinBranch(self, pcut, mcut, Ucounter):
+
+            for newpart in [{"S":pcut["S"].add(self.U[Ucounter]), "T":pcut["T"]}, {"S":pcut["S"], "T":pcut["T"].add(self.U[Ucounter])}]:
+                if self.minInPart(newpart, mcut):
+                    # todo I may have an off by one (or more!) error!!!!!
+                    if Ucounter < len(U):
+                        self.extractMinBranch(newpart, mcut, Ucounter+1)
+                    # otherwise it returns withough doing anything
+                else:
+                    # todo add edges as we go down the tree, then remove them as we go up.
+                    mincut = self.getMinCut(pcut)
+                    mincutpartition = [set(sideVs) for sideVs in mincut.partition]
+                    heapq.heappush(B0, partialCut(mincut.value, pcut, mincutpartition, mincut.es))
+
+        def minInPart(self, pcut, mcut):
+            return False
+            # todo this
+
+
+        def getMinCut(self, pcut):
+
 
 
         if k is None:  ### ie, first time running
@@ -128,18 +163,18 @@ class EdgeTangleSet(btang.TangleSet):
             self.kmin = int(self.partcutHeap[0].weight)
             k = self.kmin
 
-        while (partcut := getNextPartCut()) != None:
+        while (partcut := self.getNextPartCut()) != None:
             print("Getting an item {}".format(partcut))
             if partcut.weight > k:
                 return
-            extractMinPart(partcut)
+            self.extractMinPart(partcut)
             # todo format and add the mincut using addToSepList
             # edgelist = [(self.Gdirected.vs[self.Gdirected.es[edge].source]["name"], self.Gdirected.vs[self.Gdirected.es[edge].target]["name"]) for edge in mincut.cut]
             # print(edgelist)
             cutEdges = frozenset(sorted(
                 [tuple(sorted((self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])))
-                 for edge in partcut.mincut.es]))
-            self.addToSepList(partcut.mincut.partition, cutEdges)
+                 for edge in partcut.cutEdges]))
+            self.addToSepList(partcut.mcut, cutEdges)
             # todo note that the vertex IDs *should* be the same for G and Gdirected,
             # todo - and this will break if they are not
         # print("End of fn")
