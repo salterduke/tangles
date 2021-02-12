@@ -11,7 +11,8 @@ np.set_printoptions(precision=3)
 
 configFile = "config.txt"
 # testName = "BacktoStupid"
-testName = "GHU_all"
+# testName = "GHU_all"
+testName = "Cutfinder"
 
 log = logger.logger(testName)
 copyPics = False
