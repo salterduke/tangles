@@ -203,6 +203,6 @@ def compare(filename1, filename2):
 
 
 print("---------------------------------------------")
-compareSeps("../outputCutfinder/TinyEdges-SepList-CF.tsv", "../outputGHU_all/TinyEdges-SepList-GHU.tsv")
-# compareSeps("../outputCutfinder/YeastGSCompB-SepList-CF.tsv", "../outputGHU_all/YeastGSCompB-SepList-GHU.tsv")
+# compareSeps("../outputCutfinder/TinyEdges-SepList-CF.tsv", "../outputGHU_all/TinyEdges-SepList-GHU.tsv")
+compareSeps("../outputCutfinder/YeastGSCompB-SepList-CF.tsv", "../outputGHU_all/YeastGSCompB-SepList-GHU.tsv")
 print("---------------------------------------------")

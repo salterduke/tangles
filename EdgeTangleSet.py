@@ -18,7 +18,7 @@ import BaseTangleSet as btang
 class partialCut(object):
     def __init__(self, weight=0, pcut=None, mcut=None, cutEdges=None):
         self.weight = weight
-        self.pcut = pcut
+        self.pcut = copy.deepcopy(pcut)
         self.mcut = mcut
         self.cutEdges = cutEdges
 
@@ -151,23 +151,26 @@ class EdgeTangleSet(btang.TangleSet):
             SuT = partial.pcut["S"].union(partial.pcut["T"])
             self.U = [u for u in self.U if u not in SuT]
             n = self.G.vcount()
-            prevpcut = copy.deepcopy(partial.pcut)
+            # prevpcut = copy.deepcopy(partial.pcut)
+            prevpcut = partial.pcut
 
             edgetoadd = None
 
             for Ucounter in range(len(self.U)):
                 for side in ["S", "T"]:
-                    newpcut = copy.deepcopy(prevpcut)
+                    # todo #### this shit deleted for memory fix - need to duplicate functionality.
+                    # newpcut = copy.deepcopy(prevpcut)
                     # newpcut = prevpcut
-                    newpcut[side].add(self.U[Ucounter])
+                    # newpcut[side].add(self.U[Ucounter])
                     if (side == "S"):
                         newedge = (n, self.U[Ucounter])
+                        otherside = "T"
                     else:  # == "T"
                         newedge = (self.U[Ucounter], n + 1)
+                        otherside = "S"
 
-
-                    if minInPart(newpcut, partial.mcut):
-                        pcuttostore = newpcut # todo don't *think* I need deepcopy? do anyway until working.
+                    if minInPart({side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, partial.mcut):
+                        sidetoaddto = side
                         edgetoadd = newedge
                         # then continue
 
@@ -176,19 +179,20 @@ class EdgeTangleSet(btang.TangleSet):
                         self.Gdirected.add_edges(es=[newedge], attributes={"weight": [self.G.ecount() + 1]})
                         mincut = self.Gdirected.mincut(source=n, target=n + 1, capacity="weight")
                         if len(mincut.partition) == 2:
-                            # convert to set for easier subset checking
+                            # convert to list of sets for easier subset checking
                             if mincut.value <= self.kmax:
                                 mincutpartition = [set(sideVs) for sideVs in mincut.partition]
                                 heapq.heappush(self.partcutHeap,
-                                               partialCut(mincut.value, newpcut, mincutpartition, mincut.es))
+                                               partialCut(mincut.value, {side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, mincutpartition, mincut.es))
                         else:
                             # todo Is this okay? I think we don't want it on the heap if non-minimal.
                             print("More than 2 components in extract min: {}".format(mincut))
                             input("Press any key to continue")
                         self.Gdirected.delete_edges([newedge])
                 if(edgetoadd):
+                    # print("side to add: ", sidetoaddto)
                     self.Gdirected.add_edges(es=[edgetoadd], attributes={"weight": [self.G.ecount() + 1]})
-                    prevpcut = pcuttostore
+                    prevpcut[sidetoaddto].add(self.U[Ucounter])
 
         def minInPart(pcut, mcut):
             return ((pcut["S"].issubset(mcut[0]) and pcut["T"].issubset(mcut[1])) or
