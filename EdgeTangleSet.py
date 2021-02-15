@@ -10,6 +10,8 @@ import tools
 import ete3
 import sys
 import heapq
+import copy
+
 
 import BaseTangleSet as btang
 
@@ -51,6 +53,7 @@ class EdgeTangleSet(btang.TangleSet):
 
         ####
         self.doGH = True
+
         if self.doGH:
             self.sepFilename = "{}/{}-SepList-GHU.tsv". \
                 format(job['outputFolder'], job['outName'])
@@ -96,7 +99,6 @@ class EdgeTangleSet(btang.TangleSet):
             S = set([0])
             # this is so we can do a Source-t cut,
             self.Gdirected.add_vertices("Source") # this should have index n
-            self.Gdirected.add_vertices("Target") # this should have index n+1 - not used at this stage but created now
             for vi in self.U:
                 partcut = {
                     "S": S.copy(),
@@ -112,15 +114,19 @@ class EdgeTangleSet(btang.TangleSet):
                     # todo Is this okay? I think we don't want it on the heap if non-minimal.
                     print("More than 2 components: {}".format(mincut))
                 S.add(vi) # todo I think I still add it to S though. I think.
+
+            self.Gdirected.add_vertices("Target") # this should have index n+1 - not used at this stage but created now
             return(B0)
 
-        def getNextPartCut():
-            if len(self.partcutHeap) > 0:
+        def getNextPartCut(k):
+            if len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                 return heapq.heappop(self.partcutHeap)
             else:
                 return None
 
         def resetGroupSourceSink():
+            print("resetting")
+
             n = self.G.vcount()
             # self.Gdirected.delete_vertices(n)
             # if self.Gdirected.vcount == n+2:
@@ -131,18 +137,24 @@ class EdgeTangleSet(btang.TangleSet):
             self.U = range(1,n)
 
             # todo is this the best way of doing this?
-            self.Gdirected.delete_edges(weight_ge=self.G.ecount())
+            try:
+                self.Gdirected.delete_edges(weight_ge=self.G.ecount())
+            except:
+                pass
 
             for vi in self.currentPartial.pcut["S"]:
                 self.Gdirected.add_edges(es=[(n, vi)], attributes={"weight": [self.G.ecount() + 1]})
+                print("In reset, adding: {}".format((n, vi)))
             for vi in self.currentPartial.pcut["T"]:
                 self.Gdirected.add_edges(es=[(vi, n+1)], attributes={"weight": [self.G.ecount() + 1]})
+                print("In reset, adding: {}".format((vi, n+1)))
             # note, indices for source and sink *should* be n and n+1
+            print("finished resetting")
             # todo Check this
 
         def extractMinPart(partial):
             # todo probably a nicer way of doing this....?
-            print("---------------------------")
+            print("----------------------------------------")
             print("partial from heap")
             print(partial)
             self.currentPartial = partial
@@ -154,13 +166,16 @@ class EdgeTangleSet(btang.TangleSet):
 
         def extractMinBranch(pcut, mcut, Ucounter):
             # for newpcut in [{"S":pcut["S"].add(self.U[Ucounter]), "T":pcut["T"]}, {"S":pcut["S"], "T":pcut["T"].add(self.U[Ucounter])}]:
+            print("-----")
+            print(pcut)
+
             n = self.G.vcount()
             for side in ["S", "T"]:
                 print("{}: Ucount: {}".format(side, Ucounter))
                 print(self.U)
                 print(self.U[Ucounter])
                 # print(pcut)
-                newpcut = pcut.copy() # todo check if I need copy?
+                newpcut = copy.deepcopy(pcut) # todo check if I need copy?
                 newpcut[side].add(self.U[Ucounter])
                 if side == "S":
                     newedge = (n, self.U[Ucounter])
@@ -168,15 +183,24 @@ class EdgeTangleSet(btang.TangleSet):
                     newedge = (self.U[Ucounter], n + 1)
 
                 self.Gdirected.add_edges(es=[newedge], attributes={"weight": [self.G.ecount() + 1]})
+                # tempE = self.Gdirected.add_edge(source=newedge[0], target=newedge[1], attributes={"weight": [self.G.ecount() + 1]})
+                print("Adding: {}".format(newedge))
 
                 if minInPart(newpcut, mcut):
+                    print("Min {} in part {}".format(mcut, newpcut))
                     # todo I may have an off by one (or more!) error!!!!!
-                    if Ucounter <= len(U):
+                    if Ucounter < len(self.U)-1:
+                        print("Extracting...")
                         extractMinBranch(newpcut, mcut, Ucounter+1)
-                    else:
                         self.Gdirected.delete_edges([newedge])
+                        print("popping up, del edge {}".format(newedge))
+                    else:
+                        # print("Reached end, popping...")
+                        self.Gdirected.delete_edges([newedge])
+                        print("Final min node, del edge {}".format(newedge))
                         # returns, just popping off the edge that includes the node in the source or target group
                 else:
+                    print("NOT FOUND Min {} in part {}".format(mcut, newpcut))
                     # todo check edges correctly added by here
                     mincut = self.Gdirected.mincut(source=n, target=n+1, capacity="weight")
                     if len(mincut.partition) == 2:
@@ -187,11 +211,12 @@ class EdgeTangleSet(btang.TangleSet):
                         # todo Is this okay? I think we don't want it on the heap if non-minimal.
                         print("More than 2 components in extract min: {}".format(mincut))
                     self.Gdirected.delete_edges([newedge])
+                    print("NON MIN NODE, del edge {}".format(newedge))
                     # returns, just popping off the edge that includes the node in the source or target group
 
         def minInPart(pcut, mcut):
-            return ((mcut[0].issubset(pcut["S"]) and mcut[1].issubset(pcut["T"])) or
-                    (mcut[1].issubset(pcut["S"]) and mcut[0].issubset(pcut["T"])))
+            return ((pcut["S"].issubset(mcut[0]) and pcut["T"].issubset(mcut[1])) or
+                    (pcut["S"].issubset(mcut[1]) and pcut["T"].issubset(mcut[0])))
 
         if k is None:  ### ie, first time running
             # todo check initialise heap.
@@ -201,10 +226,10 @@ class EdgeTangleSet(btang.TangleSet):
             self.kmin = int(self.partcutHeap[0].weight)
             k = self.kmin
 
-        while (partcut := getNextPartCut()) != None:
+        while (partcut := getNextPartCut(k)) != None:
             print("Getting an item {}".format(partcut))
-            if partcut.weight > k:
-                return
+            # if partcut.weight > k:
+            #     return
             extractMinPart(partcut)
             # todo format and add the mincut using addToSepList
             self.addToSepList(partcut)
@@ -305,9 +330,15 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
+
+
+        print("---------------------------------------")
+        print([tuple((edge["weight"], self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"]))
+         for edge in partial.cutEdges])
+
         cutEdges = frozenset(sorted(
             [tuple(sorted((self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])))
-             for edge in partial.cutEdges if edge["weight"] < self.G.ecount() ]))
+             for edge in partial.cutEdges if edge["weight"] < self.G.ecount()]))
 
         if cutIsSuperset(cutEdges):
             return
