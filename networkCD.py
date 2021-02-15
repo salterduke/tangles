@@ -342,8 +342,9 @@ class graphCD():
         quality = coll.defaultdict(float)
 
 
-        ###### ****** removed this shit for testing
-        if "Yeast" in self.job["outName"]:
+        ###### todo fix problem with protchecker and cutfinder! ****** removed this shit for testing
+        # if "Yeast" in self.job["outName"]:
+        if False:
             quality = self.evaluateCommunities(foundcover)
         else:
             quality["enrichment"] = 0
