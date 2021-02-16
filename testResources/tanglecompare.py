@@ -19,18 +19,19 @@ def compareSeps(filename1, filename2):
     if kmin1 != kmin2:
         sys.exit("min order {} in {} not equal to min order {} in {}".format(kmin1, filename1, kmin2, filename2))
 
-    for k in range(kmin1, max(kmax1, kmax2)+1):
+    # for k in range(kmin1, max(kmax1, kmax2)+1):
+    for k in range(kmin1, min(kmax1, kmax2)+1):
         kcuts1 = set(cuts1[cuts1.map(len) == k])
         kcuts2 = set(cuts2[cuts2.map(len) == k])
         in1not2 = kcuts1 - kcuts2
         in2not1 = kcuts2 - kcuts1
         if len(in1not2) != 0:
             print("Order {} cuts:".format(k))
-            print("Cuts in {} but not in {}".format(filename1, filename2))
+            print("{} Cuts in {} but not in {}".format(len(in1not2), filename1, filename2))
             printCuts(in1not2)
         if len(in2not1) != 0:
             print("Order {} cuts:".format(k))
-            print("Cuts in {} but not in {}".format(filename2, filename1))
+            print("{} Cuts in {} but not in {}".format(len(in2not1), filename2, filename1))
             printCuts(in2not1)
         if len(in1not2) == 0 and len(in2not1) == 0:
             print("Order {} cuts all appear the same:".format(k))
@@ -204,5 +205,6 @@ def compare(filename1, filename2):
 
 print("---------------------------------------------")
 # compareSeps("../outputCutfinder/TinyEdges-SepList-CF.tsv", "../outputGHU_all/TinyEdges-SepList-GHU.tsv")
+# compareSeps("../outputCutfinder/YeastGSCompA-SepList-CF.tsv", "../outputGHU_all/YeastGSCompA-SepList-GHU.tsv")
 compareSeps("../outputCutfinder/YeastGSCompB-SepList-CF.tsv", "../outputGHU_all/YeastGSCompB-SepList-GHU.tsv")
 print("---------------------------------------------")
