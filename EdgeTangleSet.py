@@ -55,7 +55,9 @@ class EdgeTangleSet(btang.TangleSet):
         self.cutfinder = True
         self.doGH = True
 
+
         if self.cutfinder:
+            print("Doing cutfinder")
             self.sepFilename = "{}/{}-SepList-CF.tsv". \
                 format(job['outputFolder'], job['outName'])
         elif self.doGH:
@@ -80,6 +82,7 @@ class EdgeTangleSet(btang.TangleSet):
 
     def findNextOrderSeparations(self, k = None):
         if self.cutfinder:
+            print("Again, doing cutfinder")
             self.findNextOrderSeparationsCutFinder(k)
         elif self.doGH:
             self.findNextOrderSeparationsGH(k)
