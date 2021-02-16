@@ -16,11 +16,14 @@ import copy
 import BaseTangleSet as btang
 
 class partialCut(object):
-    def __init__(self, weight=0, pcut=None, mcut=None, cutEdges=None):
-        self.weight = weight
+    def __init__(self, Gdir, pcut=None, mincut=None):
+        self.weight = mincut.value
         self.pcut = copy.deepcopy(pcut)
-        self.mcut = mcut
-        self.cutEdges = cutEdges
+        self.mcut = [set(sideVs) for sideVs in mincut.partition] # todo fix for merges!
+        self.cutEdges = frozenset(sorted(
+            [tuple(sorted((Gdir.vs[edge["st"][0]]["name"], Gdir.vs[edge["st"][1]]["name"])))
+             for edge in mincut.es]))
+        # todo this isn't right yet!
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -45,7 +48,6 @@ class EdgeTangleSet(btang.TangleSet):
         self.cuts = set()
         self.Gdirected = self.G.as_directed()
         # added even though g unweighted as some edges need weights later
-        self.Gdirected.es["weight"] = 1.0
 
         self.names = self.G.vs['name']
 
@@ -57,7 +59,6 @@ class EdgeTangleSet(btang.TangleSet):
 
 
         if self.cutfinder:
-            print("Doing cutfinder")
             self.sepFilename = "{}/{}-SepList-CF.tsv". \
                 format(job['outputFolder'], job['outName'])
         elif self.doGH:
@@ -82,7 +83,6 @@ class EdgeTangleSet(btang.TangleSet):
 
     def findNextOrderSeparations(self, k = None):
         if self.cutfinder:
-            print("Again, doing cutfinder")
             self.findNextOrderSeparationsCutFinder(k)
         elif self.doGH:
             self.findNextOrderSeparationsGH(k)
@@ -93,34 +93,50 @@ class EdgeTangleSet(btang.TangleSet):
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
     def findNextOrderSeparationsCutFinder(self, k=None, maxdepth=4):
+        def mergeVertices(pcut):
+            minS = min(pcut["S"])
+            minT = min(pcut["T"])
+
+            mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in self.vids]
+            self.vids = mapvector
+
+            # self.Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=",".join))
+            # self.Gdircopy.contract_vertices(mapvector, combine_attrs="first")
+            self.Gdircopy.contract_vertices(mapvector)
+            print("Moocow")
+            return minS, minT
+
 
         # todo lets def as an inner fn here, that way if I numba it, I can fairly easily chuck it out into a separate jit-able fn.
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
         def basicPartition():
+            for edge in self.Gdirected.es:
+                edge["st"] = (edge.source, edge.target)
+                # store original source target as attr, so okay when merge.
+
             B0 = [] # initialise the heap
             n = self.Gdirected.vcount()
+            self.Gdircopy = self.Gdirected.copy()
+            self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             self.U = range(1,n)  # like this so easier to change later
             S = set([0])
             # this is so we can do a Source-t cut,
-            self.Gdirected.add_vertices("Source") # this should have index n
             for vi in self.U:
                 partcut = {
                     "S": S.copy(),
                     "T": set([vi])
                 }
-                self.Gdirected.add_edges(es=[(n, vi-1)], attributes={"weight": [self.G.ecount() + 1]})
-                mincut = self.Gdirected.mincut(source=n, target=vi, capacity="weight")
+                s, t = mergeVertices(partcut)
+                mincut = self.Gdircopy.mincut(source=s, target=t)
                 if len(mincut.partition) == 2:
-                    mincutpartition = [set(sideVs) for sideVs in mincut.partition]
-                    # todo change to set in __init__
-                    heapq.heappush(B0, partialCut(mincut.value,partcut,mincutpartition,mincut.es))
+                    heapq.heappush(B0, partialCut(self.Gdirected,partcut,mincut))
                 else:
                     # todo Is this okay? I think we don't want it on the heap if non-minimal.
                     print("More than 2 components: {}".format(mincut))
+                    input("press any key to continue")
                 S.add(vi) # todo I think I still add it to S though. I think.
 
-            self.Gdirected.add_vertices("Target") # this should have index n+1 - not used at this stage but created now
             return(B0)
 
         def getNextPartCut(k):
@@ -130,23 +146,10 @@ class EdgeTangleSet(btang.TangleSet):
                 return None
 
         def resetGroupSourceSink(currentpcut):
+            self.U = range(1,self.G.vcount())
 
-            n = self.G.vcount()
-            self.U = range(1,n)
-
-            # todo is this the best way of doing this?
-            try:
-                self.Gdirected.delete_edges(weight_ge=self.G.ecount())
-            except:
-                pass
-
-            for vi in currentpcut["S"]:
-                self.Gdirected.add_edges(es=[(n, vi)], attributes={"weight": [self.G.ecount() + 1]})
-                # print("In reset, adding: {}".format((n, vi)))
-            for vi in currentpcut["T"]:
-                self.Gdirected.add_edges(es=[(vi, n+1)], attributes={"weight": [self.G.ecount() + 1]})
-                # print("In reset, adding: {}".format((vi, n+1)))
-            # note, indices for source and sink *should* be n and n+1
+            self.Gdircopy = self.Gdirected.copy()
+            mergeVertices(currentpcut)
             # todo Check this
 
         def extractMinPart(partial):
@@ -161,40 +164,31 @@ class EdgeTangleSet(btang.TangleSet):
 
             for Ucounter in range(len(self.U)):
                 for side in ["S", "T"]:
-                    # todo #### this shit deleted for memory fix - need to duplicate functionality.
-                    # newpcut = copy.deepcopy(prevpcut)
-                    # newpcut = prevpcut
-                    # newpcut[side].add(self.U[Ucounter])
                     if (side == "S"):
-                        newedge = (n, self.U[Ucounter])
                         otherside = "T"
                     else:  # == "T"
-                        newedge = (self.U[Ucounter], n + 1)
                         otherside = "S"
 
                     if minInPart({side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, partial.mcut):
                         sidetoaddto = side
-                        edgetoadd = newedge
                         # then continue
 
                     else:
+                        s, t, = mergeVertices(
+                            {side: prevpcut[side] | set([self.U[Ucounter]]), otherside: prevpcut[otherside]})
                         # todo check edges correctly added by here
-                        self.Gdirected.add_edges(es=[newedge], attributes={"weight": [self.G.ecount() + 1]})
-                        mincut = self.Gdirected.mincut(source=n, target=n + 1, capacity="weight")
+                        mincut = self.Gdirected.mincut(source=s, target=t)
                         if len(mincut.partition) == 2:
                             # convert to list of sets for easier subset checking
                             if mincut.value <= self.kmax:
-                                mincutpartition = [set(sideVs) for sideVs in mincut.partition]
                                 heapq.heappush(self.partcutHeap,
-                                               partialCut(mincut.value, {side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, mincutpartition, mincut.es))
+                                               partialCut(self.Gdirected,{side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, mincut))
                         else:
                             # todo Is this okay? I think we don't want it on the heap if non-minimal.
                             print("More than 2 components in extract min: {}".format(mincut))
                             input("Press any key to continue")
-                        self.Gdirected.delete_edges([newedge])
-                if(edgetoadd):
+                if(sidetoaddto):
                     # print("side to add: ", sidetoaddto)
-                    self.Gdirected.add_edges(es=[edgetoadd], attributes={"weight": [self.G.ecount() + 1]})
                     prevpcut[sidetoaddto].add(self.U[Ucounter])
 
         def minInPart(pcut, mcut):
@@ -211,10 +205,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.kmax = k + maxdepth
 
         while (partcut := getNextPartCut(k)) != None:
-            # print("k: {} Getting an item {}".format(k, partcut))
-            # print("---------------------------------")
-            # print("Before extracting....")
-            # print(partcut)
 
             extractMinPart(partcut)
             self.addToSepList(partcut)
@@ -285,12 +275,6 @@ class EdgeTangleSet(btang.TangleSet):
 
 
     def addToSepList(self, partial):
-        def cutIsSuperset(newCut):
-            for cut in self.cuts:
-                if newCut.issuperset(cut):
-                    return True
-            return False
-
         def defSmallExists(side, k):
             for i in range(self.kmin, k+1):
                 if side in self.definitelySmall[i]:
@@ -315,26 +299,7 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
-        cutEdges = frozenset(sorted(
-            [tuple(sorted((self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])))
-             for edge in partial.cutEdges if edge["weight"] < self.G.ecount()]))
-
-        if cutIsSuperset(cutEdges):
-            return
-
         components = partial.mcut  # saves me refactoring.
-
-        # add the condition in here to account for the added node in Gdirected for S,t cuts
-        for side in [0,1]:
-            try:
-                components[side].remove(self.G.vcount())
-            except:
-                pass
-            try:
-                components[side].remove(self.G.vcount()+1)
-            except:
-                pass
-
 
         # smart: making sure the first side is the shortest
         components.sort(key=len)
@@ -345,7 +310,7 @@ class EdgeTangleSet(btang.TangleSet):
         sideSubGraph = self.G.subgraph(components[0])
         complementSubGraph = self.G.subgraph(components[1])
 
-        size = len(cutEdges)
+        size = len(partial.cutEdges)
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
@@ -387,8 +352,8 @@ class EdgeTangleSet(btang.TangleSet):
             else:
                 return
 
-        self.cuts.add(cutEdges)
-        printSepToFile(components, cutEdges, orientation)
+        self.cuts.add(partial.cutEdges)
+        printSepToFile(components, partial.cutEdges, orientation)
 
 # #########################################################
     # this is for GH
