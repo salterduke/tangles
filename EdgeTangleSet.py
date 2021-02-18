@@ -359,11 +359,14 @@ class EdgeTangleSet(btang.TangleSet):
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
+        # todo - check don't need existence checks with new Yeh and Wang algorithm?
+        # todo - what about if both sides def small?
+        # todo - add check for union of all def small sides? Only if *all* seps def orientable?
         makeTrunk = True
         if(makeTrunk):
             # if sideSubGraph.vcount() == sideSubGraph.ecount() + 1 or \
             # (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2):
-            if (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2):
+            if (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in sideSubGraph.degree())):
                 if not defSmallExists(sideNodes, size):
                     # print("adding small - Side")
                     self.definitelySmall[size].append(sideNodes)
@@ -372,7 +375,7 @@ class EdgeTangleSet(btang.TangleSet):
                     return
             # elif complementSubGraph.vcount() == complementSubGraph.ecount() + 1 or \
             # (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2):
-            elif (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2):
+            elif (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in complementSubGraph.degree())):
                 if not defSmallExists(complementNodes, size):
                     # print("adding small - Complement")
                     self.definitelySmall[size].append(complementNodes)
@@ -501,7 +504,7 @@ class EdgeTangleSet(btang.TangleSet):
             else:
                 return
 
-
+        # todo Note - should be able to remove existence checks with new algorithm.
         self.cuts.add(cutEdges)
         printSepToFile(components, cutEdges, orientation)
 
