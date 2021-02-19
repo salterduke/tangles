@@ -367,7 +367,8 @@ class EdgeTangleSet(btang.TangleSet):
             # if sideSubGraph.vcount() == sideSubGraph.ecount() + 1 or \
             # (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2):
             if (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in sideSubGraph.degree())):
-                if not defSmallExists(sideNodes, size):
+                # if not defSmallExists(sideNodes, size):
+                if True:
                     # print("adding small - Side")
                     self.definitelySmall[size].append(sideNodes)
                     orientation = 1
@@ -376,7 +377,8 @@ class EdgeTangleSet(btang.TangleSet):
             # elif complementSubGraph.vcount() == complementSubGraph.ecount() + 1 or \
             # (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2):
             elif (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in complementSubGraph.degree())):
-                if not defSmallExists(complementNodes, size):
+                # if not defSmallExists(complementNodes, size):
+                if True:
                     # print("adding small - Complement")
                     self.definitelySmall[size].append(complementNodes)
                     orientation = 2
@@ -386,7 +388,8 @@ class EdgeTangleSet(btang.TangleSet):
             else:
                 ### smart - this was here before, outside if else
                 separation = (sideNodes, complementNodes)
-                if not ambigSepExists(separation, size):
+                # if not ambigSepExists(separation, size):
+                if True:
                     self.separations[size].append(separation)
                     orientation = 3
                 else:
