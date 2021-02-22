@@ -11,7 +11,8 @@ import ete3
 import sys
 import heapq
 import copy
-
+# import numba
+# from numba import jitclass
 
 import BaseTangleSet as btang
 
@@ -53,7 +54,6 @@ class partialCut(object):
 
     # todo crack the shits if still all none?
 
-
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
         self.G = G
@@ -69,9 +69,9 @@ class EdgeTangleSet(btang.TangleSet):
         self.lineGraph = self.G.linegraph()
 
         ####
-        self.cutfinder = False
-        self.doGH = False
-        self.stupid = True
+        self.cutfinder = True
+        self.doGH = True
+        self.stupid = False
 
 
         if self.cutfinder:
@@ -157,6 +157,7 @@ class EdgeTangleSet(btang.TangleSet):
                 mincut = self.Gdircopy.mincut(source=s, target=t)
                 if len(mincut.partition) == 2:
                     heapq.heappush(B0, partialCut(self.Gdirected,self.Gdircopy,partcut,mincut))
+                    # note that partialCut takes care of the vids re the adjusted graph
                 else:
                     # todo Is this okay? I think we don't want it on the heap if non-minimal.
                     print("More than 2 components: {}".format(mincut))
@@ -207,17 +208,12 @@ class EdgeTangleSet(btang.TangleSet):
                         # print(s,t)
                         # todo check edges correctly added by here
                         mincut = self.Gdircopy.mincut(source=s, target=t)
-                        # print("----------------------------------------------")
-                        # print("mincut partition")
-                        # print(mincut.partition)
                         if len(mincut.partition) == 2:
-                            # convert to list of sets for easier subset checking
                             if mincut.value <= self.kmax:
                                 heapq.heappush(self.partcutHeap,
                                                partialCut(self.Gdirected,self.Gdircopy,{side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, mincut))
-                                # print([(e.source, e.target) for e in self.Gdircopy.es])
-                                #
-                                # print("moocow")
+                                # note that partialCut takes care of the vids re the adjusted graph
+
                         else:
                             # todo Is this okay? I think we don't want it on the heap if non-minimal.
                             print("More than 2 components in extract min: {}".format(mincut))
@@ -231,10 +227,8 @@ class EdgeTangleSet(btang.TangleSet):
                     (pcut["S"].issubset(mcut[1]) and pcut["T"].issubset(mcut[0])))
 
         if k is None:  ### ie, first time running
-            # todo check initialise heap.
             self.partcutHeap = basicPartition()
             self.TangleTree.add_feature("cutsets", [])
-            # todo kmax for avoiding heap pushes.
             self.kmin = int(self.partcutHeap[0].weight)
             k = self.kmin
             self.kmax = k + maxdepth
@@ -245,8 +239,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.addToSepList(partcut)
             # todo note that the vertex IDs *should* be the same for G and Gdirected,
             # todo - and this will break if they are not
-        # print("End of fn")
-        # sys.exit()
 
 
     def findNextOrderSeparationsGH(self, k=None):
@@ -316,21 +308,6 @@ class EdgeTangleSet(btang.TangleSet):
                     return True
             return False
 
-
-        def defSmallExists(side, k):
-            for i in range(self.kmin, k+1):
-                if side in self.definitelySmall[i]:
-                    # print("Does this even happen with edge connectivity? Yes, apparently")
-                    return True
-            return False
-
-        def ambigSepExists(sep, k):
-            for i in range(self.kmin, k+1):
-                if sep in self.separations[i]:
-                    # print("Does this even happen with edge connectivity? Yes, apparently")
-                    return True
-            return False
-
         def printSepToFile(separation, cut, orientation):
             separation = sorted(separation, key=len)
 
@@ -345,63 +322,34 @@ class EdgeTangleSet(btang.TangleSet):
             return
 
         components = partial.mcut  # saves me refactoring.
-
-        # smart: making sure the first side is the shortest
         components.sort(key=len)
 
         sideNodes = frozenset({self.names[node] for node in components[0]})
         complementNodes = frozenset({self.names[node] for node in components[1]})
 
-        sideSubGraph = self.G.subgraph(components[0])
-        complementSubGraph = self.G.subgraph(components[1])
-
         size = len(partial.cutEdges)
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
-        # todo - check don't need existence checks with new Yeh and Wang algorithm?
         # todo - what about if both sides def small?
         # todo - add check for union of all def small sides? Only if *all* seps def orientable?
         makeTrunk = True
         if(makeTrunk):
-            # if sideSubGraph.vcount() == sideSubGraph.ecount() + 1 or \
-            # (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2):
-            if (all(deg <= 2 for deg in sideSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in sideSubGraph.degree())):
-                # if not defSmallExists(sideNodes, size):
-                if True:
-                    # print("adding small - Side")
-                    self.definitelySmall[size].append(sideNodes)
-                    orientation = 1
-                else:
-                    return
-            # elif complementSubGraph.vcount() == complementSubGraph.ecount() + 1 or \
-            # (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2):
-            elif (all(deg <= 2 for deg in complementSubGraph.degree()) and size >= 2) or (all(deg <= 1 for deg in complementSubGraph.degree())):
-                # if not defSmallExists(complementNodes, size):
-                if True:
-                    # print("adding small - Complement")
-                    self.definitelySmall[size].append(complementNodes)
-                    orientation = 2
-                else:
-                    return
-
+            if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
+                self.definitelySmall[size].append(sideNodes)
+                orientation = 1
+            elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
+                self.definitelySmall[size].append(complementNodes)
+                orientation = 2
             else:
-                ### smart - this was here before, outside if else
                 separation = (sideNodes, complementNodes)
-                # if not ambigSepExists(separation, size):
-                if True:
-                    self.separations[size].append(separation)
-                    orientation = 3
-                else:
-                    return
+                self.separations[size].append(separation)
+                orientation = 3
 
         else:
             separation = (sideNodes, complementNodes)
-            if not ambigSepExists(separation, size):
-                self.separations[size].append(separation)
-                orientation = 3
-            else:
-                return
+            self.separations[size].append(separation)
+            orientation = 3
 
         self.cuts.add(partial.cutEdges)
         printSepToFile(components, partial.cutEdges, orientation)
