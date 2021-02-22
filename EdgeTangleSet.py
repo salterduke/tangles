@@ -69,8 +69,9 @@ class EdgeTangleSet(btang.TangleSet):
         self.lineGraph = self.G.linegraph()
 
         ####
-        self.cutfinder = True
-        self.doGH = True
+        self.cutfinder = False
+        self.doGH = False
+        self.stupid = True
 
 
         if self.cutfinder:
@@ -93,7 +94,6 @@ class EdgeTangleSet(btang.TangleSet):
         with open(self.sepFilename, 'w+') as the_file:
             the_file.write(text)
 
-        self.stupid = True
 
 
     def findNextOrderSeparations(self, k = None):
@@ -529,6 +529,7 @@ class EdgeTangleSet(btang.TangleSet):
         print("k: {}".format(k))
         for ksub in it.combinations(self.G.es, k):
             self.processCut(ksub)
+        print("Brute")
 
     def processCut(self, edgeObjects):
         def cutIsSuperset(newCut):
