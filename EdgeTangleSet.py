@@ -11,11 +11,59 @@ import ete3
 import sys
 import heapq
 import copy
-# import numba
-# from numba import jitclass
+
+
+import concurrent.futures
+import multiprocessing
+
 
 import BaseTangleSet as btang
 
+
+def mergeVnames(names):
+    return ",".join(names)
+
+
+def externalMergeVertices(tangset, pcut):
+    minS = min(pcut["S"])
+    minT = min(pcut["T"])
+
+    Gdircopy = tangset.Gdirected.copy()
+    # todo - can I think of a faster way of doing this?
+    mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in Gdircopy.vs.indices]
+
+    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+    return Gdircopy, minS, minT
+
+
+def externalBasicPartitionBranch(tangset, uid, lock):
+    print("Doing externally")
+    partcut = {
+        "S": set(tangset.U[0:uid]).union([0]),
+        "T": set([tangset.U[uid]])
+    }
+    print(partcut)
+    print("Lock should be passed - printing")
+    Gdircopy, s, t = externalMergeVertices(tangset, partcut)
+    print(s, t)
+    mincut = Gdircopy.mincut(source=s, target=t)
+    if len(mincut.partition) == 2:
+        lock.acquire()
+        print("Locked")
+        print(id(tangset.partcutHeap))
+        try:
+            heapq.heappush(tangset.partcutHeap, partialCut(tangset.Gdirected, Gdircopy, partcut, mincut))
+            print("Moocow")
+            print(tangset.partcutHeap)
+        except:
+            print("Well, fuck")
+            sys.exit(0)
+        lock.release()
+        # note that partialCut takes care of the vids re the adjusted graph
+    else:
+        # todo Is this okay? I think we don't want it on the heap if non-minimal.
+        print("More than 2 components: {}".format(mincut))
+        input("press any key to continue")
 
 
 class partialCut(object):
@@ -53,6 +101,7 @@ class partialCut(object):
         return "\nwt {} S:{}".format(self.weight, self.pcut["S"])
 
     # todo crack the shits if still all none?
+
 
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
@@ -119,50 +168,64 @@ class EdgeTangleSet(btang.TangleSet):
             # todo - can I think of a faster way of doing this?
             mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in self.Gdircopy.vs.indices]
 
-            # print("------------------------------- in merge")
-            # print(pcut)
-            # print(mapvector)
-
-
             self.Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
-            # self.Gdircopy.contract_vertices(mapvector, combine_attrs="first")
-            # self.Gdircopy.contract_vertices(mapvector)
-
-            # print([(e.source, e.target) for e in self.Gdircopy.es])
             return minS, minT
 
 
         # todo lets def as an inner fn here, that way if I numba it, I can fairly easily chuck it out into a separate jit-able fn.
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
         def basicPartition():
+            print("Basic Partition")
             for edge in self.Gdirected.es:
                 edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
                 # store original source target as attr, so okay when merge.
 
             B0 = [] # initialise the heap
+            self.partcutHeap = []
+
+
             n = self.Gdirected.vcount()
             # self.Gdircopy = self.Gdirected.copy()
             self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             self.U = range(1,n)  # like this so easier to change later
             S = set([0])
-            # this is so we can do a Source-t cut,
-            for vi in self.U:
-                partcut = {
-                    "S": S.copy(),
-                    "T": set([vi])
-                }
-                # print("merging in basic")
-                s, t = mergeVertices(partcut)
-                mincut = self.Gdircopy.mincut(source=s, target=t)
-                if len(mincut.partition) == 2:
-                    heapq.heappush(B0, partialCut(self.Gdirected,self.Gdircopy,partcut,mincut))
-                    # note that partialCut takes care of the vids re the adjusted graph
-                else:
-                    # todo Is this okay? I think we don't want it on the heap if non-minimal.
-                    print("More than 2 components: {}".format(mincut))
-                    input("press any key to continue")
-                S.add(vi) # todo I think I still add it to S though. I think.
+
+            print("In method")
+            print(id(self.partcutHeap))
+
+            lock = multiprocessing.Lock()
+            processes = [multiprocessing.Process(target=externalBasicPartitionBranch, args=(self, i, lock)) for i in range(len(self.U))]
+            print("Trying mp")
+            for process in processes:
+                process.start()
+            for process in processes:
+                process.join()
+
+            # lock = multiprocessing.Manager().Lock()
+            # with concurrent.futures.ProcessPoolExecutor() as executor:
+            # print("In concurrent")
+            #     executor.map(externalBasicPartitionBranch, it.repeat(self), range(len(self.U)), it.repeat(lock))
+
+            # for uid in range(len(self.U)):
+            #     externalBasicPartitionBranch(self, uid)
+
+            # for vi in self.U:
+                # partcut = {
+                #     "S": S, #.copy(),
+                #     "T": set([vi])
+                # }
+                # # print("merging in basic")
+                # s, t = mergeVertices(partcut)
+                # mincut = self.Gdircopy.mincut(source=s, target=t)
+                # if len(mincut.partition) == 2:
+                #     heapq.heappush(B0, partialCut(self.Gdirected,self.Gdircopy,partcut,mincut))
+                #     # note that partialCut takes care of the vids re the adjusted graph
+                # else:
+                #     # todo Is this okay? I think we don't want it on the heap if non-minimal.
+                #     print("More than 2 components: {}".format(mincut))
+                #     input("press any key to continue")
+                # S.add(vi) # todo I think I still add it to S though. I think.
 
             return(B0)
 
@@ -227,7 +290,8 @@ class EdgeTangleSet(btang.TangleSet):
                     (pcut["S"].issubset(mcut[1]) and pcut["T"].issubset(mcut[0])))
 
         if k is None:  ### ie, first time running
-            self.partcutHeap = basicPartition()
+            # self.partcutHeap = basicPartition()
+            basicPartition()
             self.TangleTree.add_feature("cutsets", [])
             self.kmin = int(self.partcutHeap[0].weight)
             k = self.kmin
