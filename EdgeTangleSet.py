@@ -24,6 +24,41 @@ def mergeVnames(names):
     return ",".join(names)
 
 
+def externalMinPartBranch(Ucounter):
+    for side in ["S", "T"]:
+        if (side == "S"):
+            otherside = "T"
+        else:  # == "T"
+            otherside = "S"
+
+        if minInPart({side: prevpcut[side] | set([self.U[Ucounter]]), otherside: prevpcut[otherside]}, partial.mcut):
+            sidetoaddto = side
+            # then continue
+
+        else:
+            # print("merging in extract min")
+
+            s, t, = mergeVertices(
+                {side: prevpcut[side] | set([self.U[Ucounter]]), otherside: prevpcut[otherside]})
+            # print(s,t)
+            # todo check edges correctly added by here
+            mincut = self.Gdircopy.mincut(source=s, target=t)
+            if len(mincut.partition) == 2:
+                if mincut.value <= self.kmax:
+                    heapq.heappush(self.partcutHeap,
+                                   partialCut(self.Gdirected, self.Gdircopy,
+                                              {side: prevpcut[side] | set([self.U[Ucounter]]),
+                                               otherside: prevpcut[otherside]}, mincut))
+                    # note that partialCut takes care of the vids re the adjusted graph
+
+            else:
+                # todo Is this okay? I think we don't want it on the heap if non-minimal.
+                print("More than 2 components in extract min: {}".format(mincut))
+                input("Press any key to continue")
+    if (sidetoaddto):
+        prevpcut[sidetoaddto].add(self.U[Ucounter])
+
+
 def externalMergeVertices(tangset, pcut):
     minS = min(pcut["S"])
     minT = min(pcut["T"])
@@ -36,7 +71,7 @@ def externalMergeVertices(tangset, pcut):
     return Gdircopy, minS, minT
 
 
-def externalBasicPartitionBranch(uid, tangset, pheap):
+def externalBasicPartitionBranch(uid, tangset):
     partcut = {
         "S": set(tangset.U[0:uid]).union([0]),
         "T": set([tangset.U[uid]])
@@ -168,7 +203,7 @@ class EdgeTangleSet(btang.TangleSet):
                 edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
                 # store original source target as attr, so okay when merge.
 
-            B0 = [] # initialise the heap
+            # B0 = [] # initialise the heap
             with multiprocessing.Pool() as pool:
 
                 n = self.Gdirected.vcount()
@@ -176,7 +211,7 @@ class EdgeTangleSet(btang.TangleSet):
                 # let s = node 0, (see Yeh and Wang) so start at 1
                 self.U = range(1,n)  # like this so easier to change later
 
-                self.partcutHeap = pool.map(functools.partial(externalBasicPartitionBranch, tangset=self, pheap=B0), range(len(self.U)))
+                self.partcutHeap = pool.map(functools.partial(externalBasicPartitionBranch, tangset=self), range(len(self.U)))
                 heapq.heapify(self.partcutHeap)
 
 
@@ -222,12 +257,19 @@ class EdgeTangleSet(btang.TangleSet):
 
             sidetoaddto = None
 
+
+            # with multiprocessing.Pool() as pool:
+            #     placeholder = pool.map(functools.partial(externalBasicPartitionBranch, tangset=self, pheap=B0), range(len(self.U)))
+
+
             for Ucounter in range(len(self.U)):
                 for side in ["S", "T"]:
                     if (side == "S"):
                         otherside = "T"
                     else:  # == "T"
                         otherside = "S"
+
+                    # print(partial.mcut)
 
                     if minInPart({side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, partial.mcut):
                         sidetoaddto = side
