@@ -7,15 +7,16 @@ import logger
 import os
 import shutil
 
-np.set_printoptions(precision=3)
+if __name__ == '__main__':
+    np.set_printoptions(precision=3)
 
-configFile = "config.txt"
-# testName = "BacktoStupid"
-# testName = "GHU_all"
-testName = "Cutfinder"
+    configFile = "config.txt"
+    # testName = "BacktoStupid"
+    # testName = "GHU_all"
+    testName = "Cutfinder"
 
-log = logger.logger(testName)
-copyPics = False
+    log = logger.logger(testName)
+    copyPics = False
 # ------------------------------------------------------------------------------
 
 def runAnalysis(job, method):
