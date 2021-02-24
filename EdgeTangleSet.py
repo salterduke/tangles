@@ -11,9 +11,9 @@ import ete3
 import sys
 import heapq
 import copy
+import functools
+import platform
 
-
-import concurrent.futures
 import multiprocessing
 
 
@@ -36,29 +36,17 @@ def externalMergeVertices(tangset, pcut):
     return Gdircopy, minS, minT
 
 
-def externalBasicPartitionBranch(tangset, uid, lock):
-    print("Doing externally")
+def externalBasicPartitionBranch(uid, tangset, pheap):
     partcut = {
         "S": set(tangset.U[0:uid]).union([0]),
         "T": set([tangset.U[uid]])
     }
-    print(partcut)
-    print("Lock should be passed - printing")
+    print(multiprocessing.current_process().name)
     Gdircopy, s, t = externalMergeVertices(tangset, partcut)
-    print(s, t)
     mincut = Gdircopy.mincut(source=s, target=t)
     if len(mincut.partition) == 2:
-        lock.acquire()
-        print("Locked")
-        print(id(tangset.partcutHeap))
-        try:
-            heapq.heappush(tangset.partcutHeap, partialCut(tangset.Gdirected, Gdircopy, partcut, mincut))
-            print("Moocow")
-            print(tangset.partcutHeap)
-        except:
-            print("Well, fuck")
-            sys.exit(0)
-        lock.release()
+        # todo add check for kmax?
+        return partialCut(tangset.Gdirected, Gdircopy, partcut, mincut)
         # note that partialCut takes care of the vids re the adjusted graph
     else:
         # todo Is this okay? I think we don't want it on the heap if non-minimal.
@@ -87,7 +75,7 @@ class partialCut(object):
         self.cutEdges = frozenset(sorted(
             [tuple(sorted((edge["st"][0], edge["st"][1])))
              for edge in mincut.es]))
-        # todo this isn't right yet!
+        # todo this isn't right yet?
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -181,34 +169,16 @@ class EdgeTangleSet(btang.TangleSet):
                 # store original source target as attr, so okay when merge.
 
             B0 = [] # initialise the heap
-            self.partcutHeap = []
+            with multiprocessing.Pool() as pool:
 
+                n = self.Gdirected.vcount()
+                self.vids = self.Gdirected.vs.indices
+                # let s = node 0, (see Yeh and Wang) so start at 1
+                self.U = range(1,n)  # like this so easier to change later
 
-            n = self.Gdirected.vcount()
-            # self.Gdircopy = self.Gdirected.copy()
-            self.vids = self.Gdirected.vs.indices
-            # let s = node 0, (see Yeh and Wang) so start at 1
-            self.U = range(1,n)  # like this so easier to change later
-            S = set([0])
+                self.partcutHeap = pool.map(functools.partial(externalBasicPartitionBranch, tangset=self, pheap=B0), range(len(self.U)))
+                heapq.heapify(self.partcutHeap)
 
-            print("In method")
-            print(id(self.partcutHeap))
-
-            lock = multiprocessing.Lock()
-            processes = [multiprocessing.Process(target=externalBasicPartitionBranch, args=(self, i, lock)) for i in range(len(self.U))]
-            print("Trying mp")
-            for process in processes:
-                process.start()
-            for process in processes:
-                process.join()
-
-            # lock = multiprocessing.Manager().Lock()
-            # with concurrent.futures.ProcessPoolExecutor() as executor:
-            # print("In concurrent")
-            #     executor.map(externalBasicPartitionBranch, it.repeat(self), range(len(self.U)), it.repeat(lock))
-
-            # for uid in range(len(self.U)):
-            #     externalBasicPartitionBranch(self, uid)
 
             # for vi in self.U:
                 # partcut = {
@@ -227,7 +197,7 @@ class EdgeTangleSet(btang.TangleSet):
                 #     input("press any key to continue")
                 # S.add(vi) # todo I think I still add it to S though. I think.
 
-            return(B0)
+            # return(B0)
 
         def getNextPartCut(k):
             if len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
@@ -290,7 +260,6 @@ class EdgeTangleSet(btang.TangleSet):
                     (pcut["S"].issubset(mcut[1]) and pcut["T"].issubset(mcut[0])))
 
         if k is None:  ### ie, first time running
-            # self.partcutHeap = basicPartition()
             basicPartition()
             self.TangleTree.add_feature("cutsets", [])
             self.kmin = int(self.partcutHeap[0].weight)

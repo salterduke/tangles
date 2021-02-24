@@ -43,15 +43,16 @@ def copyPicsToLatex():
 # ------------------------------------------------------------------------------
 # Set name of graph file to input, and name to use for output files
 # In config file
-jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
+if __name__ == '__main__':
+    jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
-for index, job in jobsToRun.iterrows():
-    job['outputFolder'] = "./output{}".format(testName)
+    for index, job in jobsToRun.iterrows():
+        job['outputFolder'] = "./output{}".format(testName)
 
-    for method in (["tangles"]):
-        runAnalysis(job, method)
+        for method in (["tangles"]):
+            runAnalysis(job, method)
 
-if copyPics:
-    copyPicsToLatex()
+    if copyPics:
+        copyPicsToLatex()
 
-log.end()
+    log.end()
