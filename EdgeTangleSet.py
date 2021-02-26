@@ -23,8 +23,36 @@ import BaseTangleSet as btang
 def mergeVnames(names):
     return ",".join(names)
 
+def externalExtractMinPart(partcut, Gdir, kmax):
+    SuT = partcut.pcut["S"].union(partcut.pcut["T"])
+    U = [u for u in range(1, Gdir.vcount()) if u not in SuT]
+    newHeapCuts = []
+    for uid in range(len(U)):
 
-def externalMinPartBranch(uid, tangset, partcut):
+        newnode = U[uid]
+        sidetoaddto = "T" if newnode in partcut.mcut[0] else "S"
+        # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
+        newpartcut = {
+            "S": partcut.pcut["S"].union(partcut.mcut[0].intersection(U[0:uid])),
+            "T": partcut.pcut["T"].union(partcut.mcut[1].intersection(U[0:uid]))
+        }
+        newpartcut[sidetoaddto].add(newnode)
+
+
+        Gdircopy, s, t = externalMergeVertices(Gdir, newpartcut)
+        mincut = Gdircopy.mincut(source=s, target=t)
+        if len(mincut.partition) == 2:
+            if mincut.value <= kmax:
+                newHeapCuts.append(partialCut(Gdir, Gdircopy, newpartcut, mincut))
+                # note that partialCut takes care of the vids re the adjusted graph
+        else:
+            # todo Is this okay? I think we don't want it on the heap if non-minimal.
+            print("More than 2 components: {}".format(mincut))
+            input("press any key to continue")
+    return newHeapCuts
+
+
+def externalMinPartBranch(uid, Gdir, partcut):
     if 0 not in partcut.mcut[0]:
         print(partcut.mcut)
         sys.exit("0 not in side 0 in mcut!")
@@ -52,11 +80,11 @@ def externalMinPartBranch(uid, tangset, partcut):
         input("press any key to continue")
 
 
-def externalMergeVertices(tangset, pcut):
+def externalMergeVertices(Gdir, pcut):
     minS = min(pcut["S"])
     minT = min(pcut["T"])
 
-    Gdircopy = tangset.Gdirected.copy()
+    Gdircopy = Gdir.copy()
     # todo - can I think of a faster way of doing this?
     mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in Gdircopy.vs.indices]
 
@@ -69,8 +97,8 @@ def externalBasicPartitionBranch(uid, tangset):
         "S": set(tangset.U[0:uid]).union([0]),
         "T": set([tangset.U[uid]])
     }
-    # print(multiprocessing.current_process().name)
-    Gdircopy, s, t = externalMergeVertices(tangset, partcut)
+    # print(multiprocessing.current_process().name) # todo - if this works, switch from tangset to Gdir here as well
+    Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, partcut)
     mincut = Gdircopy.mincut(source=s, target=t)
     if len(mincut.partition) == 2:
         return partialCut(tangset.Gdirected, Gdircopy, partcut, mincut)
@@ -99,6 +127,10 @@ class partialCut(object):
 
         self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
         # todo check that this works okay
+        if 0 not in self.mcut[0]:
+            self.mcut[0], self.mcut[1] = self.mcut[1], self.mcut[0]
+            print("O not in side 0. New mcut:")
+            print(self.mcut)
 
         self.cutEdges = frozenset(sorted(
             [tuple(sorted((edge["st"][0], edge["st"][1])))
@@ -225,8 +257,9 @@ class EdgeTangleSet(btang.TangleSet):
             self.U = [u for u in range(1, self.G.vcount()) if u not in SuT]
             # todo set difference?
 
-            # with multiprocessing.Pool() as pool:
+            # self.log.tick("before map")
             results = pool.map(functools.partial(externalMinPartBranch, tangset=self, partcut=partial), range(len(self.U)))
+            # self.log.tock()
             for pcut in results:
                 if pcut != None:
                     heapq.heappush(self.partcutHeap, pcut)
@@ -290,12 +323,30 @@ class EdgeTangleSet(btang.TangleSet):
                 k = self.kmin
                 self.kmax = k + maxdepth
 
-            while (partcut := getNextPartCut(k)) != None:
+            # todo - could possibly set up so gets all partcuts of approp size, maps all at once
+            # todo   to reduce mp overhead, then repeats until no more of approp size?
+            # while (partcut := getNextPartCut(k)) != None:
+            #
+            #     extractMinPart(partcut, pool)
+            #     self.addToSepList(partcut)
+            #     # todo note that the vertex IDs *should* be the same for G and Gdirected,
+            #     # todo - and this will break if they are not
+            # above replaced by the below to attempt to improve multiprocessing
 
-                extractMinPart(partcut, pool)
-                self.addToSepList(partcut)
-                # todo note that the vertex IDs *should* be the same for G and Gdirected,
-                # todo - and this will break if they are not
+
+            while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
+                # I know this looks stupid, but partcutHeap gets modified by this loop
+                # and we want to repeat until no more relevant partcuts in heap
+                partcutList = []
+                while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
+                    newpartcut = heapq.heappop(self.partcutHeap)
+                    partcutList.append(newpartcut)
+                    self.addToSepList(newpartcut)
+
+                results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
+                for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
+                    if pcut.weight <= self.kmax:
+                        heapq.heappush(self.partcutHeap, pcut)
 
 
     def findNextOrderSeparationsGH(self, k=None):
@@ -379,10 +430,11 @@ class EdgeTangleSet(btang.TangleSet):
             return
 
         components = partial.mcut  # saves me refactoring.
-        components.sort(key=len)
+        # components.sort(key=len)  # fucks some stuff up # todo not important, but see if fixable
 
         sideNodes = frozenset({self.names[node] for node in components[0]})
         complementNodes = frozenset({self.names[node] for node in components[1]})
+
 
         size = len(partial.cutEdges)
 
