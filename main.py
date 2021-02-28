@@ -10,7 +10,7 @@ import shutil
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "configtemp.txt"
+    configFile = "config.txt"
     # testName = "BacktoStupid"
     # testName = "GHU_all"
     testName = "Cutfinder"
@@ -21,10 +21,9 @@ if __name__ == '__main__':
 
 def runAnalysis(job, method):
 
-    # log.log("Job: {}".format(job['outName']))
-    # log.tick("{} {}".format(job['outName'], method))
+    log.log("Job: {}".format(job['outName']))
+    log.tick("{} {}".format(job['outName'], method))
     jobGraph = netCD.graphCD(job, log)
-    return  # todo remove this and re-add log lines above.
     jobGraph.method = method
 
     jobGraph.findOverLapCommunities(method)

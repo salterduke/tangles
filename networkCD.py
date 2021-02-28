@@ -1,7 +1,6 @@
 import math
 import time
 import numpy as np
-import sys
 
 # tangleType = "V"
 tangleType = "E"
@@ -42,7 +41,7 @@ class graphCD():
         self.job = job
         self.log = log
 
-        # self.log.log("{}".format(job['outName']))
+        self.log.log("{}".format(job['outName']))
 
         self.doPrint = False
 
@@ -63,10 +62,8 @@ class graphCD():
         graph.simplify()
         self.giantComp = graph.clusters().giant()
 
-        # print("Number of nodes: {}".format(self.giantComp.vcount()))
-        # print("Number of edges: {}".format(self.giantComp.ecount()))
-
-        print("# ", job['outName'], self.giantComp.vcount(), self.giantComp.ecount())
+        print("Number of nodes: {}".format(self.giantComp.vcount()))
+        print("Number of edges: {}".format(self.giantComp.ecount()))
 
 
     ## Creates a list of colours evenly distributed around the hue spectrum
@@ -335,6 +332,12 @@ class graphCD():
 
         graphData.set_index("node", inplace=True)
         self.graphData = graphData
+
+
+        #### *** at some point, fix this shit.
+        # if "tangle" not in method:
+            # self.ScatterStatistics(graphData)
+            # self.plotCommSizeDist()
 
         quality = coll.defaultdict(float)
 
