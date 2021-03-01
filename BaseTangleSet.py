@@ -25,7 +25,7 @@ class TangleSet():
 
         #### smart - creating hasse diag to keep track of maximal small sides
         # self.hasseDiagram = ig.Graph()
-        self.maximalSeps = set()
+        # self.maximalSeps = set()
 
 
 
