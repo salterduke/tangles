@@ -162,8 +162,7 @@ class EdgeTangleSet(btang.TangleSet):
 
         self.names = self.G.vs['name']
 
-
-        self.lineGraph = self.G.linegraph()
+        self.lineGraph = None  # only used if stupid, easier to check for None and then initialise than check if exists
 
         ####
         self.cutfinder = True
@@ -634,6 +633,9 @@ class EdgeTangleSet(btang.TangleSet):
         def isCutSet(cut):
             # todo CHANGE GOES HERE
             # print(dir(self.G))
+
+            if not self.lineGraph:
+                self.lineGraph = self.G.linegraph()
 
             dfs = self.lineGraph.dfsiter(0, mode=3, advanced=False)   # 3 = ALL.
 
