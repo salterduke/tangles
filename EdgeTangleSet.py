@@ -236,6 +236,7 @@ class EdgeTangleSet(btang.TangleSet):
                 while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
+                    self.addToSepList(newpartcut)
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax, currCuts = self.cuts), partcutList)
                 origSize = len(self.partcutHeap)
@@ -245,11 +246,8 @@ class EdgeTangleSet(btang.TangleSet):
                     if pcut.weight <= self.kmax:
                         heapq.heappush(self.partcutHeap, pcut)
                 sizediff = len(self.partcutHeap) - origSize
-                for newpartcut in partcutList:
-                    self.addToSepList(newpartcut)
-                    # I know this is a repeated loop, but it means less data transferred btw processes.
 
-                # print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
+                print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
 
 
     def findNextOrderSeparationsGH(self, k=None):
