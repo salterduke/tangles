@@ -1,9 +1,21 @@
+import math
+import numpy as np
+import scipy as sp
+import csv
+import pandas as pd
+import collections as coll
+import igraph as ig
 import itertools as it
+import tools
+import ete3
 import sys
 import heapq
 import copy
 import functools
+import platform
+
 import multiprocessing
+
 
 import BaseTangleSet as btang
 
@@ -11,15 +23,7 @@ import BaseTangleSet as btang
 def mergeVnames(names):
     return ",".join(names)
 
-
-def extCutIsSuperset(currCuts, newCut):
-    for cut in currCuts:
-        if newCut.issuperset(cut):
-            return True
-    return False
-
-
-def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
+def externalExtractMinPart(partcut, Gdir, kmax):
     SuT = partcut.pcut["S"].union(partcut.pcut["T"])
     U = [u for u in range(1, Gdir.vcount()) if u not in SuT]
     newHeapCuts = []
@@ -34,14 +38,17 @@ def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
         }
         newpartcut[sidetoaddto].add(newnode)
 
+
         Gdircopy, s, t = externalMergeVertices(Gdir, newpartcut)
         mincut = Gdircopy.mincut(source=s, target=t)
-
-        if mincut.value <= kmax:
-            newPartial = partialCut(Gdir, Gdircopy, newpartcut, mincut)
-            if not extCutIsSuperset(currCuts, newPartial.cutEdges):
-                newHeapCuts.append(newPartial)
+        if len(mincut.partition) == 2:
+            if mincut.value <= kmax:
+                newHeapCuts.append(partialCut(Gdir, Gdircopy, newpartcut, mincut))
                 # note that partialCut takes care of the vids re the adjusted graph
+        else:
+            # todo Is this okay? I think we don't want it on the heap if non-minimal.
+            print("More than 2 components: {}".format(mincut))
+            input("press any key to continue")
     return newHeapCuts
 
 
@@ -185,9 +192,9 @@ class EdgeTangleSet(btang.TangleSet):
 
 
 
-    def findNextOrderSeparations(self, k = None, maxdepth=4):
+    def findNextOrderSeparations(self, k = None):
         if self.cutfinder:
-            self.findNextOrderSeparationsCutFinder(k, maxdepth)
+            self.findNextOrderSeparationsCutFinder(k)
         elif self.doGH:
             self.findNextOrderSeparationsGH(k)
         else:
@@ -197,7 +204,22 @@ class EdgeTangleSet(btang.TangleSet):
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
     def findNextOrderSeparationsCutFinder(self, k=None, maxdepth=4):
+        def mergeVnames(names):
+            return ",".join(names)
 
+        def mergeVertices(pcut):
+            minS = min(pcut["S"])
+            minT = min(pcut["T"])
+
+            self.Gdircopy = self.Gdirected.copy()
+            # todo - can I think of a faster way of doing this?
+            mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in self.Gdircopy.vs.indices]
+
+            self.Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+            return minS, minT
+
+
+        # todo lets def as an inner fn here, that way if I numba it, I can fairly easily chuck it out into a separate jit-able fn.
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
         def basicPartition(pool):
             print("Basic Partition")
@@ -205,28 +227,110 @@ class EdgeTangleSet(btang.TangleSet):
                 edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
                 # store original source target as attr, so okay when merge.
 
+            # B0 = [] # initialise the heap
+            # with multiprocessing.Pool() as pool:
+
             n = self.Gdirected.vcount()
             self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             self.U = range(1,n)  # like this so easier to change later
 
-            self.partcutHeap = [partcut for partcut in pool.map(functools.partial(externalBasicPartitionBranch, tangset=self), range(len(self.U))) if partcut.weight <= self.kmax]
-            print("Size of partcutHeap after basic: {}".format(len(self.partcutHeap)))
+            self.partcutHeap = pool.map(functools.partial(externalBasicPartitionBranch, tangset=self), range(len(self.U)))
             heapq.heapify(self.partcutHeap)
+
+        def getNextPartCut(k):
+            if len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
+                return heapq.heappop(self.partcutHeap)
+            else:
+                return None
+
+        def resetGroupSourceSink(currentpcut):
+            self.U = range(1,self.G.vcount())
+
+            # print("merging in reset")
+            mergeVertices(currentpcut)
+            # todo Check this
+
+        def extractMinPart(partial, pool):
+            SuT = partial.pcut["S"].union(partial.pcut["T"])
+            self.U = [u for u in range(1, self.G.vcount()) if u not in SuT]
+            # todo set difference?
+
+            # self.log.tick("before map")
+            results = pool.map(functools.partial(externalMinPartBranch, tangset=self, partcut=partial), range(len(self.U)))
+            # self.log.tock()
+            for pcut in results:
+                if pcut != None:
+                    heapq.heappush(self.partcutHeap, pcut)
+
+
+
+        def extractMinPartOld(partial):
+            resetGroupSourceSink(partial.pcut)
+            SuT = partial.pcut["S"].union(partial.pcut["T"])
+            self.U = [u for u in self.U if u not in SuT]
+            n = self.G.vcount()
+            # prevpcut = copy.deepcopy(partial.pcut)
+            prevpcut = partial.pcut
+
+            sidetoaddto = None
+
+            for Ucounter in range(len(self.U)):
+                for side in ["S", "T"]:
+                    if (side == "S"):
+                        otherside = "T"
+                    else:  # == "T"
+                        otherside = "S"
+
+                    # print(partial.mcut)
+
+                    if minInPart({side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, partial.mcut):
+                        sidetoaddto = side
+                        # then continue
+
+                    else:
+                        # print("merging in extract min")
+
+                        s, t, = mergeVertices(
+                            {side: prevpcut[side] | set([self.U[Ucounter]]), otherside: prevpcut[otherside]})
+                        # print(s,t)
+                        # todo check edges correctly added by here
+                        mincut = self.Gdircopy.mincut(source=s, target=t)
+                        if len(mincut.partition) == 2:
+                            if mincut.value <= self.kmax:
+                                heapq.heappush(self.partcutHeap,
+                                               partialCut(self.Gdirected,self.Gdircopy,{side:prevpcut[side] | set([self.U[Ucounter]]), otherside:prevpcut[otherside]}, mincut))
+                                # note that partialCut takes care of the vids re the adjusted graph
+
+                        else:
+                            # todo Is this okay? I think we don't want it on the heap if non-minimal.
+                            print("More than 2 components in extract min: {}".format(mincut))
+                            input("Press any key to continue")
+                if(sidetoaddto):
+                    # print("side to add: ", sidetoaddto)
+                    prevpcut[sidetoaddto].add(self.U[Ucounter])
+
+        def minInPart(pcut, mcut):
+            return ((pcut["S"].issubset(mcut[0]) and pcut["T"].issubset(mcut[1])) or
+                    (pcut["S"].issubset(mcut[1]) and pcut["T"].issubset(mcut[0])))
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
-                # ---------------------------------
-                # slight waste of time, but saves memory by being able to avoid putting things on heap
-                self.kmin = int(self.Gdirected.mincut().value)
-                k = self.kmin
-                self.kmax = k + maxdepth
-                # ---------------------------------
                 basicPartition(pool)
                 self.TangleTree.add_feature("cutsets", [])
+                self.kmin = int(self.partcutHeap[0].weight)
+                k = self.kmin
+                self.kmax = k + maxdepth
 
-                # todo note that the vertex IDs *should* be the same for G and Gdirected,
-                # todo - and this will break if they are not
+            # todo - could possibly set up so gets all partcuts of approp size, maps all at once
+            # todo   to reduce mp overhead, then repeats until no more of approp size?
+            # while (partcut := getNextPartCut(k)) != None:
+            #
+            #     extractMinPart(partcut, pool)
+            #     self.addToSepList(partcut)
+            #     # todo note that the vertex IDs *should* be the same for G and Gdirected,
+            #     # todo - and this will break if they are not
+            # above replaced by the below to attempt to improve multiprocessing
 
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
@@ -236,20 +340,12 @@ class EdgeTangleSet(btang.TangleSet):
                 while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
+                    self.addToSepList(newpartcut)
 
-                results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax, currCuts = self.cuts), partcutList)
-                origSize = len(self.partcutHeap)
-                pcutCount = 0
+                results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
-                    pcutCount+=1
                     if pcut.weight <= self.kmax:
                         heapq.heappush(self.partcutHeap, pcut)
-                sizediff = len(self.partcutHeap) - origSize
-                for newpartcut in partcutList:
-                    self.addToSepList(newpartcut)
-                    # I know this is a repeated loop, but it means less data transferred btw processes.
-
-                # print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
 
 
     def findNextOrderSeparationsGH(self, k=None):
@@ -516,6 +612,13 @@ class EdgeTangleSet(btang.TangleSet):
                 sideNodes = frozenset(self.G.vs.select(clabel_eq=1)['name'])
                 complementNodes = frozenset(self.G.vs.select(clabel_eq=2)['name'])
 
+
+            ### remove this check since can't implement in new method.
+            ### I don't *think* it's necessary?
+            # if len(components) > 2:
+            #     print("Arrgh, too many components, crack the shits!")
+            #     exit()
+
             size = len(cut)
 
             ######## ******* do other checks for "easy" seps (do shit here)
@@ -533,9 +636,15 @@ class EdgeTangleSet(btang.TangleSet):
 
             if not self.lineGraph:
                 self.lineGraph = self.G.linegraph()
+
             dfs = self.lineGraph.dfsiter(0, mode=3, advanced=False)   # 3 = ALL.
 
+            # dfs = self.G.dfsiter(0, mode=3, advanced=True)   # 3 = ALL.
+            # reset labels to blank
             self.G.vs['clabel'] = 0
+            # print("--------------------------")
+            # print(cut)
+            # print("--------------------------")
 
             ### keep running track of last vertex so edge oriented correct way
             u = None
@@ -562,17 +671,34 @@ class EdgeTangleSet(btang.TangleSet):
                     print("Crack the poopahs, no label")
                     exit()
 
+                tup = (v['name'],u['name'])
                 if (v['name'],u['name']) in cut or (u['name'],v['name']) in cut:
+                    # print("found")
+                    # print(tup)
+                    # print(cut)
                     newlabel = 3 - u['clabel'] ### switch between 1 and 2
                 else:
                     newlabel = u['clabel']
 
+                # print(tup, v['clabel'], u['clabel'], newlabel)
 
                 if v['clabel'] and v['clabel'] != newlabel:
+                    # print("Ruh roh - mismatch label, not cut set")
                     return(False)
                 else:
+                    # print("Not clabel")
                     v['clabel'] = newlabel
             # end for evert in dfs
+
+            # for edge in self.G.es:
+            #     if (self.G.vs[edge.source]["name"], self.G.vs[edge.target]["name"]) in cut:
+            #         print("cut: ", self.G.vs[edge.source]["clabel"], self.G.vs[edge.target]["clabel"])
+            #     else:
+            #         print("Not cut: ", self.G.vs[edge.source]["clabel"], self.G.vs[edge.target]["clabel"])
+
+            # for v in self.G.vs:
+            #     print(v['name'], v["clabel"])
+
 
             ### if we've traversed the whole graph without mismatch, cutset:
             return(True)
