@@ -42,21 +42,26 @@ class TangleSet():
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
 
-        self.findNextOrderSeparations()
+        self.log.tick("kTangle min Find seps")
+        self.findNextOrderSeparations(None, depth)
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
+        self.log.tock()
         # self.createHasseDiagram(self.kmin)
         self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
 
         # ### see Evrendilek for heuristic?
-        self.log.tick("kTangle{}".format(self.kmin))
+        self.log.tick("kTangle{} (min) Build Tangle".format(self.kmin))
         if not self.kTangle(self.kmin):
             print("No tangles exist")
             self.log.tock()
             return
+        else:
+            self.log.tock()
+        # todo fix to standardise output for kmin?
 
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
