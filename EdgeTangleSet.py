@@ -13,6 +13,11 @@ def mergeVnames(names):
 
 
 def extCutIsSuperset(currCuts, newCut):
+    if (set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'), ('YLR293C', 'YOR160W')]).issubset(
+            newCut) or
+            set([('YGL016W', 'YLR335W'), ('YOR098C', 'YNL189W'), ('YLR347C', 'YOR098C'),
+                 ('YLR293C', 'YOR160W')]).issubset(newCut)):
+        print(newCut)
     for cut in currCuts:
         if newCut.issuperset(cut):
             return True
@@ -39,6 +44,7 @@ def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
 
         if mincut.value <= kmax:
             newPartial = partialCut(Gdir, Gdircopy, newpartcut, mincut)
+            # if True:
             if not extCutIsSuperset(currCuts, newPartial.cutEdges):
                 newHeapCuts.append(newPartial)
                 # note that partialCut takes care of the vids re the adjusted graph
@@ -119,7 +125,7 @@ class partialCut(object):
         self.pcut = copy.deepcopy(pcut)
 
         self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
-        # todo check that this works okay
+
         if 0 not in self.mcut[0]:
             self.mcut[0], self.mcut[1] = self.mcut[1], self.mcut[0]
             print("O not in side 0. New mcut:")
@@ -128,7 +134,6 @@ class partialCut(object):
         self.cutEdges = frozenset(sorted(
             [tuple(sorted((edge["st"][0], edge["st"][1])))
              for edge in mincut.es]))
-        # todo this isn't right yet?
 
     def __lt__(self, other):
         return self.weight < other.weight
