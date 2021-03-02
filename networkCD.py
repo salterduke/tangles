@@ -114,7 +114,7 @@ class graphCD():
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
         # for dep in range(6):
-        for dep in [7]:
+        for dep in [4]:
             if tangleType == "V":
                 self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
                 self.TangleSet = tset.VertexTangleSet(self.giantComp, self.job, self.log)
