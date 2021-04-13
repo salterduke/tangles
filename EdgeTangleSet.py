@@ -13,11 +13,6 @@ def mergeVnames(names):
 
 
 def extCutIsSuperset(currCuts, newCut):
-    if (set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'), ('YLR293C', 'YOR160W')]).issubset(
-            newCut) or
-            set([('YGL016W', 'YLR335W'), ('YOR098C', 'YNL189W'), ('YLR347C', 'YOR098C'),
-                 ('YLR293C', 'YOR160W')]).issubset(newCut)):
-        print(newCut)
     for cut in currCuts:
         if newCut.issuperset(cut):
             return True
@@ -44,39 +39,42 @@ def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
 
         if mincut.value <= kmax:
             newPartial = partialCut(Gdir, Gdircopy, newpartcut, mincut)
-            # if True:
-            if not extCutIsSuperset(currCuts, newPartial.cutEdges):
+
+            if True:
+            # todo - this is the check that speeds it up lots, but doesn't seem valid.
+            # todo - are there alternate checks that are valid?
+            # if not extCutIsSuperset(currCuts, newPartial.cutEdges):
                 newHeapCuts.append(newPartial)
                 # note that partialCut takes care of the vids re the adjusted graph
     return newHeapCuts
 
 
-def externalMinPartBranch(uid, Gdir, partcut):
-    if 0 not in partcut.mcut[0]:
-        print(partcut.mcut)
-        sys.exit("0 not in side 0 in mcut!")
-
-    newnode = tangset.U[uid]
-    sidetoaddto = "T" if newnode in partcut.mcut[0] else "S"
-    # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
-    newpartcut = {
-        "S": partcut.pcut["S"].union(partcut.mcut[0].intersection(tangset.U[0:uid])),
-        "T": partcut.pcut["T"].union(partcut.mcut[1].intersection(tangset.U[0:uid]))
-    }
-    newpartcut[sidetoaddto].add(newnode)
-
-    Gdircopy, s, t = externalMergeVertices(tangset, newpartcut)
-    mincut = Gdircopy.mincut(source=s, target=t)
-    if len(mincut.partition) == 2:
-        if mincut.value <= tangset.kmax:
-            return partialCut(tangset.Gdirected, Gdircopy, newpartcut, mincut)
-            # note that partialCut takes care of the vids re the adjusted graph
-        else:
-            return None     # todo check if this is best way to handle
-    else:
-        # todo Is this okay? I think we don't want it on the heap if non-minimal.
-        print("More than 2 components: {}".format(mincut))
-        input("press any key to continue")
+# def externalMinPartBranch(uid, Gdir, partcut):
+#     if 0 not in partcut.mcut[0]:
+#         print(partcut.mcut)
+#         sys.exit("0 not in side 0 in mcut!")
+#
+#     newnode = tangset.U[uid]
+#     sidetoaddto = "T" if newnode in partcut.mcut[0] else "S"
+#     # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
+#     newpartcut = {
+#         "S": partcut.pcut["S"].union(partcut.mcut[0].intersection(tangset.U[0:uid])),
+#         "T": partcut.pcut["T"].union(partcut.mcut[1].intersection(tangset.U[0:uid]))
+#     }
+#     newpartcut[sidetoaddto].add(newnode)
+#
+#     Gdircopy, s, t = externalMergeVertices(tangset, newpartcut)
+#     mincut = Gdircopy.mincut(source=s, target=t)
+#     if len(mincut.partition) == 2:
+#         if mincut.value <= tangset.kmax:
+#             return partialCut(tangset.Gdirected, Gdircopy, newpartcut, mincut)
+#             # note that partialCut takes care of the vids re the adjusted graph
+#         else:
+#             return None     # todo check if this is best way to handle
+#     else:
+#         # todo Is this okay? I think we don't want it on the heap if non-minimal. Although don't think this actually checks properly, because vertices merged.
+#         print("More than 2 components: {}".format(mincut))
+#         input("press any key to continue")
 
 
 def externalMergeVertices(Gdir, pcut):
@@ -131,9 +129,12 @@ class partialCut(object):
             print("O not in side 0. New mcut:")
             print(self.mcut)
 
-        self.cutEdges = frozenset(sorted(
+        self.cutEdges = frozenset(
             [tuple(sorted((edge["st"][0], edge["st"][1])))
-             for edge in mincut.es]))
+             for edge in mincut.es])
+        # note to self. frozenset doesn't maintain order. No need to sort here - possibly need to sort later, before output.
+        dummy=1
+
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -165,8 +166,6 @@ class EdgeTangleSet(btang.TangleSet):
         ####
         self.cutfinder = True
         self.doGH = True
-        self.stupid = False
-
 
         if self.cutfinder:
             self.sepFilename = "{}/{}-SepList-CF.tsv". \
@@ -215,7 +214,9 @@ class EdgeTangleSet(btang.TangleSet):
             # let s = node 0, (see Yeh and Wang) so start at 1
             self.U = range(1,n)  # like this so easier to change later
 
-            self.partcutHeap = [partcut for partcut in pool.map(functools.partial(externalBasicPartitionBranch, tangset=self), range(len(self.U))) if partcut.weight <= self.kmax]
+            self.partcutHeap = [partcut for partcut in
+                                pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
+                                         range(len(self.U))) if partcut.weight <= self.kmax]
             print("Size of partcutHeap after basic: {}".format(len(self.partcutHeap)))
             heapq.heapify(self.partcutHeap)
 
@@ -243,11 +244,16 @@ class EdgeTangleSet(btang.TangleSet):
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
 
+                # todo - check if need currCuts,
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax, currCuts = self.cuts), partcutList)
                 origSize = len(self.partcutHeap)
                 pcutCount = 0
                 for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     pcutCount+=1
+                    if set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'),
+                            ('YLR293C', 'YOR160W')]) == pcut.cutEdges:
+                        print(pcut.cutEdges)
+
                     if pcut.weight <= self.kmax:
                         heapq.heappush(self.partcutHeap, pcut)
                 sizediff = len(self.partcutHeap) - origSize
@@ -269,13 +275,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.kmax = int(max(self.GHTree.es()["flow"]))
             k = self.kmin
 
-            # print("GHTree -------------------------------------------")
-            # print(self.GHTree.es()["flow"])
-            # print("kmin = {}".format(self.kmin))
-
-        # print("********************************")
-        # print("k: {}".format(k))
-
         testAllcuts = True
 
         for edge in self.GHTree.es.select(flow_eq=k):
@@ -287,6 +286,7 @@ class EdgeTangleSet(btang.TangleSet):
                 for cut in self.Gdirected.all_st_cuts(s, t):
                     cutnum+=1
                     # print("cut {}".format(cutnum))
+                    # todo - note, frozenset not ordered. fix later if needed.
                     cutEdges = frozenset(sorted(
                         [tuple(sorted((self.G.vs[edge.source]["name"], self.G.vs[edge.target]["name"]))) for edge in
                          cut.es]))
@@ -314,9 +314,21 @@ class EdgeTangleSet(btang.TangleSet):
             if not cutIsSuperset(cutEdges):
                 self.addToSepListOld([side1, side2], cutEdges)
 
-
+# this is the current working version - I think!
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
+            if (set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'),
+                     ('YLR293C', 'YOR160W')]).issubset(
+                    newCut) or
+                    set([('YGL016W', 'YLR335W'), ('YOR098C', 'YNL189W'), ('YLR347C', 'YOR098C'),
+                         ('YLR293C', 'YOR160W')]).issubset(newCut)):
+                print(newCut)
+
+            if set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'),
+                     ('YLR293C', 'YOR160W')]) == newCut:
+                print(newCut)
+
+
             for cut in self.cuts:
                 if newCut.issuperset(cut):
                     return True
@@ -473,122 +485,3 @@ class EdgeTangleSet(btang.TangleSet):
         # todo Note - should be able to remove existence checks with new algorithm.
         self.cuts.add(cutEdges)
         printSepToFile(components, cutEdges, orientation)
-
-
-
-
-    def findNextOrderSeparationsBrute(self, k = None):
-        if k is None:  ### ie, first time running
-            self.TangleTree.add_feature("cutsets", [])
-
-            minCut = self.G.mincut()
-            # print("minCut")
-            # print(minCut.value)
-
-            self.kmin = int(minCut.value)
-            k = self.kmin
-
-        print("********************************")
-        print("k: {}".format(k))
-        for ksub in it.combinations(self.G.es, k):
-            self.processCut(ksub)
-        print("Brute")
-
-    def processCut(self, edgeObjects):
-        def cutIsSuperset(newCut):
-            for cut in self.cuts:
-                if newCut.issuperset(cut):
-                    return True
-            return False
-
-        def printSepToFile(separation, cut):
-            separation = sorted(separation, key=len)
-
-            text = "{}\t{}\t{}\t{}\n".format(len(cut), sorted(cut), sorted(separation[0]), sorted(separation[1]))
-            with open(self.sepFilename, 'a') as the_file:
-                the_file.write(text)
-
-        ### Kludge - if doing new way, components is not anything sensible
-        # todo Fix later
-        def addToSepList(components, cut):
-
-            if self.stupid:
-                sideNodes = frozenset({names[node] for node in components[0]})
-                complementNodes = frozenset({names[node] for node in components[1]})
-            else:
-                sideNodes = frozenset(self.G.vs.select(clabel_eq=1)['name'])
-                complementNodes = frozenset(self.G.vs.select(clabel_eq=2)['name'])
-
-            size = len(cut)
-
-            ######## ******* do other checks for "easy" seps (do shit here)
-            separation = frozenset([sideNodes, complementNodes])
-            self.cuts.add(cut)
-            ### self.cuts is only needed to check if new proposed cuts are supersets
-            self.separations[size].append(separation)
-            ######################################
-
-            printSepToFile(separation, cut)
-
-        def isCutSet(cut):
-            # todo CHANGE GOES HERE
-            # print(dir(self.G))
-
-            if not self.lineGraph:
-                self.lineGraph = self.G.linegraph()
-            dfs = self.lineGraph.dfsiter(0, mode=3, advanced=False)   # 3 = ALL.
-
-            self.G.vs['clabel'] = 0
-
-            ### keep running track of last vertex so edge oriented correct way
-            u = None
-
-            for evert in dfs:
-                e = self.G.es[evert.index]
-
-                ### Assign u and v appropriately
-                if u == None:
-                    ## first run
-                    # print("Case None")
-                    u = self.G.vs[e.source]
-                    v = self.G.vs[e.target]
-                    u['clabel'] = 1
-                elif self.G.vs[e.source]['clabel']:
-                    # print("Case Source")
-                    u = self.G.vs[e.source]
-                    v = self.G.vs[e.target]
-                elif self.G.vs[e.target]['clabel']:
-                    # print("Case Target")
-                    u = self.G.vs[e.target]
-                    v = self.G.vs[e.source]
-                else:
-                    print("Crack the poopahs, no label")
-                    exit()
-
-                if (v['name'],u['name']) in cut or (u['name'],v['name']) in cut:
-                    newlabel = 3 - u['clabel'] ### switch between 1 and 2
-                else:
-                    newlabel = u['clabel']
-
-
-                if v['clabel'] and v['clabel'] != newlabel:
-                    return(False)
-                else:
-                    v['clabel'] = newlabel
-            # end for evert in dfs
-
-            ### if we've traversed the whole graph without mismatch, cutset:
-            return(True)
-        # end isCutSet()
-
-        cut = frozenset(sorted([tuple(sorted((self.G.vs[edge.source]["name"], self.G.vs[edge.target]["name"]))) for edge in edgeObjects]))
-        if not cutIsSuperset(cut):
-            if self.stupid:
-                Gcopy = self.G.copy()
-                names = Gcopy.vs['name']
-                Gcopy.delete_edges(edgeObjects)
-                if len(Gcopy.components()) >= 2:
-                    addToSepList(Gcopy.components(), cut)
-            else:
-                if isCutSet(cut):
-                    addToSepList("Moocow", cut)
