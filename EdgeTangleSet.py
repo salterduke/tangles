@@ -49,34 +49,6 @@ def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
     return newHeapCuts
 
 
-# def externalMinPartBranch(uid, Gdir, partcut):
-#     if 0 not in partcut.mcut[0]:
-#         print(partcut.mcut)
-#         sys.exit("0 not in side 0 in mcut!")
-#
-#     newnode = tangset.U[uid]
-#     sidetoaddto = "T" if newnode in partcut.mcut[0] else "S"
-#     # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
-#     newpartcut = {
-#         "S": partcut.pcut["S"].union(partcut.mcut[0].intersection(tangset.U[0:uid])),
-#         "T": partcut.pcut["T"].union(partcut.mcut[1].intersection(tangset.U[0:uid]))
-#     }
-#     newpartcut[sidetoaddto].add(newnode)
-#
-#     Gdircopy, s, t = externalMergeVertices(tangset, newpartcut)
-#     mincut = Gdircopy.mincut(source=s, target=t)
-#     if len(mincut.partition) == 2:
-#         if mincut.value <= tangset.kmax:
-#             return partialCut(tangset.Gdirected, Gdircopy, newpartcut, mincut)
-#             # note that partialCut takes care of the vids re the adjusted graph
-#         else:
-#             return None     # todo check if this is best way to handle
-#     else:
-#         # todo Is this okay? I think we don't want it on the heap if non-minimal. Although don't think this actually checks properly, because vertices merged.
-#         print("More than 2 components: {}".format(mincut))
-#         input("press any key to continue")
-
-
 def externalMergeVertices(Gdir, pcut):
     minS = min(pcut["S"])
     minT = min(pcut["T"])
