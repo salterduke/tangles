@@ -18,6 +18,26 @@ def extCutIsSuperset(currCuts, newCut):
             return True
     return False
 
+class HO_cutfinder(object):
+    def __init__(self, Gdir):
+        # modified init
+        pass
+
+    def findmin(self):
+        pass
+
+    def relabel(self):
+        pass
+
+    def selectSink(self):
+        pass
+
+
+def HO_mincut(Gdir):
+    cutfinder = HO_cutfinder(Gdir)
+
+
+
 
 def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
     SuT = partcut.pcut["S"].union(partcut.pcut["T"])
