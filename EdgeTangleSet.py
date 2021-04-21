@@ -186,8 +186,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.findNextOrderSeparationsCutFinder(k, maxdepth)
         elif self.doGH:
             self.findNextOrderSeparationsGH(k)
-        else:
-            self.findNextOrderSeparationsBrute(k)
 
 
     # todo whack a numba thingy on this guy? - probably a wrapper
@@ -242,9 +240,6 @@ class EdgeTangleSet(btang.TangleSet):
                 pcutCount = 0
                 for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     pcutCount+=1
-                    if set([('YGL016W', 'YLR335W'), ('YNL189W', 'YOR098C'), ('YLR347C', 'YOR098C'),
-                            ('YLR293C', 'YOR160W')]) == pcut.cutEdges:
-                        print(pcut.cutEdges)
 
                     if pcut.weight <= self.kmax:
                         heapq.heappush(self.partcutHeap, pcut)
