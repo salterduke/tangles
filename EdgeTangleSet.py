@@ -243,6 +243,8 @@ class EdgeTangleSet(btang.TangleSet):
 
                     if pcut.weight <= self.kmax:
                         heapq.heappush(self.partcutHeap, pcut)
+                    else:
+                        print("this got through")
                 sizediff = len(self.partcutHeap) - origSize
 
                 print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
