@@ -102,8 +102,6 @@ class partialCut(object):
     def __init__(self, Gdir, Gdircopy, pcut=None, mincut=None):
         def unmergeVnames(mergedVids):
             newVids = set()
-            # print("Merged Vids")
-            # print(mergedVids)
             # todo unmerge, but check for lone vertices being assigned to the wrong side
             for vid in mergedVids:
                 # print(vid)
