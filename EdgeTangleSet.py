@@ -8,6 +8,15 @@ import multiprocessing
 import BaseTangleSet as btang
 
 
+def extractComponents(mcut, vcount):
+    # probably there's a quicker way of doing this, but just get it working for now.
+    mcutList = list('{0:b}'.format(mcut).zfill(vcount)[::-1])
+    comps = [set(), set()]
+    for i in range(len(mcutList)):
+        comps[int(mcutList[i])].add(i)
+    return (comps)
+
+
 def mergeVnames(names):
     return ",".join(names)
 
@@ -39,18 +48,22 @@ def HO_mincut(Gdir):
 
 
 
-def externalExtractMinPart(partcut, Gdir, kmax, currCuts):
+def externalExtractMinPart(partcut, Gdir, kmax):
     SuT = partcut.pcut["S"].union(partcut.pcut["T"])
     U = [u for u in range(1, Gdir.vcount()) if u not in SuT]
     newHeapCuts = []
+
+    components = extractComponents(partcut.mcut, Gdir.vcount())
+
     for uid in range(len(U)):
 
         newnode = U[uid]
-        sidetoaddto = "T" if newnode in partcut.mcut[0] else "S"
+        sidetoaddto = "T" if newnode in components[0] else "S"
+
         # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
         newpartcut = {
-            "S": partcut.pcut["S"].union(partcut.mcut[0].intersection(U[0:uid])),
-            "T": partcut.pcut["T"].union(partcut.mcut[1].intersection(U[0:uid]))
+            "S": partcut.pcut["S"].union(components[0].intersection(U[0:uid])),
+            "T": partcut.pcut["T"].union(components[1].intersection(U[0:uid]))
         }
         newpartcut[sidetoaddto].add(newnode)
 
@@ -100,7 +113,13 @@ def externalBasicPartitionBranch(uid, tangset):
 
 class partialCut(object):
     def __init__(self, Gdir, Gdircopy, pcut=None, mincut=None):
+        def getMcutShort(mincut):
+            component1 = unmergeVnames(mincut.partition[1])
+            # sum(c << i for i, c in enumerate(mincut.membership))
+            return(sum(1 << i for i in component1))
+
         def unmergeVnames(mergedVids):
+
             newVids = set()
             # todo unmerge, but check for lone vertices being assigned to the wrong side
             for vid in mergedVids:
@@ -112,18 +131,25 @@ class partialCut(object):
         self.weight = mincut.value
         self.pcut = copy.deepcopy(pcut)
 
-        self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
+        # self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
+        # todo need to fix this to update node indices to *original* graph
+        self.mcut = getMcutShort(mincut)
+        # numdig = sum(c << i for i, c in enumerate(digits))
+        # '{0:b}'.format(numdig).zfill(no)[::-1]
 
-        if 0 not in self.mcut[0]:
-            self.mcut[0], self.mcut[1] = self.mcut[1], self.mcut[0]
-            print("O not in side 0. New mcut:")
-            print(self.mcut)
+        # if 0 not in self.mcut[0]:
+        #     self.mcut[0], self.mcut[1] = self.mcut[1], self.mcut[0]
+        #     print("O not in side 0. New mcut:")
+        #     print(self.mcut)
 
-        self.cutEdges = frozenset(
-            [tuple(sorted((edge["st"][0], edge["st"][1])))
-             for edge in mincut.es])
-        # note to self. frozenset doesn't maintain order. No need to sort here - possibly need to sort later, before output.
-        dummy=1
+        self.cutEdges = frozenset([edge.index for edge in mincut.es])
+
+        # keep this check in for now - remove, along with "id" assignment, if seems okay
+        for edge in mincut.es:
+            if edge.index != edge["id"]:
+                print("moocow")
+                exit()
+
 
 
     def __lt__(self, other):
@@ -177,25 +203,19 @@ class EdgeTangleSet(btang.TangleSet):
         with open(self.sepFilename, 'w+') as the_file:
             the_file.write(text)
 
-
-
-    def findNextOrderSeparations(self, k = None, maxdepth=4):
-        if self.cutfinder:
-            self.findNextOrderSeparationsCutFinder(k, maxdepth)
-        elif self.doGH:
-            self.findNextOrderSeparationsGH(k)
-
-
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
-    def findNextOrderSeparationsCutFinder(self, k=None, maxdepth=4):
+    def findNextOrderSeparations(self, k=None, maxdepth=4):
 
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
         def basicPartition(pool):
             print("Basic Partition")
             for edge in self.Gdirected.es:
-                edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
+                # edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
                 # store original source target as attr, so okay when merge.
+                edge["id"] = edge.index
+                # store orig index so okay when merging.
+                # also check if changed
 
             n = self.Gdirected.vcount()
             self.vids = self.Gdirected.vs.indices
@@ -232,8 +252,7 @@ class EdgeTangleSet(btang.TangleSet):
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
 
-                # todo - check if need currCuts,
-                results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax, currCuts = self.cuts), partcutList)
+                results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 origSize = len(self.partcutHeap)
                 pcutCount = 0
                 for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
@@ -247,7 +266,6 @@ class EdgeTangleSet(btang.TangleSet):
 
                 print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
 
-# this is the current working version - I think!
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
             for cut in self.cuts:
@@ -256,24 +274,36 @@ class EdgeTangleSet(btang.TangleSet):
             return False
 
         def printSepToFile(separation, cut, orientation):
-            separation = sorted(separation, key=len)
-
             sideNodes = sorted([self.names[node] for node in separation[0]])
             complementNodes = sorted([self.names[node] for node in separation[1]])
 
-            text = "{}\t{}\t{}\t{}\t{}\n".format(len(cut), sorted(cut), sideNodes, complementNodes, orientation)
+            cutLong = []
+            for eid in cut:
+                edge = self.Gdirected.es[eid]
+                eString = "('{}', '{}')".format(self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
+                cutLong.append(eString)
+
+            text = "{}\t{}\t{}\t{}\t{}\n".format(len(cut), sorted(cutLong), sideNodes, complementNodes, orientation)
+            text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
+
+        # def extractComponents(mcut):
+        #     # probably there's a quicker way of doing this, but just get it working for now.
+        #     mcutList = list('{0:b}'.format(mcut).zfill(self.Gdirected.vcount())[::-1])
+        #     comps = [list(),list()]
+        #     for i in len(mcutList):
+        #         comps[int(mcutList[i])] = i
+        #     return(comps)
 
         if cutIsSuperset(partial.cutEdges):
             return
 
-        components = partial.mcut  # saves me refactoring.
-        # components.sort(key=len)  # fucks some stuff up # todo not important, but see if fixable
+        components = extractComponents(partial.mcut, self.Gdirected.vcount())
+        components = sorted(components, key=len)
 
         sideNodes = frozenset({self.names[node] for node in components[0]})
         complementNodes = frozenset({self.names[node] for node in components[1]})
-
 
         size = len(partial.cutEdges)
 
@@ -281,23 +311,17 @@ class EdgeTangleSet(btang.TangleSet):
         ### smart:  initial check for def small - add more checks here?
         # todo - what about if both sides def small?
         # todo - add check for union of all def small sides? Only if *all* seps def orientable?
-        makeTrunk = True
-        if(makeTrunk):
-            if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
-                self.definitelySmall[size].append(sideNodes)
-                orientation = 1
-            elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
-                self.definitelySmall[size].append(complementNodes)
-                orientation = 2
-            else:
-                separation = (sideNodes, complementNodes)
-                self.separations[size].append(separation)
-                orientation = 3
-
+        if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
+            self.definitelySmall[size].append(sideNodes)
+            orientation = 1
+        elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
+            self.definitelySmall[size].append(complementNodes)
+            orientation = 2
         else:
             separation = (sideNodes, complementNodes)
             self.separations[size].append(separation)
             orientation = 3
 
+        # need to do this because we need to check for superset-ness
         self.cuts.add(partial.cutEdges)
         printSepToFile(components, partial.cutEdges, orientation)
