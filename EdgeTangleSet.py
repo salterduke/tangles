@@ -180,7 +180,7 @@ class partialCut(object):
         self.weight = mincut.value
         self.pcut = {
             "binrep": sum(1 << i for i in longpcut[1]),
-            "binlen": pcutlen
+            "binlen": pcutlen + 1
         }
         # todo this + 1 might be totally wrong!!!
 
