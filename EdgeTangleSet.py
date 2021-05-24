@@ -197,6 +197,10 @@ class EdgeTangleSet(btang.TangleSet):
             self.sepFilename = "{}/{}-SepList.tsv".\
                     format(job['outputFolder'], job['outName'])
 
+<<<<<<< HEAD
+=======
+        # tiny change to test github
+>>>>>>> ae7eac6526e031716673212528f1bd03d9003e50
 
         # todo Check if need to add orientation as per git.
         text = "order\tcut\tside1\tside2\torientation\n"
