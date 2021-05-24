@@ -1,3 +1,4 @@
+from __future__ import print_function
 import itertools as it
 import sys
 import heapq
@@ -7,6 +8,54 @@ import multiprocessing
 
 import BaseTangleSet as btang
 
+
+from sys import getsizeof, stderr
+from itertools import chain
+from collections import deque
+try:
+    from reprlib import repr
+except ImportError:
+    pass
+
+def total_size(o, handlers={}, verbose=False):
+    """ Returns the approximate memory footprint an object and all of its contents.
+
+    Automatically finds the contents of the following builtin containers and
+    their subclasses:  tuple, list, deque, dict, set and frozenset.
+    To search other containers, add handlers to iterate over their contents:
+
+        handlers = {SomeContainerClass: iter,
+                    OtherContainerClass: OtherContainerClass.get_elements}
+
+    """
+    dict_handler = lambda d: chain.from_iterable(d.items())
+    all_handlers = {tuple: iter,
+                    list: iter,
+                    deque: iter,
+                    dict: dict_handler,
+                    set: iter,
+                    frozenset: iter,
+                   }
+    all_handlers.update(handlers)     # user handlers take precedence
+    seen = set()                      # track which object id's have already been seen
+    default_size = getsizeof(0)       # estimate sizeof object without __sizeof__
+
+    def sizeof(o):
+        if id(o) in seen:       # do not double count the same object
+            return 0
+        seen.add(id(o))
+        s = getsizeof(o, default_size)
+
+        if verbose:
+            print(s, type(o), repr(o), file=stderr)
+
+        for typ, handler in all_handlers.items():
+            if isinstance(o, typ):
+                s += sum(map(sizeof, handler(o)))
+                break
+        return s
+
+    return sizeof(o)
 
 def extractComponents(mcut, vcount):
     # probably there's a quicker way of doing this, but just get it working for now.
@@ -27,6 +76,7 @@ def extCutIsSuperset(currCuts, newCut):
             return True
     return False
 
+# next two defs just stubs...
 class HO_cutfinder(object):
     def __init__(self, Gdir):
         # modified init
@@ -41,11 +91,8 @@ class HO_cutfinder(object):
     def selectSink(self):
         pass
 
-
 def HO_mincut(Gdir):
     cutfinder = HO_cutfinder(Gdir)
-
-
 
 
 def externalExtractMinPart(partcut, Gdir, kmax):
@@ -61,17 +108,17 @@ def externalExtractMinPart(partcut, Gdir, kmax):
         sidetoaddto = "T" if newnode in components[0] else "S"
 
         # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
-        newpartcut = {
+        newpcut = {
             "S": partcut.pcut["S"].union(components[0].intersection(U[0:uid])),
             "T": partcut.pcut["T"].union(components[1].intersection(U[0:uid]))
         }
-        newpartcut[sidetoaddto].add(newnode)
+        newpcut[sidetoaddto].add(newnode)
 
-        Gdircopy, s, t = externalMergeVertices(Gdir, newpartcut)
+        Gdircopy, s, t = externalMergeVertices(Gdir, newpcut)
         mincut = Gdircopy.mincut(source=s, target=t)
 
         if mincut.value <= kmax:
-            newPartial = partialCut(Gdir, Gdircopy, newpartcut, mincut)
+            newPartial = partialCut(Gdir, Gdircopy, newpcut, mincut)
 
             if True:
             # todo - this is the check that speeds it up lots, but doesn't seem valid.
@@ -93,17 +140,16 @@ def externalMergeVertices(Gdir, pcut):
     Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
     return Gdircopy, minS, minT
 
-
+# NOTE can probably just pass the few bits of tangset we need, but this isn't the slow bit, so eh...
 def externalBasicPartitionBranch(uid, tangset):
-    partcut = {
+    newpcut = {
         "S": set(tangset.U[0:uid]).union([0]),
         "T": set([tangset.U[uid]])
     }
-    # print(multiprocessing.current_process().name) # todo - if this works, switch from tangset to Gdir here as well
-    Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, partcut)
+    Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
     mincut = Gdircopy.mincut(source=s, target=t)
     if len(mincut.partition) == 2:
-        return partialCut(tangset.Gdirected, Gdircopy, partcut, mincut)
+        return partialCut(tangset.Gdirected, Gdircopy, newpcut, mincut)
         # note that partialCut takes care of the vids re the adjusted graph
     else:
         # todo Is this okay? I think we don't want it on the heap if non-minimal.
@@ -114,7 +160,7 @@ def externalBasicPartitionBranch(uid, tangset):
 class partialCut(object):
     def __init__(self, Gdir, Gdircopy, pcut=None, mincut=None):
         def getMcutShort(mincut):
-            component1 = unmergeVnames(mincut.partition[1])
+            component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
             # sum(c << i for i, c in enumerate(mincut.membership))
             return(sum(1 << i for i in component1))
 
@@ -177,27 +223,16 @@ class EdgeTangleSet(btang.TangleSet):
 
         self.names = self.G.vs['name']
 
-        self.lineGraph = None  # only used if stupid, easier to check for None and then initialise than check if exists
-
         ####
         self.cutfinder = True
-        self.doGH = True
 
         if self.cutfinder:
             self.sepFilename = "{}/{}-SepList-CF.tsv". \
                 format(job['outputFolder'], job['outName'])
-        elif self.doGH:
-            self.sepFilename = "{}/{}-SepList-GHU.tsv". \
-                format(job['outputFolder'], job['outName'])
-            self.GHTree = self.G.gomory_hu_tree()
-            for v in self.GHTree.vs():
-                v["name"] = self.names[v.index]
         else:
             self.sepFilename = "{}/{}-SepList.tsv".\
                     format(job['outputFolder'], job['outName'])
 
-
-        # antoerh github test
 
         # todo Check if need to add orientation as per git.
         text = "order\tcut\tside1\tside2\torientation\n"
@@ -228,6 +263,8 @@ class EdgeTangleSet(btang.TangleSet):
                                          range(len(self.U))) if partcut.weight <= self.kmax]
             print("Size of partcutHeap after basic: {}".format(len(self.partcutHeap)))
             heapq.heapify(self.partcutHeap)
+            print("MEMORY Size of partcutHeap after basic: {}".format(total_size(self.partcutHeap)))
+            print("-------------------------------------------------------------------------------")
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
@@ -255,17 +292,21 @@ class EdgeTangleSet(btang.TangleSet):
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 origSize = len(self.partcutHeap)
-                pcutCount = 0
-                for pcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
-                    pcutCount+=1
+                partcutCount = 0
+                for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
+                    partcutCount+=1
 
-                    if pcut.weight <= self.kmax:
-                        heapq.heappush(self.partcutHeap, pcut)
+                    if partcut.weight <= self.kmax:
+                        heapq.heappush(self.partcutHeap, partcut)
                     else:
                         print("this got through")
                 sizediff = len(self.partcutHeap) - origSize
 
-                print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), pcutCount, sizediff, len(self.partcutHeap)))
+                print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), partcutCount, sizediff, len(self.partcutHeap)))
+                print("MEMORY Size of partcutHeap after next step: {}".format(total_size(self.partcutHeap)))
+                print("TOTAL Size of TANGLE TREE after next step: {}".format(total_size(self.TangleTree)))
+                print("TOTAL Size of TANGLE Lists after next step: {}".format(total_size(self.TangleLists)))
+                print("-------------------------------------------------------------------------------")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
