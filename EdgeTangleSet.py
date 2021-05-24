@@ -96,7 +96,9 @@ def HO_mincut(Gdir):
 
 
 def externalExtractMinPart(partcut, Gdir, kmax):
-    SuT = partcut.pcut["S"].union(partcut.pcut["T"])
+    longpcut = extractComponents(partcut.pcut["binrep"], partcut.pcut["binlen"])
+
+    SuT = longpcut[0].union(longpcut[1])
     U = [u for u in range(1, Gdir.vcount()) if u not in SuT]
     newHeapCuts = []
 
@@ -105,20 +107,20 @@ def externalExtractMinPart(partcut, Gdir, kmax):
     for uid in range(len(U)):
 
         newnode = U[uid]
-        sidetoaddto = "T" if newnode in components[0] else "S"
-
+        sidetoaddto = 1 if newnode in components[0] else 0
         # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
-        newpcut = {
-            "S": partcut.pcut["S"].union(components[0].intersection(U[0:uid])),
-            "T": partcut.pcut["T"].union(components[1].intersection(U[0:uid]))
-        }
+
+        newpcut = [
+            longpcut[0].union(components[0].intersection(U[0:uid])),
+            longpcut[1].union(components[1].intersection(U[0:uid]))
+        ]
         newpcut[sidetoaddto].add(newnode)
 
         Gdircopy, s, t = externalMergeVertices(Gdir, newpcut)
         mincut = Gdircopy.mincut(source=s, target=t)
 
         if mincut.value <= kmax:
-            newPartial = partialCut(Gdir, Gdircopy, newpcut, mincut)
+            newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, uid)  # todo again, do I need a + 1?
 
             if True:
             # todo - this is the check that speeds it up lots, but doesn't seem valid.
@@ -130,26 +132,27 @@ def externalExtractMinPart(partcut, Gdir, kmax):
 
 
 def externalMergeVertices(Gdir, pcut):
-    minS = min(pcut["S"])
-    minT = min(pcut["T"])
+    minS = min(pcut[0])
+    minT = min(pcut[1])
 
     Gdircopy = Gdir.copy()
     # todo - can I think of a faster way of doing this?
-    mapvector = [minS if v in pcut["S"] else (minT if v in pcut["T"] else v) for v in Gdircopy.vs.indices]
+    mapvector = [minS if v in pcut[0] else (minT if v in pcut[1] else v) for v in Gdircopy.vs.indices]
 
     Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
     return Gdircopy, minS, minT
 
+
 # NOTE can probably just pass the few bits of tangset we need, but this isn't the slow bit, so eh...
 def externalBasicPartitionBranch(uid, tangset):
-    newpcut = {
-        "S": set(tangset.U[0:uid]).union([0]),
-        "T": set([tangset.U[uid]])
-    }
+    newpcut = [
+        set(tangset.U[0:uid]).union([0]),
+        set([tangset.U[uid]])
+    ]
     Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
     mincut = Gdircopy.mincut(source=s, target=t)
     if len(mincut.partition) == 2:
-        return partialCut(tangset.Gdirected, Gdircopy, newpcut, mincut)
+        return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid) # todo do I need a + 1?
         # note that partialCut takes care of the vids re the adjusted graph
     else:
         # todo Is this okay? I think we don't want it on the heap if non-minimal.
@@ -158,7 +161,7 @@ def externalBasicPartitionBranch(uid, tangset):
 
 
 class partialCut(object):
-    def __init__(self, Gdir, Gdircopy, pcut=None, mincut=None):
+    def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None, pcutlen=0):
         def getMcutShort(mincut):
             component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
             # sum(c << i for i, c in enumerate(mincut.membership))
@@ -175,7 +178,12 @@ class partialCut(object):
             return newVids
 
         self.weight = mincut.value
-        self.pcut = copy.deepcopy(pcut)
+        self.pcut = {
+            "binrep": sum(1 << i for i in longpcut[1]),
+            "binlen": pcutlen
+        }
+        # todo this + 1 might be totally wrong!!!
+
 
         # self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
         # todo need to fix this to update node indices to *original* graph
@@ -203,11 +211,11 @@ class partialCut(object):
 
     def __str__(self):
         # todo add more shit later?
-        return "wt {} S:{}".format(self.weight, self.pcut["S"])
+        return "wt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
     def __repr__(self):
         # todo add more shit later?
-        return "\nwt {} S:{}".format(self.weight, self.pcut["S"])
+        return "\nwt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
     # todo crack the shits if still all none?
 
@@ -302,11 +310,11 @@ class EdgeTangleSet(btang.TangleSet):
                         print("this got through")
                 sizediff = len(self.partcutHeap) - origSize
 
-                print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), partcutCount, sizediff, len(self.partcutHeap)))
-                print("MEMORY Size of partcutHeap after next step: {}".format(total_size(self.partcutHeap)))
-                print("TOTAL Size of TANGLE TREE after next step: {}".format(total_size(self.TangleTree)))
-                print("TOTAL Size of TANGLE Lists after next step: {}".format(total_size(self.TangleLists)))
-                print("-------------------------------------------------------------------------------")
+                # print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), partcutCount, sizediff, len(self.partcutHeap)))
+                # print("MEMORY Size of partcutHeap after next step: {}".format(total_size(self.partcutHeap)))
+                # print("TOTAL Size of TANGLE TREE after next step: {}".format(total_size(self.TangleTree)))
+                # print("TOTAL Size of TANGLE Lists after next step: {}".format(total_size(self.TangleLists)))
+                # print("-------------------------------------------------------------------------------")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
