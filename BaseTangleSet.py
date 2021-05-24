@@ -37,7 +37,6 @@ class TangleSet():
     #### delete depth later, when we're sure this works. ******
     def findAllTangles(self, depth=4):
         print("Finding All Tangles")
-        # self.AvoidThreshold = threshold
 
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
@@ -75,21 +74,13 @@ class TangleSet():
                 print("NOT k: {}".format(k))
                 self.tangleNum = k
                 self.log.tock()
-                ####### ********
-                # return(self.commLists)
-                # return(self.allBigSideProps)
                 return(False)
             self.log.tock()
 
         self.log.end()
-        ####### ********
-        # return(self.commLists)
         return(self.allBigSideProps)
 
     def checkTangleAxioms(self, newSep):
-        if newSep == set(list('ijk')):
-            # print(side1, side2, newSep)
-            print(self.smallSidesStack)
 
         ###### yes, I know this is probably not the best programming practice!!!
         if "Edge" in str(self.__class__):
@@ -111,8 +102,6 @@ class TangleSet():
 
         ### Axiom 2
         for side1, side2 in it.combinations(self.smallSidesStack, 2):
-            # if newSep == set(list('ijk')):
-            #     print(side1, side2, newSep)
             ###### ***** unnecessary, but maybe useful???
             # if newSep.issuperset(self.groundset - side1) or newSep.issuperset(self.groundset - side2):
             #     # print("**************")
@@ -140,15 +129,12 @@ class TangleSet():
             return(len(sep[1]))
 
         def formatSideName(side):   ##### fix this to switch on "verbose"
-            # return ""
             side = str(side)
             side = side.replace("frozenset(", "").replace(")", "")
             side = side.replace("'", "")
             return side
 
         def addSideAsSep(side, parent, sepNum):
-            # checkparent = set(['YBL014C', 'YCR042C', 'YDR145W', 'YDR167W', 'YDR392W', 'YDR448W', 'YER107C', 'YER110C', 'YER148W', 'YGL016W', 'YGL092W', 'YGL238W', 'YGL241W', 'YGR047C', 'YGR218W', 'YGR246C', 'YGR274C', 'YIL063C', 'YIL115C', 'YJL025W', 'YKL058W', 'YLR293C', 'YLR335W', 'YLR347C', 'YML007W', 'YML043C', 'YML114C', 'YMR005W', 'YMR047C', 'YMR125W', 'YMR308C', 'YNL039W', 'YNL189W', 'YOR098C', 'YOR160W', 'YOR194C', 'YPL082C', 'YPL178W'])
-            # pset = set(parent.name.strip("{}").split(", "))
 
             if self.checkTangleAxioms(side):
 
@@ -167,7 +153,6 @@ class TangleSet():
 
                 self.smallSidesStack.pop()
 
-
         self.foundTangle = 0
 
         numkdefSmall = len(self.definitelySmall[k])
@@ -185,8 +170,17 @@ class TangleSet():
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
                 elif sepNum < numkSeps:
                     ### check both sides of the separation
-                    for side in self.separations[k][sepNum - numkdefSmall]:
-                        addSideAsSep(side, truncTangle, sepNum)
+                    # NOTE: Edited so that only the side with fewest elements is stored
+                    # other must be calculated
+                    # for side in self.separations[k][sepNum - numkdefSmall]:
+                    #     addSideAsSep(side, truncTangle, sepNum)
+                    # todo has NOT been checked for correctness with vertex tangles.
+                    side = self.separations[k][sepNum - numkdefSmall]
+                    addSideAsSep(side, truncTangle, sepNum)
+                    complement = self.groundset - side
+                    addSideAsSep(complement, truncTangle, sepNum)
+
+
 
         if self.foundTangle:
             self.finaliseAndPrint(k)

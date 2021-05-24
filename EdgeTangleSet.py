@@ -192,15 +192,10 @@ class EdgeTangleSet(btang.TangleSet):
             self.GHTree = self.G.gomory_hu_tree()
             for v in self.GHTree.vs():
                 v["name"] = self.names[v.index]
-            # self.findAllMinCuts()
         else:
             self.sepFilename = "{}/{}-SepList.tsv".\
                     format(job['outputFolder'], job['outName'])
 
-<<<<<<< HEAD
-=======
-        # tiny change to test github
->>>>>>> ae7eac6526e031716673212528f1bd03d9003e50
 
         # antoerh github test
 
@@ -324,8 +319,10 @@ class EdgeTangleSet(btang.TangleSet):
             self.definitelySmall[size].append(complementNodes)
             orientation = 2
         else:
-            separation = (sideNodes, complementNodes)
-            self.separations[size].append(separation)
+            # Note: edited so only adding the shortest side.
+            # separation = (sideNodes, complementNodes)
+            # self.separations[size].append(separation)
+            self.separations[size].append(sideNodes)
             orientation = 3
 
         # need to do this because we need to check for superset-ness
