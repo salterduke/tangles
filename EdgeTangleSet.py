@@ -120,7 +120,8 @@ def externalExtractMinPart(partcut, Gdir, kmax):
         mincut = Gdircopy.mincut(source=s, target=t)
 
         if mincut.value <= kmax:
-            newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, uid)  # todo again, do I need a + 1?
+            pcutlen = uid + len(SuT) + 1
+            newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, pcutlen)  # todo again, do I need a + 1?
 
             if True:
             # todo - this is the check that speeds it up lots, but doesn't seem valid.
@@ -151,8 +152,9 @@ def externalBasicPartitionBranch(uid, tangset):
     ]
     Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
     mincut = Gdircopy.mincut(source=s, target=t)
+    dummy = 1
     if len(mincut.partition) == 2:
-        return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid) # todo do I need a + 1?
+        return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid+2) # todo note, 2 for: node 0, and 0 indexing
         # note that partialCut takes care of the vids re the adjusted graph
     else:
         # todo Is this okay? I think we don't want it on the heap if non-minimal.
@@ -180,10 +182,10 @@ class partialCut(object):
         self.weight = mincut.value
         self.pcut = {
             "binrep": sum(1 << i for i in longpcut[1]),
-            "binlen": pcutlen + 1
+            "binlen": pcutlen
         }
         # todo this + 1 might be totally wrong!!!
-
+        dummy = 1
 
         # self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
         # todo need to fix this to update node indices to *original* graph
