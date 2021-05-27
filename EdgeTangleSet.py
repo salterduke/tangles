@@ -125,10 +125,10 @@ class partialCut(object):
         if fromDB:
             self.weight = dbRow[1]
             self.pcut = {
-                "binrep": dbRow[2],
+                "binrep": int(dbRow[2]),
                 "binlen": dbRow[3]
             }
-            self.mcut = dbRow[4]
+            self.mcut = int(dbRow[4])
             self.cutEdges = frozenset(map(int, dbRow[5].split(",")))
 
         else:
@@ -176,24 +176,27 @@ class EdgeTangleSet(btang.TangleSet):
             the_file.write(text)
 
         # todo;: do I want to put other stuff in a db?
-        self.partcutConn = sqlite3.connect("partcutDB.sqlite")  # does this give rel path?
+        self.partcutConn = sqlite3.connect("partcutDB_2.sqlite")  # todo mod filename so can run two files concurrently
         partcutCursor = self.partcutConn.cursor()
+
+        dropTableStr = """ DROP TABLE IF EXISTS partcuts """
+        partcutCursor.execute(dropTableStr)
+
         createTableStr = """ CREATE TABLE IF NOT EXISTS partcuts (
                             id integer PRIMARY KEY,
                             weight integer,
-                            pcutrep integer,
+                            pcutrep text,
                             pcutlen integer,
-                            mcut integer,
+                            mcut text,
                             edgeCuts text
-                        ); """
+                            ); 
+                            """
+
+        createIndexStr = """ CREATE INDEX weight_idx
+                            ON partcuts (weight); """
 
         partcutCursor.execute(createTableStr)
-
-
-    def __del__(self):
-        pass
-        # todo: this needs to delete all the partcuts from self.partcutDB
-
+        partcutCursor.execute(createIndexStr)
 
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
@@ -227,10 +230,6 @@ class EdgeTangleSet(btang.TangleSet):
                 self.kmax = k + maxdepth
                 # ---------------------------------
                 basicPartition(pool)
-                # self.TangleTree.add_feature("cutsets", [])
-
-                # todo note that the vertex IDs *should* be the same for G and Gdirected,
-                # todo - and this will break if they are not
 
             # ----------------------------------------------------------------------------
             selectString = """ SELECT * FROM partcuts WHERE weight=? """
@@ -255,16 +254,6 @@ class EdgeTangleSet(btang.TangleSet):
                     self.addToSepList(newpartcut)
                 self.partcutConn.commit()
 
-            # todo: convert to db - get *all* of k cuts, store, iter through and add in mem?
-            # while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
-            #     # I know this looks stupid, but partcutHeap gets modified by this loop
-            #     # and we want to repeat until no more relevant partcuts in heap
-            #     partcutList = []
-            #     while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
-            #         newpartcut = heapq.heappop(self.partcutHeap)
-            #         partcutList.append(newpartcut)
-            #         self.addToSepList(newpartcut)
-
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     self.addtoPartcutDB(partcut)
@@ -273,9 +262,9 @@ class EdgeTangleSet(btang.TangleSet):
         sql = """ INSERT INTO partcuts(weight,pcutrep,pcutlen,mcut,edgeCuts) VALUES(?,?,?,?,?) """
 
         dbTuple = (partcut.weight,
-                   partcut.pcut["binrep"],
+                   str(partcut.pcut["binrep"]),
                    partcut.pcut["binlen"],
-                   partcut.mcut,
+                   str(partcut.mcut),
                    ",".join(map(str, partcut.cutEdges)))
         partcutCursor = self.partcutConn.cursor()
         partcutCursor.execute(sql, dbTuple)
@@ -303,14 +292,6 @@ class EdgeTangleSet(btang.TangleSet):
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
-
-        # def extractComponents(mcut):
-        #     # probably there's a quicker way of doing this, but just get it working for now.
-        #     mcutList = list('{0:b}'.format(mcut).zfill(self.Gdirected.vcount())[::-1])
-        #     comps = [list(),list()]
-        #     for i in len(mcutList):
-        #         comps[int(mcutList[i])] = i
-        #     return(comps)
 
         if cutIsSuperset(partial.cutEdges):
             return
