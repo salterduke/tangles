@@ -203,8 +203,8 @@ class EdgeTangleSet(btang.TangleSet):
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-        if k == 5:
-            print("Moocow")
+        # if k == 5:
+        #     print("Moocow")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):

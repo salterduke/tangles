@@ -1,5 +1,4 @@
 import math
-import time
 import numpy as np
 
 # tangleType = "V"
@@ -9,9 +8,7 @@ if tangleType == "V":
 elif tangleType == "E":
     import EdgeTangleSet as tset
 
-
 import pandas as pd
-
 import collections as coll
 import colorsys
 import matplotlib.pyplot as plt
@@ -19,22 +16,16 @@ import igraph as ig
 import itertools as iter
 import protChecker
 import sklearn.metrics as skl
-
 import os
 import socket
 
 from py2cytoscape.data.cyrest_client import CyRestClient
-
-# interface ver2
-from py2cytoscape import cyrest
 
 from igraph import arpack_options
 arpack_options.maxiter=300000
 
 class graphCD():
     def __init__(self, job, log):
-
-        ### arbitrary for now - change later? ***
 
         self.flags = str(job['flags']).split(',')
         # todo Chuck some error checking in here later ******
@@ -51,13 +42,10 @@ class graphCD():
         elif job['format'] == "gml":
             pass
         elif job['format'] == "graphml":
-            # self.graph = ig.Graph.Read_GraphML(job['inFile'])
             graph = ig.Graph.Read_GraphML(job['inFile'])
         else:
             print("invalid data format")
             exit()
-
-
 
         graph.simplify()
         self.giantComp = graph.clusters().giant()
@@ -82,9 +70,6 @@ class graphCD():
         elif format=="rgb":
             for i in range(0,commRange):
                 rgblist = list(colorsys.hsv_to_rgb(i/commRange, 1, 0.7))
-                # formattedlist = list(map(lambda x: hex(int(x*255)).\
-                #     split("0x")[1],rgblist))
-                # print(formattedlist)
                 self.colList.append(
                     "#{}".format("".join(map(lambda x: hex(int(x*255)).\
                         split("0x")[1].zfill(2),rgblist))))
@@ -109,85 +94,23 @@ class graphCD():
 
     def overlapByTangles(self):
 
-        qualList = []
-
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
-        # for dep in range(6):
-        for dep in [4]:
-            if tangleType == "V":
-                self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
-                self.TangleSet = tset.VertexTangleSet(self.giantComp, self.job, self.log)
-            elif tangleType == "E":
-                self.groundset = set(self.giantComp.vs["name"])
-                self.TangleSet = tset.EdgeTangleSet(self.giantComp, self.job, self.log)
-                print("Finding Edge connectivity tangles")
+        dep = 4
+        if tangleType == "V":
+            self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
+            self.TangleSet = tset.VertexTangleSet(self.giantComp, self.job, self.log)
+        elif tangleType == "E":
+            self.groundset = set(self.giantComp.vs["name"])
+            self.TangleSet = tset.EdgeTangleSet(self.giantComp, self.job, self.log)
+            print("Finding Edge connectivity tangles")
+        else:
+            print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
-                #### temp stuff
-                if self.doPrint and socket.gethostname().find("ginger") > -1:
-                    self.cytoPrint(method="GHUTREE", graphToPrint=self.TangleSet.GHTree)
-                    # exit()
-            else:
-                print("incorrect tangle type {} specified. Use V or E".format(tangleType))
-
-            allBigSideProps = self.TangleSet.findAllTangles(depth=dep)
-
-
-            if allBigSideProps:
-
-                self.numOverlapComms = len(allBigSideProps)
-                self.getColourList(format="rgb", overlap=True)
-
-                for thres in np.linspace(1, 1,1):
-                # for thres in np.linspace(0.8, 1,4+1):
-                    # pp = pprint.PrettyPrinter()
-                    # pp.pprint(allBigSideProps)
-                    # print("Doing threshold {}".format(thres))
-                    # print("-------------------------------------------")
-                    for commIndex in allBigSideProps.keys():
-                        self.commLists[commIndex]={element for
-                            element in self.groundset
-                            if allBigSideProps[commIndex][element] >= thres}
-
-                        # print(self.commLists[commIndex])
-
-                    # for commIndex in list(self.commLists.keys()):
-                        if len(self.commLists[commIndex]) < 3:
-                            # print("Found trivial community - deleting")
-                            # print("{}: {}".format(commIndex, self.commLists[commIndex]))
-                            self.commLists.pop(commIndex, None)
-                            continue
-
-                        for node in self.commLists[commIndex]:
-                            nodeIndex = self.giantComp.vs.find(node).index
-                            self.addCommToNode(nodeIndex, commIndex)
-
-                    self.numOverlapComms = len(self.commLists)
-                    print("self.numOverlapComms, after del trivial: {}".format(self.numOverlapComms))
-
-                    self.log.log("Method tangles, {} found {} communities".format(thres, self.numOverlapComms))
-                    if self.numOverlapComms >= 2:
-                        #### Adding 1 to get *tangle* order
-                        quality = self.analyseOverlapComms("{}.t{}.o{}".format(self.method,thres,self.TangleSet.kmin+dep+1))
-                        # quality["thres"] = thres
-                        # quality["depth"] = dep
-                        quality["numComms"] = self.numOverlapComms
-                        # print("Appending quality: ==============={}".format(quality))
-
-                        # print("CommLists:")
-                        # print(self.commLists)
-
-
-                        qualList.append(quality)
-
-                    self.clearCommAssignments()
-
-        enrichmentDF = pd.DataFrame(qualList)
-        # print("enrichmentDF")
-        # print(enrichmentDF)
-        enrichmentDF.to_csv("{}/{}-enrichmentVals.csv".\
-            format(self.job['outputFolder'], self.job['outName']))
-
+        self.TangleSet.findAllTangles(depth=dep)
+        # todo consider what return value we want?
+        # remember that in adding comms to nodes, we have to clear comm assignments if want to assign differently later
+        # save to file somehow, then read that to evaluate communities
 
     def addCommToNode(self, nodeIndex, comm):
 
@@ -211,8 +134,6 @@ class graphCD():
                 format(",".join(self.colList), ",".join(commList)) ######
 
         nodeObj["comm{}".format(comm)] = "1"
-#####################
-
 
     def clearCommAssignments(self):
         for node in self.giantComp.vs:
@@ -333,12 +254,6 @@ class graphCD():
         graphData.set_index("node", inplace=True)
         self.graphData = graphData
 
-
-        #### *** at some point, fix this shit.
-        # if "tangle" not in method:
-            # self.ScatterStatistics(graphData)
-            # self.plotCommSizeDist()
-
         quality = coll.defaultdict(float)
 
 
@@ -350,7 +265,6 @@ class graphCD():
             quality["enrichment"] = 0
             quality["mi"] = 0
             quality["NMI"] = 0
-
 
         quality["commcover"] = len(graphData[graphData["commCount"] > 0]) / self.giantComp.vcount()
         quality["overlapcover"] = graphData["commCount"].mean()
@@ -377,84 +291,6 @@ class graphCD():
             the_file.write(text)
 
         return(quality)
-
-    # todo I don't think this works, but worry about later.
-    def cytoPrintAlternate(self, method=None, graphToPrint=None):
-
-        cyDrawer = ig.drawing.graph.CytoscapeGraphDrawer()
-        print("trying CytoscapeGraphDrawer")
-        cyDrawer.draw(graphToPrint)
-
-        return()
-
-
-        cy=cyrest.cyclient(host="red-ginger.sms.vuw.ac.nz")
-        cy.status()
-        cy.session.new()
-        cy.vizmap.apply(styles="default")
-
-        for nodeObj in graphToPrint.vs:
-            if nodeObj['overlapComms'] is not None:
-                nodeObj['overlapComms'] = "_".join(map(str, nodeObj['overlapComms']))
-
-        cy.network = graphToPrint
-
-        # cy.layout.apply(name='kamada-kawai', network=cyGraph)
-        cy.layout.kamada_kawai()
-        time.sleep(2)
-
-        print("-----------------netowrk list-------------------")
-        print(cy.network.list(verbose=True))
-
-        basic_settings = {
-            # You can set default values as key-value pairs.
-            'NODE_SIZE': 20,
-            'NODE_SHAPE': 'Ellipse',
-            'NODE_BORDER_WIDTH': 0,
-            'NODE_LABEL_COLOR': '#FFFFFF',
-            'EDGE_WIDTH': 1,
-            'EDGE_TRANSPARENCY': 255,
-            'NODE_FILL_COLOR': '#DCDCDC',
-        }
-
-        defaultsList = cy.vizmap.simple_defaults(basic_settings)
-
-        mappingsList = [
-            cy.vizmap.mapVisualProperty(visualProperty="NODE_CUSTOMGRAPHICS_1",
-                                        mappingType="passthrough",
-                                        mappingColumn="format")
-        ]
-
-            # cy.vizmap.mapVisualProperty(visualProperty="EDGE_STROKE_UNSELECTED_PAINT",
-            #                             mappingType="passthrough",
-            #                             mappingColumn="edgecol"),
-            # cy.vizmap.mapVisualProperty(visualProperty="NODE_LABEL",
-            #                             mappingType="passthrough",
-            #                             mappingColumn="id")
-
-
-        # cyStyle.create_passthrough_mapping(column='format',
-        #     vp='NODE_CUSTOMGRAPHICS_1', col_type='String')
-        # cyStyle.create_passthrough_mapping(column='edgecol',
-        #     vp='EDGE_STROKE_UNSELECTED_PAINT', col_type='String')
-        # cyStyle.create_passthrough_mapping(column='id',
-        #     vp='NODE_LABEL', col_type='String')
-        # cy.style.apply(cyStyle, cyGraph)
-        cy.vizmap.create_style(title="CommColours",defaults=defaultsList,mappings=mappingsList)
-        time.sleep(2)
-        cy.vizmap.apply(styles="CommColours")
-
-        print("So far so good....")
-
-        cyPDF = cyGraph.get_pdf()
-
-        PDFfilename = '{}/{}-GiantComponentLayout-{}.pdf'.\
-            format(self.job['outputFolder'], self.job['outName'], method)
-        PDFoutfile = open(PDFfilename, 'wb')
-        PDFoutfile.write(cyPDF)
-        PDFoutfile.close()
-
-        os.system("pdfcrop {} {}".format(PDFfilename, PDFfilename))
 
     def cytoPrint(self, method=None, graphToPrint=None):
         if method is None:

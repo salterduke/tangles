@@ -1,15 +1,7 @@
-import math
-import numpy as np
-import scipy as sp
-import csv
 import pandas as pd
 import collections as coll
-import igraph as ig
 import itertools as it
-import tools
-# import treeswift
 import ete3
-import sys
 
 class TangleSet():
     def __init__(self, job, log):
@@ -22,12 +14,6 @@ class TangleSet():
         self.job = job
         self.log = log
         self.nodeIndex = 1
-
-        #### smart - creating hasse diag to keep track of maximal small sides
-        # self.hasseDiagram = ig.Graph()
-        # self.maximalSeps = set()
-
-
 
 
     def findNextOrderSeparations(self):
@@ -47,7 +33,6 @@ class TangleSet():
             print("Crack the shits, kmin not set")
             exit()
         self.log.tock()
-        # self.createHasseDiagram(self.kmin)
         self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
@@ -60,26 +45,22 @@ class TangleSet():
             return
         else:
             self.log.tock()
-        # todo fix to standardise output for kmin?
 
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
             self.log.tick("kTangle{} Find seps".format(k))
             self.findNextOrderSeparations(k)
-            # print("-------------------------------------------{}:---{}".format(k, sys.getsizeof(self.partcutHeap)))
             self.log.tock()
             self.log.tick("kTangle{} Build Tangle".format(k))
-            # self.createHasseDiagram(k)
-
             if not self.kTangle(k):
-                print("NOT k: {}".format(k))
+                print("No tangles at k: {}".format(k))
                 self.tangleNum = k
                 self.log.tock()
+                self.log.end()
                 return(False)
             self.log.tock()
-
         self.log.end()
-        return(self.allBigSideProps)
+
 
     def checkTangleAxioms(self, newSep):
 
@@ -103,12 +84,6 @@ class TangleSet():
 
         ### Axiom 2
         for side1, side2 in it.combinations(self.smallSidesStack, 2):
-            ###### ***** unnecessary, but maybe useful???
-            # if newSep.issuperset(self.groundset - side1) or newSep.issuperset(self.groundset - side2):
-            #     # print("**************")
-            #     # print("{}\n is superset of  existing bigside".format(newSep))
-            #     # print("**************")
-            #     return False
 
             #### looks like shitty code, but might mean
             #### some of the unions can be avoided - O(m)
@@ -192,24 +167,17 @@ class TangleSet():
 
     def finaliseAndPrint(self, k):
 
-        tangArray = pd.DataFrame()
         orientArray = pd.DataFrame()
 
-        # self.commLists = coll.defaultdict(set)
-        self.allBigSideProps = coll.defaultdict(dict)
 
         def printSingleTangle(tangle, tangID, tangOrder, verbose=False):
 
             tangOrients = []
-
-            bigSideCounts = dict.fromkeys(self.groundset, 0)
             numSeps = len(tangle.smallSides)
 
             ##########################
             for i in range(numSeps):
                 complement = self.groundset - tangle.smallSides[i]
-                for element in complement:
-                    bigSideCounts[element] += 1
 
                 if verbose:
                     print("---------------------")
@@ -224,43 +192,21 @@ class TangleSet():
                 else:
                     tangOrients.append("G\\* / {}".format(sorted(complement)))
 
-            bigSideProps = {element:(count/numSeps) for element, count in bigSideCounts.items()}
-
-            # self.commLists[tangID]={element for element in self.groundset
-            #     if bigSideProps[element] >= self.AvoidThreshold}
-
             tangHeader = "{}: ord={}".format(tangID, tangOrder)
-            tangList = ["{}: {:.2f}".format(element, prop) for
-                element, prop in sorted(bigSideProps.items(),
-                key=lambda x:x[1], reverse=True)]
-            tangArray[tangHeader] = tangList
-
             temparray = pd.DataFrame()
             temparray[tangHeader] = tangOrients
             nonlocal orientArray
             orientArray = pd.concat([orientArray, temparray], axis=1)
 
-            # orientArray[tangHeader] = tangOrients
-
-            self.allBigSideProps[tangID] = bigSideProps
-
-        # print("**********************************")
-        # print("Found {} tangles of order {}".format(self.foundTangle, k+1))
-        # print("**********************************")
         tangleCounter = 0
         for i in range(self.kmin, k+1):
             for tangle in self.TangleLists[i]:
                 printSingleTangle(tangle, tangleCounter, i+1, verbose=False)
                 tangleCounter+=1
 
-        AvoidOutfile = "{}/{}-AvoidProps.csv".\
-        format(self.job['outputFolder'], self.job['outName'])
-        tangArray.to_csv(AvoidOutfile)
-
         OrientsOutfile = "{}/{}-Orientations.csv".\
         format(self.job['outputFolder'], self.job['outName'])
         orientArray.to_csv(OrientsOutfile)
-
 
         with open('sepList.txt', 'w') as f:
             for i in [1,2,3]:
@@ -268,7 +214,6 @@ class TangleSet():
                 for item in [i]:
                     f.write("{}\n".format(item))
 
-        # print(self.TangleTree)
         #####################
         doTreePrint = False
         if doTreePrint:
