@@ -43,7 +43,6 @@ class TangleSet():
 
         self.log.tick("kTangle min Find seps")
         self.findNextOrderSeparations(None, depth)
-        # print("-------------------------------------------{}:---{}".format("first", sys.getsizeof(self.partcutHeap)))
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
@@ -63,10 +62,6 @@ class TangleSet():
             self.log.tock()
         # todo fix to standardise output for kmin?
 
-        # print("TANGLE TREE----------------------------------{}:---{}".format("first", sys.getsizeof(self.TangleTree)))
-        # print("TANGLE LISTS---------------------------------{}:---{}".format("first", sys.getsizeof(self.TangleLists)))
-
-
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
             self.log.tick("kTangle{} Find seps".format(k))
@@ -82,10 +77,6 @@ class TangleSet():
                 self.log.tock()
                 return(False)
             self.log.tock()
-
-            # print("TANGLE TREE----------------------------------{}:---{}".format(k, sys.getsizeof(self.TangleTree)))
-            # print("TANGLE LISTS---------------------------------{}:---{}".format(k, sys.getsizeof(self.TangleLists)))
-
 
         self.log.end()
         return(self.allBigSideProps)

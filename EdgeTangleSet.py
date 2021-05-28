@@ -1,61 +1,9 @@
-from __future__ import print_function
-import itertools as it
-import sys
 import heapq
-import copy
 import functools
 import multiprocessing
+import sys
 
 import BaseTangleSet as btang
-
-
-from sys import getsizeof, stderr
-from itertools import chain
-from collections import deque
-try:
-    from reprlib import repr
-except ImportError:
-    pass
-
-def total_size(o, handlers={}, verbose=False):
-    """ Returns the approximate memory footprint an object and all of its contents.
-
-    Automatically finds the contents of the following builtin containers and
-    their subclasses:  tuple, list, deque, dict, set and frozenset.
-    To search other containers, add handlers to iterate over their contents:
-
-        handlers = {SomeContainerClass: iter,
-                    OtherContainerClass: OtherContainerClass.get_elements}
-
-    """
-    dict_handler = lambda d: chain.from_iterable(d.items())
-    all_handlers = {tuple: iter,
-                    list: iter,
-                    deque: iter,
-                    dict: dict_handler,
-                    set: iter,
-                    frozenset: iter,
-                   }
-    all_handlers.update(handlers)     # user handlers take precedence
-    seen = set()                      # track which object id's have already been seen
-    default_size = getsizeof(0)       # estimate sizeof object without __sizeof__
-
-    def sizeof(o):
-        if id(o) in seen:       # do not double count the same object
-            return 0
-        seen.add(id(o))
-        s = getsizeof(o, default_size)
-
-        if verbose:
-            print(s, type(o), repr(o), file=stderr)
-
-        for typ, handler in all_handlers.items():
-            if isinstance(o, typ):
-                s += sum(map(sizeof, handler(o)))
-                break
-        return s
-
-    return sizeof(o)
 
 def extractComponents(mcut, vcount):
     # probably there's a quicker way of doing this, but just get it working for now.
@@ -184,29 +132,9 @@ class partialCut(object):
             "binrep": sum(1 << i for i in longpcut[1]),
             "binlen": pcutlen
         }
-        # todo this + 1 might be totally wrong!!!
-        dummy = 1
 
-        # self.mcut = [unmergeVnames(sideVs) for sideVs in mincut.partition]
-        # todo need to fix this to update node indices to *original* graph
         self.mcut = getMcutShort(mincut)
-        # numdig = sum(c << i for i, c in enumerate(digits))
-        # '{0:b}'.format(numdig).zfill(no)[::-1]
-
-        # if 0 not in self.mcut[0]:
-        #     self.mcut[0], self.mcut[1] = self.mcut[1], self.mcut[0]
-        #     print("O not in side 0. New mcut:")
-        #     print(self.mcut)
-
         self.cutEdges = frozenset([edge.index for edge in mincut.es])
-
-        # keep this check in for now - remove, along with "id" assignment, if seems okay
-        for edge in mincut.es:
-            if edge.index != edge["id"]:
-                print("moocow")
-                exit()
-
-
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -219,9 +147,6 @@ class partialCut(object):
         # todo add more shit later?
         return "\nwt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
-    # todo crack the shits if still all none?
-
-
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
         self.G = G
@@ -233,18 +158,9 @@ class EdgeTangleSet(btang.TangleSet):
 
         self.names = self.G.vs['name']
 
-        ####
-        self.cutfinder = True
+        self.sepFilename = "{}/{}-SepList-CF.tsv". \
+            format(job['outputFolder'], job['outName'])
 
-        if self.cutfinder:
-            self.sepFilename = "{}/{}-SepList-CF.tsv". \
-                format(job['outputFolder'], job['outName'])
-        else:
-            self.sepFilename = "{}/{}-SepList.tsv".\
-                    format(job['outputFolder'], job['outName'])
-
-
-        # todo Check if need to add orientation as per git.
         text = "order\tcut\tside1\tside2\torientation\n"
         with open(self.sepFilename, 'w+') as the_file:
             the_file.write(text)
@@ -255,13 +171,6 @@ class EdgeTangleSet(btang.TangleSet):
 
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
         def basicPartition(pool):
-            print("Basic Partition")
-            for edge in self.Gdirected.es:
-                # edge["st"] = (self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
-                # store original source target as attr, so okay when merge.
-                edge["id"] = edge.index
-                # store orig index so okay when merging.
-                # also check if changed
 
             n = self.Gdirected.vcount()
             self.vids = self.Gdirected.vs.indices
@@ -271,25 +180,16 @@ class EdgeTangleSet(btang.TangleSet):
             self.partcutHeap = [partcut for partcut in
                                 pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
                                          range(len(self.U))) if partcut.weight <= self.kmax]
-            print("Size of partcutHeap after basic: {}".format(len(self.partcutHeap)))
             heapq.heapify(self.partcutHeap)
-            print("MEMORY Size of partcutHeap after basic: {}".format(total_size(self.partcutHeap)))
-            print("-------------------------------------------------------------------------------")
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
-                # ---------------------------------
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
                 self.kmin = int(self.Gdirected.mincut().value)
                 k = self.kmin
                 self.kmax = k + maxdepth
-                # ---------------------------------
                 basicPartition(pool)
                 self.TangleTree.add_feature("cutsets", [])
-
-                # todo note that the vertex IDs *should* be the same for G and Gdirected,
-                # todo - and this will break if they are not
-
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                 # I know this looks stupid, but partcutHeap gets modified by this loop
@@ -301,22 +201,10 @@ class EdgeTangleSet(btang.TangleSet):
                     self.addToSepList(newpartcut)
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
-                origSize = len(self.partcutHeap)
-                partcutCount = 0
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
-                    partcutCount+=1
-
-                    if partcut.weight <= self.kmax:
-                        heapq.heappush(self.partcutHeap, partcut)
-                    else:
-                        print("this got through")
-                sizediff = len(self.partcutHeap) - origSize
-
-                # print("{} partcuts calculated {}, added {} more, newsize {}".format(len(partcutList), partcutCount, sizediff, len(self.partcutHeap)))
-                # print("MEMORY Size of partcutHeap after next step: {}".format(total_size(self.partcutHeap)))
-                # print("TOTAL Size of TANGLE TREE after next step: {}".format(total_size(self.TangleTree)))
-                # print("TOTAL Size of TANGLE Lists after next step: {}".format(total_size(self.TangleLists)))
-                # print("-------------------------------------------------------------------------------")
+                    heapq.heappush(self.partcutHeap, partcut)
+        if k == 5:
+            print("Moocow")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
@@ -325,9 +213,9 @@ class EdgeTangleSet(btang.TangleSet):
                     return True
             return False
 
-        def printSepToFile(separation, cut, orientation):
-            sideNodes = sorted([self.names[node] for node in separation[0]])
-            complementNodes = sorted([self.names[node] for node in separation[1]])
+        def printSepToFile(sideNodes, complementNodes, cut, orientation):
+            # sideNodes = sorted([self.names[node] for node in separation[0]])
+            # complementNodes = sorted([self.names[node] for node in separation[1]])
 
             cutLong = []
             for eid in cut:
@@ -339,14 +227,6 @@ class EdgeTangleSet(btang.TangleSet):
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
-
-        # def extractComponents(mcut):
-        #     # probably there's a quicker way of doing this, but just get it working for now.
-        #     mcutList = list('{0:b}'.format(mcut).zfill(self.Gdirected.vcount())[::-1])
-        #     comps = [list(),list()]
-        #     for i in len(mcutList):
-        #         comps[int(mcutList[i])] = i
-        #     return(comps)
 
         if cutIsSuperset(partial.cutEdges):
             return
@@ -378,4 +258,4 @@ class EdgeTangleSet(btang.TangleSet):
 
         # need to do this because we need to check for superset-ness
         self.cuts.add(partial.cutEdges)
-        printSepToFile(components, partial.cutEdges, orientation)
+        printSepToFile(sideNodes, complementNodes, partial.cutEdges, orientation)
