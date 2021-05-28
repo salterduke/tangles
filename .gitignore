@@ -11,3 +11,10 @@
 /test.py
 /cytoNWs/
 __pycache__/
+/*.txt
+/*.dat
+/*.sqlite
+/NWimages/
+/testResources/
+/output*/
+/*.png
