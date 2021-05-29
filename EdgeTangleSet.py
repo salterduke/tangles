@@ -203,8 +203,8 @@ class EdgeTangleSet(btang.TangleSet):
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-        # if k == 5:
-        #     print("Moocow")
+        if k == 4:
+            print("Moocow")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
@@ -213,9 +213,9 @@ class EdgeTangleSet(btang.TangleSet):
                     return True
             return False
 
-        def printSepToFile(sideNodes, complementNodes, cut, orientation):
-            # sideNodes = sorted([self.names[node] for node in separation[0]])
-            # complementNodes = sorted([self.names[node] for node in separation[1]])
+        def printSepToFile(components, cut, orientation):
+            sideNodes = sorted([self.names[node] for node in components[0]])
+            complementNodes = sorted([self.names[node] for node in components[1]])
 
             cutLong = []
             for eid in cut:
@@ -234,9 +234,6 @@ class EdgeTangleSet(btang.TangleSet):
         components = extractComponents(partial.mcut, self.Gdirected.vcount())
         components = sorted(components, key=len)
 
-        sideNodes = frozenset({self.names[node] for node in components[0]})
-        complementNodes = frozenset({self.names[node] for node in components[1]})
-
         size = len(partial.cutEdges)
 
         ######## ******* do other checks for "easy" seps (do shit here)
@@ -244,18 +241,18 @@ class EdgeTangleSet(btang.TangleSet):
         # todo - what about if both sides def small?
         # todo - add check for union of all def small sides? Only if *all* seps def orientable?
         if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
-            self.definitelySmall[size].append(sideNodes)
+            self.definitelySmall[size].append(components[0])
             orientation = 1
         elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
-            self.definitelySmall[size].append(complementNodes)
+            self.definitelySmall[size].append(components[1])
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
             # separation = (sideNodes, complementNodes)
             # self.separations[size].append(separation)
-            self.separations[size].append(sideNodes)
+            self.separations[size].append(components[0])
             orientation = 3
 
         # need to do this because we need to check for superset-ness
         self.cuts.add(partial.cutEdges)
-        printSepToFile(sideNodes, complementNodes, partial.cutEdges, orientation)
+        printSepToFile(components, partial.cutEdges, orientation)
