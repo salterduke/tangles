@@ -248,8 +248,6 @@ class EdgeTangleSet(btang.TangleSet):
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
-            # separation = (sideNodes, complementNodes)
-            # self.separations[size].append(separation)
             self.separations[size].append(components[0])
             orientation = 3
 
