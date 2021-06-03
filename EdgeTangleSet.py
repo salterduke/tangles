@@ -1,6 +1,7 @@
-import heapq
 import functools
 import multiprocessing
+import sqlite3
+import pandas as pd
 import sys
 
 import BaseTangleSet as btang
@@ -23,25 +24,6 @@ def extCutIsSuperset(currCuts, newCut):
         if newCut.issuperset(cut):
             return True
     return False
-
-# next two defs just stubs...
-class HO_cutfinder(object):
-    def __init__(self, Gdir):
-        # modified init
-        pass
-
-    def findmin(self):
-        pass
-
-    def relabel(self):
-        pass
-
-    def selectSink(self):
-        pass
-
-def HO_mincut(Gdir):
-    cutfinder = HO_cutfinder(Gdir)
-
 
 def externalExtractMinPart(partcut, Gdir, kmax):
     longpcut = extractComponents(partcut.pcut["binrep"], partcut.pcut["binlen"])
@@ -69,16 +51,15 @@ def externalExtractMinPart(partcut, Gdir, kmax):
 
         if mincut.value <= kmax:
             pcutlen = uid + len(SuT) + 1
-            newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, pcutlen)  # todo again, do I need a + 1?
+            newPartial = partialCut(Gdir, Gdircopy, fromDB=False, mincut=mincut, longpcut=newpcut, pcutlen=pcutlen)  # todo again, do I need a + 1?
 
-            if True:
             # todo - this is the check that speeds it up lots, but doesn't seem valid.
-            # todo - are there alternate checks that are valid?
+            # are there alternate checks that are valid?
             # if not extCutIsSuperset(currCuts, newPartial.cutEdges):
-                newHeapCuts.append(newPartial)
-                # note that partialCut takes care of the vids re the adjusted graph
-    return newHeapCuts
 
+            newHeapCuts.append(newPartial)
+            # note that partialCut takes care of the vids re the adjusted graph
+    return newHeapCuts
 
 def externalMergeVertices(Gdir, pcut):
     minS = min(pcut[0])
@@ -91,30 +72,22 @@ def externalMergeVertices(Gdir, pcut):
     Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
     return Gdircopy, minS, minT
 
-
-# NOTE can probably just pass the few bits of tangset we need, but this isn't the slow bit, so eh...
-def externalBasicPartitionBranch(uid, tangset):
+def externalBasicPartitionBranch(uid, U, Gdirected):
     newpcut = [
-        set(tangset.U[0:uid]).union([0]),
-        set([tangset.U[uid]])
+        set(U[0:uid]).union([0]),
+        set([U[uid]])
     ]
-    Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
+    Gdircopy, s, t = externalMergeVertices(Gdirected, newpcut)
     mincut = Gdircopy.mincut(source=s, target=t)
-    dummy = 1
-    if len(mincut.partition) == 2:
-        return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid+2) # todo note, 2 for: node 0, and 0 indexing
-        # note that partialCut takes care of the vids re the adjusted graph
-    else:
-        # todo Is this okay? I think we don't want it on the heap if non-minimal.
-        print("More than 2 components: {}".format(mincut))
-        input("press any key to continue")
 
+    if len(mincut.partition) == 2:
+        return partialCut(Gdirected, Gdircopy, fromDB=False, mincut=mincut, longpcut=newpcut, pcutlen=uid+2).df # todo note, 2 for: node 0, and 0 indexing
+        # note that partialCut takes care of the vids re the adjusted graph
 
 class partialCut(object):
-    def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None, pcutlen=0):
+    def __init__(self, Gdir=None, Gdircopy=None, fromDB=False, mincut=None, longpcut=None, pcutlen=0, dbRow=None):
         def getMcutShort(mincut):
             component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
-            # sum(c << i for i, c in enumerate(mincut.membership))
             return(sum(1 << i for i in component1))
 
         def unmergeVnames(mergedVids):
@@ -127,14 +100,27 @@ class partialCut(object):
                     newVids.update(v.index for v in map(Gdir.vs.find, Gdircopy.vs[vid]["name"].split(",")))
             return newVids
 
-        self.weight = mincut.value
-        self.pcut = {
-            "binrep": sum(1 << i for i in longpcut[1]),
-            "binlen": pcutlen
-        }
+        if fromDB:
+            self.weight = dbRow[1]
+            self.pcut = {
+                "binrep": int(dbRow[2]),
+                "binlen": dbRow[3]
+            }
+            self.mcut = int(dbRow[4])
+            self.cutEdges = frozenset(map(int, dbRow[5].split(",")))
 
-        self.mcut = getMcutShort(mincut)
-        self.cutEdges = frozenset([edge.index for edge in mincut.es])
+        else:
+            self.weight = mincut.value
+            self.pcut = {
+                "binrep": sum(1 << i for i in longpcut[1]),
+                "binlen": pcutlen
+            }
+            self.mcut = getMcutShort(mincut)
+            self.cutEdges = frozenset([edge.index for edge in mincut.es])
+
+        colNames = ["weight", "binrep", "binlen", "mcut", "cutEdges"]
+        self.df = pd.DataFrame([[self.weight, self.pcut["binrep"], self.pcut["binlen"], self.mcut, ",".join(map(str, self.cutEdges))]], columns = colNames)
+        # df = pd.DataFrame([[1, 1.23, 'Hello']], columns=list('ABC'))
 
     def __lt__(self, other):
         return self.weight < other.weight
@@ -165,6 +151,10 @@ class EdgeTangleSet(btang.TangleSet):
         with open(self.sepFilename, 'w+') as the_file:
             the_file.write(text)
 
+        # todo;: do I want to put other stuff in a db?
+        self.partcutConn = sqlite3.connect("partcutDB.sqlite")  # todo mod filename so can run two files concurrently
+
+
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
     def findNextOrderSeparations(self, k=None, maxdepth=4):
@@ -177,10 +167,17 @@ class EdgeTangleSet(btang.TangleSet):
             # let s = node 0, (see Yeh and Wang) so start at 1
             self.U = range(1,n)  # like this so easier to change later
 
-            self.partcutHeap = [partcut for partcut in
-                                pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
-                                         range(len(self.U))) if partcut.weight <= self.kmax]
-            heapq.heapify(self.partcutHeap)
+            partcutList = [partcut for partcut in
+                                pool.map(functools.partial(externalBasicPartitionBranch, U=self.U, Gdirected=self.Gdirected),
+                                         range(len(self.U))) if partcut.iloc[0].loc["weight"] <= self.kmax]
+            # todo: consider changing to imap? to avoid double iteration? Mess with later
+            # https://stackoverflow.com/questions/26520781/multiprocessing-pool-whats-the-difference-between-map-async-and-imap
+
+            for w in range(self.kmin, self.kmax+1):
+                partcuts = [partcut for partcut in partcutList if partcut.iloc[0].loc["weight"] == w]
+                if len(partcuts):
+                    df_w = pd.concat(partcuts, ignore_index=True)
+                    df_w.to_sql(name = "partcuts{}".format(w), con = self.partcutConn, if_exists = 'replace')
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
@@ -189,22 +186,45 @@ class EdgeTangleSet(btang.TangleSet):
                 k = self.kmin
                 self.kmax = k + maxdepth
                 basicPartition(pool)
-                self.TangleTree.add_feature("cutsets", [])
 
-            while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
+            # ----------------------------------------------------------------------------
+            selectString = """ SELECT * FROM partcuts WHERE weight=? """
+            deleteString = """ DELETE FROM partcuts WHERE id=? """
+            checksizeString = """ SELECT COUNT(*) FROM partcuts WHERE weight=? """
+
+            cur1 = self.partcutConn.cursor()
+            while(cur1.execute(checksizeString, (k,)).fetchone()[0]):
                 # I know this looks stupid, but partcutHeap gets modified by this loop
                 # and we want to repeat until no more relevant partcuts in heap
+
                 partcutList = []
-                while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
-                    newpartcut = heapq.heappop(self.partcutHeap)
+                cur2 = self.partcutConn.cursor()
+                cur2.execute(selectString, (k,))
+
+                for row in cur2:
+                    cur3 = self.partcutConn.cursor()
+                    cur3.execute(deleteString, (row[0],))
+                    # def __init__(self, Gdir, Gdircopy, fromDB=FALSE, mincut=None, longpcut=None, pcutlen=0, dbRow=None):
+                    newpartcut = partialCut(fromDB=True, dbRow=row)
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
+                self.partcutConn.commit()
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
-                    heapq.heappush(self.partcutHeap, partcut)
-        if k == 4:
-            print("Moocow")
+                    self.addtoPartcutDB(partcut)
+
+    def addtoPartcutDB(self, partcut):
+        sql = """ INSERT INTO partcuts(weight,pcutrep,pcutlen,mcut,edgeCuts) VALUES(?,?,?,?,?) """
+
+        dbTuple = (partcut.weight,
+                   str(partcut.pcut["binrep"]),
+                   partcut.pcut["binlen"],
+                   str(partcut.mcut),
+                   ",".join(map(str, partcut.cutEdges)))
+        partcutCursor = self.partcutConn.cursor()
+        partcutCursor.execute(sql, dbTuple)
+        self.partcutConn.commit()
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
