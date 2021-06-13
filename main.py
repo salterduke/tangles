@@ -12,23 +12,21 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "config.txt"
-    # testName = "BacktoStupid"
-    # testName = "GHU_all"
-    testName = "Cutfinder"
+    configFile = "config2.txt"
+    # configFile = "configConst.txt"
+    testName = "Constructed"
 
     log = logger.logger(testName)
     copyPics = False
 # ------------------------------------------------------------------------------
 
-def runAnalysis(job, method):
+def runAnalysis(job):
 
     log.log("Job: {}".format(job['outName']))
-    log.tick("{} {}".format(job['outName'], method))
+    log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
-    jobGraph.method = method
 
-    jobGraph.findOverLapCommunities(method)
+    jobGraph.findOverLapCommunities()
 
     log.tock()
 
@@ -55,9 +53,7 @@ if __name__ == '__main__':
 
     for index, job in jobsToRun.iterrows():
         job['outputFolder'] = "./output{}".format(testName)
-
-        for method in (["tangles"]):
-            runAnalysis(job, method)
+        runAnalysis(job)
 
     if copyPics:
         copyPicsToLatex()

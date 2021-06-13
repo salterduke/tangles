@@ -15,6 +15,10 @@ class TangleSet():
         self.log = log
         self.nodeIndex = 1
 
+    def getTangleCounts(self):
+        countList = list()
+        # self.TangleLists
+        print("Moocow")
 
     def findNextOrderSeparations(self):
         print("This must be overridden for each child")
@@ -155,8 +159,6 @@ class TangleSet():
                     addSideAsSep(side, truncTangle, sepNum)
                     complement = self.groundset - side
                     addSideAsSep(complement, truncTangle, sepNum)
-
-
 
         if self.foundTangle:
             self.finaliseAndPrint(k)

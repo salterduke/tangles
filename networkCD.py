@@ -27,7 +27,6 @@ arpack_options.maxiter=300000
 class graphCD():
     def __init__(self, job, log):
 
-        self.flags = str(job['flags']).split(',')
         # todo Chuck some error checking in here later ******
         self.job = job
         self.log = log
@@ -36,16 +35,7 @@ class graphCD():
 
         self.doPrint = False
 
-        if job['format'] == "edgelist":
-            graph = ig.Graph.Read_Ncol(job['inFile'],
-                names=True, directed=False)
-        elif job['format'] == "gml":
-            pass
-        elif job['format'] == "graphml":
-            graph = ig.Graph.Read_GraphML(job['inFile'])
-        else:
-            print("invalid data format")
-            exit()
+        graph = ig.Graph.Read_Ncol(job['inFile'],names=True, directed=False)
 
         graph.simplify()
         self.giantComp = graph.clusters().giant()
@@ -77,19 +67,17 @@ class graphCD():
             print("Incorrect colour format, press any key to continue")
             input()
 
-    def findOverLapCommunities(self, method):
+    def findOverLapCommunities(self):
         # todo unwrap this to get rid of extras
         self.commLists = coll.defaultdict(set)
-        self.method = method
 
         self.graphData = pd.DataFrame({"nodeID": [idx for idx, v in
             enumerate(self.giantComp.vs)], "degree": self.giantComp.degree()})
 
-        if "tangles" in method:
-            self.overlapByTangles()
+        self.overlapByTangles()
 
         if self.doPrint and socket.gethostname().find("ginger") > -1:
-            self.cytoPrint(method=method)
+            self.cytoPrint()
 
 
     def overlapByTangles(self):
@@ -108,7 +96,9 @@ class graphCD():
             print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
         self.TangleSet.findAllTangles(depth=dep)
+        self.TangleSet.getTangleCounts()
         # todo consider what return value we want?
+        # todo need to actually assign to communities here. Maybe new function? Reads in orientations?
         # remember that in adding comms to nodes, we have to clear comm assignments if want to assign differently later
         # save to file somehow, then read that to evaluate communities
 
@@ -123,7 +113,6 @@ class graphCD():
 
         nodeObj['overlapComms'].add(comm)
 
-#####################
         commList = []
         if 'comm0' not in nodeObj.attribute_names():
             for c in range(self.numOverlapComms):
@@ -163,42 +152,26 @@ class graphCD():
         N = self.giantComp.vcount()
         coverXsizes = coverX.sum(axis = 0).tolist()
         coverYsizes = coverY.sum(axis = 0).tolist()
-        # print("********************************")
-        # print(len(coverXsizes))
-        # print(len(coverYsizes))
-        #
-        # print("size coverIntersection")
-        # print(coverIntersection.shape)
 
         HXkbigYNormSum = 0
 
         for k in range(coverX.shape[1]):
             HXkYlList = []
-            #HXkbigYNormSum = 0
-            # print("covery shape")
-            # print(coverY.shape)
             PX1 = coverXsizes[k]/N
             PX0 = 1 - PX1
-            # print("{:1.3f},{:1.3f}".format(PX1, PX0))
             if (h(PX1) + h(PX0)) == 0:
                 continue
-                ###### this just ignores any clusters where all or none
-                ###### of the nodes belong to the cluster
             for l in range(coverY.shape[1]):
-                # print("{} {}".format(k, l))
                 PY1 = coverYsizes[l]/N
                 PY0 = 1 - PY1
                 PX1Y1 = coverIntersection.iloc[k, l] / N
                 PX1Y0 = (coverXsizes[k] - coverIntersection.iloc[k, l]) / N
                 PX0Y1 = (coverYsizes[l] - coverIntersection.iloc[k, l]) / N
                 PX0Y0 = 1 - PX1Y1 - PX1Y0 - PX0Y1
-                # print("P: {:1.3f},{:1.3f},{:1.3f},{:1.3f} ---- {:1.3f},{:1.3f},{:1.3f},{:1.3f}".format(PX1, PX0, PY1, PY0, PX1Y1, PX1Y0, PX0Y1, PX0Y0))
-                # print("h: {:1.3f},{:1.3f},{:1.3f},{:1.3f} ---- {:1.3f},{:1.3f},{:1.3f},{:1.3f}".format(h(PX1), h(PX0), h(PY1), h(PY0), h(PX1Y1), h(PX1Y0), h(PX0Y1), h(PX0Y0)))
 
                 if h(PX1Y1) + h(PX0Y0) > h(PX1Y0) + h(PX0Y1):
                     HXkYl = h(PX1Y1) + h(PX0Y0) + h(PX1Y0) + h(PX0Y1) - \
                             h(PY1) - h(PY0)
-                            ### H(Xk, Yl) - H(Yl)
                     HXkYlList.append(HXkYl)
             if len(HXkYlList) == 0:
                 HXkbigY = h(PX1) + h(PX0) # H(Xk)
@@ -211,7 +184,7 @@ class graphCD():
         HbigXbigYNorm = HXkbigYNormSum / coverX.shape[1]
         return(HbigXbigYNorm)
 
-    def analyseOverlapComms(self, method):
+    def analyseOverlapComms(self):
         # todo tidy this
 
         columns = ['node', 'degree', 'commCount']
@@ -248,8 +221,8 @@ class graphCD():
         graphData['degree'] = pd.to_numeric(graphData['degree'])
         graphData['commCount'] = pd.to_numeric(graphData['commCount'])
 
-        graphData.to_csv("{}/{}-CommDetailsPerNode-{}.csv".\
-            format(self.job['outputFolder'], self.job['outName'], method))
+        graphData.to_csv("{}/{}-CommDetailsPerNode.csv".\
+            format(self.job['outputFolder'], self.job['outName']))
 
         graphData.set_index("node", inplace=True)
         self.graphData = graphData
@@ -272,12 +245,11 @@ class graphCD():
 
         qualFile = "{}/{}quality.csv".format(self.job['outputFolder'], self.job['outName'])
         if not os.path.exists(qualFile):
-            text = "method\tnumComms\tcommQ\toverlapQ\tNMI\tcommCover\toverlapCover\n"
+            text = "numComms\tcommQ\toverlapQ\tNMI\tcommCover\toverlapCover\n"
             with open(qualFile, 'w') as the_file:
                 the_file.write(text)
 
-        text = "{!s}\t{:d}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}\t{:.2f}\n".format(
-            method,
+        text = "{:d}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}\t{:.2f}\n".format(
             self.numOverlapComms,
             quality["enrichment"],
             quality["mi"],
@@ -292,27 +264,15 @@ class graphCD():
 
         return(quality)
 
-    def cytoPrint(self, method=None, graphToPrint=None):
-        if method is None:
-            method = self.method
+    def cytoPrint(self, graphToPrint=None):
         if graphToPrint is None:
             graphToPrint = self.giantComp
-            # exit()  # **********
 
-        ####### delete this to use (sort of) working version
-        # self.cytoPrintAlternate(method, graphToPrint)
-        # return()
 
-        print("======================== before create client")
-        # cy = CyRestClient(ip="red-ginger.sms.vuw.ac.nz")
         cy = CyRestClient()
 
-        print("======================== after create client")
         cy.session.delete() ### WHy do I need to do this?
-        # print([v for v in self.giantComp.vs])
 
-        #### cygraph doesn't like sets.
-        # for nodeObj in self.giantComp.vs:
         for nodeObj in graphToPrint.vs:
             if "overlapComms" in nodeObj.attributes() and nodeObj['overlapComms'] is not None:
                 nodeObj['overlapComms'] = "_".join(map(str, nodeObj['overlapComms']))
@@ -368,8 +328,8 @@ class graphCD():
 
         cyPDF = cyGraph.get_pdf()
 
-        PDFfilename = '{}/{}-GiantComponentLayout-{}.pdf'.\
-            format(self.job['outputFolder'], self.job['outName'], method)
+        PDFfilename = '{}/{}-GiantComponentLayout.pdf'.\
+            format(self.job['outputFolder'], self.job['outName'])
         PDFoutfile = open(PDFfilename, 'wb')
         PDFoutfile.write(cyPDF)
         PDFoutfile.close()
@@ -379,15 +339,10 @@ class graphCD():
     # todo sort this out. Lots of todo items!
     def evaluateCommunities(self, foundcover, doOverlap=True):
 
-        # print(self.graphData)
-        # exit()
 
         quality = coll.defaultdict(float)
-        # print(self.giantComp.vs['name'])
-        # print("***************************************************")
 
         self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
-        # print("STILL WORKING HERE>>>>>>>>>>>>>>>>> AFTER OUTSIDE")
 
         realcover = self.protChecker.getRealCover()
 
@@ -411,8 +366,6 @@ class graphCD():
                     numPairs+=1
         aveCommSim = totalCommSim / numPairs
         enrichment = aveCommSim / aveSim
-        # print("*************")
-        # print("Moocow Enrichment: {}".format(enrichment))
 
         if doOverlap:
             overlapMeta = self.protChecker.getOverlapMetadata()
@@ -435,14 +388,12 @@ class graphCD():
             ax = self.graphData.plot.scatter(x='GOcount',y='commCount')
             ax.set_xlabel("Num of GO annotations")
             ax.set_ylabel("Community membership count")
-            plt.title("Comm count vs GO count: {} {}, E: {}, MI: {}"\
-                .format(self.job['outName'], self.method, enrichment, mi))
-            plt.savefig('{}/{}-ScatterPlotCommVsGO-{}.pdf'.\
-                format(self.job['outputFolder'], self.job['outName'], self.method),
+            plt.title("Comm count vs GO count: {}, E: {}, MI: {}"\
+                .format(self.job['outName'], enrichment, mi))
+            plt.savefig('{}/{}-ScatterPlotCommVsGO.pdf'.\
+                format(self.job['outputFolder'], self.job['outName']),
                 bbox_inches='tight')
             plt.close()
-
-
             ##### working out NMI (Lancichinetti 2009)
 
         quality["enrichment"] = enrichment

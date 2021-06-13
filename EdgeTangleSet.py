@@ -150,7 +150,7 @@ class partialCut(object):
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
         self.G = G
-        self.groundset = set(self.G.vs["name"])
+        self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
         btang.TangleSet.__init__(self, job, log)
         self.cuts = set()
@@ -203,8 +203,6 @@ class EdgeTangleSet(btang.TangleSet):
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-        if k == 4:
-            print("Moocow")
 
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
