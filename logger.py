@@ -19,6 +19,9 @@ class logger():
         with open(self.filename, 'w+') as the_file:
             the_file.write(text)
         print(text)
+        self.tokenID = -1
+        self.allStartTimes = []
+        self.allTaskNames = []
 
     def log(self, text):
         with open(self.filename, 'a') as the_file:
@@ -26,14 +29,20 @@ class logger():
         print(text)
 
     def tick(self, taskName):
-        self.jobstartTime = datetime.datetime.utcnow()
-        self.currTaskName = taskName
+        self.tokenID+=1
+        self.allStartTimes.append(datetime.datetime.utcnow())
+        self.allTaskNames.append(taskName)
+        # todo should really check the indexes work
+        return(self.tokenID)
 
-    def tock(self):
+    def tock(self, token=None):
+        if token is None:
+            token = self.tokenID #ie, latest tick
         endTime = datetime.datetime.utcnow()
-        seconds = (endTime - self.jobstartTime).total_seconds()
-        self.log("Job {} took {} seconds".format(self.currTaskName,seconds))
+        seconds = round((endTime - self.allStartTimes[token]).total_seconds(), 2)
+        self.log("Job {} took {} seconds".format(self.allTaskNames[token],seconds))
         self.log("-----------------------")
+        return(seconds)
 
     # def newRecord(self, recName):
     #     self.infoData[recName]

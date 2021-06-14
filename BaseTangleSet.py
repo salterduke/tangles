@@ -17,8 +17,12 @@ class TangleSet():
 
     def getTangleCounts(self):
         countList = list()
-        # self.TangleLists
-        print("Moocow")
+        endpoint = min(self.kmax+1, len(self.TangleLists))
+        for k in range(self.kmin, endpoint):
+            # note k is SEP order, so +1 for tang order
+            tangNumbers = (k+1, len(self.TangleLists[k]))
+            countList.append(tangNumbers)
+        return(countList)
 
     def findNextOrderSeparations(self):
         print("This must be overridden for each child")

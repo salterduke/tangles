@@ -78,6 +78,8 @@ class graphCD():
 
         if self.doPrint and socket.gethostname().find("ginger") > -1:
             self.cytoPrint()
+        return(self.giantComp.vcount(), self.giantComp.ecount())
+
 
 
     def overlapByTangles(self):
@@ -101,6 +103,7 @@ class graphCD():
         # todo need to actually assign to communities here. Maybe new function? Reads in orientations?
         # remember that in adding comms to nodes, we have to clear comm assignments if want to assign differently later
         # save to file somehow, then read that to evaluate communities
+
 
     def addCommToNode(self, nodeIndex, comm):
 

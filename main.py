@@ -12,9 +12,10 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "config2.txt"
     # configFile = "configConst.txt"
-    testName = "Constructed"
+    # testName = "Constructed"
+    configFile = "config2.txt"
+    testName = "Cutfinder"
 
     log = logger.logger(testName)
     copyPics = False
@@ -23,12 +24,11 @@ if __name__ == '__main__':
 def runAnalysis(job):
 
     log.log("Job: {}".format(job['outName']))
-    log.tick("{} RunAnalysis".format(job['outName']))
+    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
-
-    jobGraph.findOverLapCommunities()
-
-    log.tock()
+    n, m = jobGraph.findOverLapCommunities()
+    secs = log.tock(ticktoken)
+    return([job['outName'], n, m, secs])
 
 def copyPicsToLatex():
     picFolder = "./output{}".format(testName)
@@ -51,11 +51,17 @@ if __name__ == '__main__':
 
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
+    jobResults = []
+
     for index, job in jobsToRun.iterrows():
         job['outputFolder'] = "./output{}".format(testName)
-        runAnalysis(job)
+        jobres = runAnalysis(job)
+        jobResults.append(jobres)
 
     if copyPics:
         copyPicsToLatex()
+
+    pd.DataFrame(jobResults).to_csv("./output{}/allfiles".format(testName))
+    # todo fix so file doesn't get overwritten each time
 
     log.end()
