@@ -74,11 +74,11 @@ class graphCD():
         self.graphData = pd.DataFrame({"nodeID": [idx for idx, v in
             enumerate(self.giantComp.vs)], "degree": self.giantComp.degree()})
 
-        self.overlapByTangles()
+        tangCounts = self.overlapByTangles()
 
         if self.doPrint and socket.gethostname().find("ginger") > -1:
             self.cytoPrint()
-        return(self.giantComp.vcount(), self.giantComp.ecount())
+        return(self.giantComp.vcount(), self.giantComp.ecount(), tangCounts)
 
 
 
@@ -98,7 +98,7 @@ class graphCD():
             print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
         self.TangleSet.findAllTangles(depth=dep)
-        self.TangleSet.getTangleCounts()
+        return(self.TangleSet.getTangleCounts())
         # todo consider what return value we want?
         # todo need to actually assign to communities here. Maybe new function? Reads in orientations?
         # remember that in adding comms to nodes, we have to clear comm assignments if want to assign differently later

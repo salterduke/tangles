@@ -26,9 +26,9 @@ def runAnalysis(job):
     log.log("Job: {}".format(job['outName']))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
-    n, m = jobGraph.findOverLapCommunities()
+    n, m, tangCounts = jobGraph.findOverLapCommunities()
     secs = log.tock(ticktoken)
-    return([job['outName'], n, m, secs])
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts))])
 
 def copyPicsToLatex():
     picFolder = "./output{}".format(testName)
@@ -61,7 +61,9 @@ if __name__ == '__main__':
     if copyPics:
         copyPicsToLatex()
 
-    pd.DataFrame(jobResults).to_csv("./output{}/allfiles".format(testName))
-    # todo fix so file doesn't get overwritten each time
+    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts'])
+
+    resultsDF.to_csv("./output{}/allfiles.csv".format(testName))
+    # todo fix so file doesn't get overwritten each time?
 
     log.end()
