@@ -17,8 +17,7 @@ class TangleSet():
 
     def getTangleCounts(self):
         countList = list()
-        endpoint = min(self.kmax+1, len(self.TangleLists))
-        for k in range(self.kmin, endpoint):
+        for k in range(self.kmin, self.kmax+1):
             # note k is SEP order, so +1 for tang order
             tangNumbers = (k+1, len(self.TangleLists[k]))
             countList.append(tangNumbers)

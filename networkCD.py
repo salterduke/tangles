@@ -98,11 +98,17 @@ class graphCD():
             print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
         self.TangleSet.findAllTangles(depth=dep)
+
+        self.assignCommunities(thres = 1)
         return(self.TangleSet.getTangleCounts())
-        # todo consider what return value we want?
-        # todo need to actually assign to communities here. Maybe new function? Reads in orientations?
-        # remember that in adding comms to nodes, we have to clear comm assignments if want to assign differently later
-        # save to file somehow, then read that to evaluate communities
+
+
+    def assignCommunities(self, thres):
+        self.clearCommAssignments() # in case existing assignments exist
+
+        for t in self.TangleSet.TangleLists[1]:
+            # t.smallSides is list of sets
+            smallSideCounter = coll.Counter([x for s in t.smallSides for x in s])
 
 
     def addCommToNode(self, nodeIndex, comm):
