@@ -26,7 +26,7 @@ def runAnalysis(job):
     log.log("Job: {}".format(job['outName']))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
-    n, m, tangCounts = jobGraph.findOverLapCommunities()
+    n, m, tangCounts = jobGraph.findTangleComms()
     secs = log.tock(ticktoken)
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts))])
 

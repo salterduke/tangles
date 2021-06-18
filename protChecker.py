@@ -12,22 +12,13 @@ class protChecker(bch.commChecker):
     def __init__(self, protList, organism = "Yeast"):
 
         bch.commChecker.__init__(self, protList)
-        #### These are included in bch.commChecker
-        # self.realcover = pd.DataFrame(index=protList)
-        # self.size = len(protList)
 
         protSet = set(protList)
         ## do once as 'in' is more efficient for sets
 
-        # print("Length of protlist = {}".format(len(protList)))
-        # print(self.realcover)
-        # print("shape")
-        # print(self.realcover.shape)
-
         #### put shit here for other organisms if necessary
         org_uri = "/pub/databases/GO/goa/YEAST/goa_yeast.gaf.gz"
         org_fn = org_uri.split('/')[-1]
-        # data_folder = "../NetworkData/BioDBs/YeastPPI/"
         data_folder = "./GOfiles/"
 
 
@@ -96,13 +87,14 @@ class protChecker(bch.commChecker):
                     # print(self.realcover)
                     # print("shape")
                     # print(self.realcover.shape)
-                    # print("size")
-                    # print(self.size)
+                    # print("nNodes")
+                    # print(self.nNodes)
                     # print("------------------")
                     # print(prot, key)
 
                     if entry["GO_ID"] not in self.realcover.columns:
-                        self.realcover[entry["GO_ID"]] = np.zeros(self.size, dtype=int)
+                        # if col not exist, init
+                        self.realcover[entry["GO_ID"]] = np.zeros(self.nNodes, dtype=int)
                     self.realcover.loc[key, entry["GO_ID"]] = 1
 
                     if prot in self.TAMScores.index:
@@ -121,6 +113,43 @@ class protChecker(bch.commChecker):
         # print("************")
         # print(missingProts)
         # print(len(missingProts))
+
+    # todo deleted header to merge this fn with init
+    # def makeSimMatrix(self, protList):
+        # Based on Yu et al 2007 and 2008
+        #########
+        size = self.nNodes
+        simMatrix = np.zeros((size, size))
+
+        nProts = max(len(self.TAMScores.index.levels[0]), len(self.TAMScores.index.levels[1]))
+        N = nProts * (nProts - 1) / 2
+
+        totalSim = 0
+        for i in range(size):
+            # simMatrix[i][i] = 1   ### Actually, probably not... Unclear.
+            for j in range(i+1, size):
+                # print((protList[i], protList[j]))
+                # n = TAMScores.loc[(protList[i], protList[j])]["LCAcount"]
+                if pd.isnull(self.protAliases.iloc[i]["TAMalias"]) or pd.isnull(self.protAliases.iloc[j]["TAMalias"]):
+                    n = N   ### quick kludge to make sim = 0
+                elif self.protAliases.iloc[i]["TAMalias"] == self.protAliases.iloc[j]["TAMalias"]:
+                    n = 1  ### if we have two different prots with the same synonyms
+                    ## we can reasonably conclude they're similar (perhaps subunits of same prot)
+                else:
+                    n = self.TAMScores.loc[(self.protAliases.iloc[i]["TAMalias"],
+                        self.protAliases.iloc[j]["TAMalias"])]["LCAcount"]
+
+                ### Ahn et al uses this cutoff
+                simMatrix[i][j] = simMatrix[j][i] = 1 if n/N < 10**(-3) else 0
+                totalSim+= simMatrix[i][j]
+                # print("{}: {}".format(n/N, simMatrix[i][j]))
+
+        self.simDF = pd.DataFrame(data=simMatrix,
+            index=self.protAliases.index, columns=self.protAliases.index)
+
+        self.aveSim = totalSim / (size * (size-1) / 2)
+
+
 
     def query(self, protID):
         print("-----------")
@@ -175,47 +204,4 @@ class protChecker(bch.commChecker):
         print("Total number of GO Terms: {} ".format(len(allGOTerms)))
 
 
-    def makeSimMatrix(self, protList):
-        # Based on Yu et al 2007 and 2008
-        #########
-        size = self.size
-        simMatrix = np.zeros((size, size))
 
-        nProts = max(len(self.TAMScores.index.levels[0]), len(self.TAMScores.index.levels[1]))
-        N = nProts * (nProts - 1) / 2
-
-        totalSim = 0
-        for i in range(size):
-            # simMatrix[i][i] = 1   ### Actually, probably not... Unclear.
-            for j in range(i+1, size):
-                # print((protList[i], protList[j]))
-                # n = TAMScores.loc[(protList[i], protList[j])]["LCAcount"]
-                if pd.isnull(self.protAliases.iloc[i]["TAMalias"]) or pd.isnull(self.protAliases.iloc[j]["TAMalias"]):
-                    n = N   ### quick kludge to make sim = 0
-                elif self.protAliases.iloc[i]["TAMalias"] == self.protAliases.iloc[j]["TAMalias"]:
-                    n = 1  ### if we have two different prots with the same synonyms
-                    ## we can reasonably conclude they're similar (perhaps subunits of same prot)
-                else:
-                    n = self.TAMScores.loc[(self.protAliases.iloc[i]["TAMalias"],
-                        self.protAliases.iloc[j]["TAMalias"])]["LCAcount"]
-
-                ### Ahn et al uses this cutoff
-                simMatrix[i][j] = simMatrix[j][i] = 1 if n/N < 10**(-3) else 0
-                totalSim+= simMatrix[i][j]
-                # print("{}: {}".format(n/N, simMatrix[i][j]))
-
-        simDF = pd.DataFrame(data=simMatrix,
-            index=self.protAliases.index, columns=self.protAliases.index)
-
-        self.aveSim = totalSim / (size * (size-1) / 2)
-        return(simDF)
-
-    #### These are included in bch.commChecker
-    # def getAveSim(self):
-    #     #### Crack shits if haven't run simMatrix first
-    #     return self.aveSim
-    #
-    # def getOverlapMetadata(self):
-    #     return self.overlapMetadata
-    # def getRealCover(self):
-    #     return self.realcover
