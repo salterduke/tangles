@@ -112,12 +112,8 @@ class graphCD():
 
                 tangNum+=1
 
-        # from elsewhere
-        # self.commLists = coll.defaultdict(set)
-
-        # self.graphData = pd.DataFrame({"nodeID": [idx for idx, v in
-        #     enumerate(self.giantComp.vs)], "degree": self.giantComp.degree()})
-
+        # this makes sure only those communities with at least 3 modes are included.
+        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
 
     # def analyseOverlapComms(self):
 

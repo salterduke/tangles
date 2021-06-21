@@ -173,11 +173,13 @@ class TangleSet():
     def finaliseAndPrint(self, k):
 
         orientArray = pd.DataFrame()
+        orientArrayNamed = pd.DataFrame()
 
 
         def printSingleTangle(tangle, tangID, tangOrder, verbose=False):
 
             tangOrients = []
+            tangOrientsNamed = []
             numSeps = len(tangle.smallSides)
 
             ##########################
@@ -194,14 +196,20 @@ class TangleSet():
 
                 if len(tangle.smallSides[i]) <= len(complement):
                     tangOrients.append("{} / G\\*".format(sorted(set(tangle.smallSides[i]))))
+                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, tangle.smallSides[i])))))
                 else:
                     tangOrients.append("G\\* / {}".format(sorted(complement)))
+                    tangOrientsNamed.append("G\\* / {}".format(sorted(list(map(self.names.__getitem__, complement)))))
 
             tangHeader = "{}: ord={}".format(tangID, tangOrder)
             temparray = pd.DataFrame()
+            temparrayNamed = pd.DataFrame()
             temparray[tangHeader] = tangOrients
+            temparrayNamed[tangHeader] = tangOrientsNamed
             nonlocal orientArray
+            nonlocal orientArrayNamed
             orientArray = pd.concat([orientArray, temparray], axis=1)
+            orientArrayNamed = pd.concat([orientArrayNamed, temparrayNamed], axis=1)
 
         tangleCounter = 0
         for i in range(self.kmin, k+1):
@@ -212,6 +220,11 @@ class TangleSet():
         OrientsOutfile = "{}/{}-Orientations.csv".\
         format(self.job['outputFolder'], self.job['outName'])
         orientArray.to_csv(OrientsOutfile)
+
+        OrientsOutfileNamed = "{}/{}-OrientationsNamed.csv".\
+        format(self.job['outputFolder'], self.job['outName'])
+        orientArrayNamed.to_csv(OrientsOutfileNamed)
+        print("OUTPUT ORIENTATIONS")
 
         with open('sepList.txt', 'w') as f:
             for i in [1,2,3]:
