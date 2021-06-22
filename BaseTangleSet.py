@@ -233,7 +233,7 @@ class TangleSet():
                     f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = True
+        doTreePrint = False
         if doTreePrint:
             outfile = "{}/{}-TangleTree-{}.png".\
                 format(self.job['outputFolder'], self.job['outName'], k)
