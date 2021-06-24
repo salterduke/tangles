@@ -45,7 +45,6 @@ class protChecker(bch.commChecker):
             # Logout from FTP server
             ebi_ftp.quit()
 
-        # print("Length of protList {}".format(len(protList)))
 
         # File is a gunzip file, so we need to open it in this way
         with gzip.open(org_gaf, 'rt') as org_gaf_fp:
@@ -83,15 +82,6 @@ class protChecker(bch.commChecker):
                         self.org_funcs[prot]['GoTerms'][entry['GO_ID']] =\
                             entry['Aspect']
 
-                    ####### ****** making cover matrix
-                    # print(self.realcover)
-                    # print("shape")
-                    # print(self.realcover.shape)
-                    # print("nNodes")
-                    # print(self.nNodes)
-                    # print("------------------")
-                    # print(prot, key)
-
                     if entry["GO_ID"] not in self.realcover.columns:
                         # if col not exist, init
                         self.realcover[entry["GO_ID"]] = np.zeros(self.nNodes, dtype=int)
@@ -107,15 +97,8 @@ class protChecker(bch.commChecker):
                                 self.protAliases.loc[key]["TAMalias"] = synonym
                                 break
 
-        self.getGOcounts(protList)
+        self.getGOcounts(protList)  # todo check what this is doing and if I need it
 
-        # missingProts = self.protAliases[self.protAliases.isnull().any(axis=1)]
-        # print("************")
-        # print(missingProts)
-        # print(len(missingProts))
-
-    # todo deleted header to merge this fn with init
-    # def makeSimMatrix(self, protList):
         # Based on Yu et al 2007 and 2008
         #########
         size = self.nNodes

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+import itertools as iter
 
 class commChecker():
     def __init__(self, nodeList):
@@ -30,7 +30,9 @@ class commChecker():
         coverIntersection = coverX.transpose() @ coverY
 
         HXgivenY = self.conditionalEntropy(coverX, coverY, coverIntersection)
+        print("HXgivenY: {}".format(HXgivenY))
         HYgivenX = self.conditionalEntropy(coverY, coverX, coverIntersection.transpose())
+        print("HYgivenX: {}".format(HYgivenX))
         NMI = 1 - 0.5*(HXgivenY + HYgivenX)
         return(NMI)
 
@@ -93,46 +95,46 @@ class commChecker():
         numPairs = 0
 
         # for commIndex, commNodes in self.commLists.items():
-        for commIndex in range(nComms):
-            commNodes = foundcover.index[foundcover[commIndex]].tolist()
+        for commIndex in foundcover.columns.to_list():
+            commNodes = foundcover.index[foundcover[commIndex]==1].tolist()
             # df.index[df['BoolCol']].tolist()
             if len(commNodes) >= 3:
                 for pair in iter.combinations(commNodes, 2):
-                    totalCommSim += similarity[pair[0]][pair[1]]
+                    totalCommSim += self.simDF[pair[0]][pair[1]]
                     numPairs+=1
         aveCommSim = totalCommSim / numPairs
-        return(aveCommSim / aveSim)
+        return(aveCommSim / self.aveSim)
         # todo also add per comm values
 
 
     def getOverlapMI(self, foundcover):
         # todo: discuss whether this is a meaningful measure, as tangles are *not* overlapping
         # todo also make this fucker work too.
-        if doOverlap:
-            overlapMeta = self.protChecker.getOverlapMetadata()
-            self.graphData = self.graphData.join(overlapMeta, on="node")
+        overlapMeta = self.getOverlapMetadata()
+        overlapMeta = self.getOverlapMetadata()
+        self.graphData = self.graphData.join(overlapMeta, on="node")
 
-            #### get rid of the NANS.
-            self.graphData.dropna(inplace = True)
+        #### get rid of the NANS.
+        self.graphData.dropna(inplace = True)
 
-            ### ? Why?
-            self.graphData['GOcount'] = pd.to_numeric(self.graphData['GOcount'])
+        ### ? Why?
+        self.graphData['GOcount'] = pd.to_numeric(self.graphData['GOcount'])
 
-            #### fucking no idea here on number of bins.
-            # https://stats.stackexchange.com/questions/179674/number-of-bins-when-computing-mutual-information
-            bins = math.floor(math.sqrt(len(self.graphData)/5))
-            ## from https://stackoverflow.com/questions/20491028/optimal-way-to-compute-pairwise-mutual-information-using-numpy
-            contingencyTable = np.histogram2d(self.graphData["commCount"], self.graphData["GOcount"], bins=bins)[0]
-            mi = skl.mutual_info_score(None, None, contingency=contingencyTable)
-            print("MI: {}".format(mi))
+        #### fucking no idea here on number of bins.
+        # https://stats.stackexchange.com/questions/179674/number-of-bins-when-computing-mutual-information
+        bins = math.floor(math.sqrt(len(self.graphData)/5))
+        ## from https://stackoverflow.com/questions/20491028/optimal-way-to-compute-pairwise-mutual-information-using-numpy
+        contingencyTable = np.histogram2d(self.graphData["commCount"], self.graphData["GOcount"], bins=bins)[0]
+        mi = skl.mutual_info_score(None, None, contingency=contingencyTable)
+        print("MI: {}".format(mi))
 
-            ax = self.graphData.plot.scatter(x='GOcount',y='commCount')
-            ax.set_xlabel("Num of GO annotations")
-            ax.set_ylabel("Community membership count")
-            plt.title("Comm count vs GO count: {}, E: {}, MI: {}"\
-                .format(self.job['outName'], commQual, mi))
-            plt.savefig('{}/{}-ScatterPlotCommVsGO.pdf'.\
-                format(self.job['outputFolder'], self.job['outName']),
-                bbox_inches='tight')
-            plt.close()
-            ##### working out NMI (Lancichinetti 2009)
+        ax = self.graphData.plot.scatter(x='GOcount',y='commCount')
+        ax.set_xlabel("Num of GO annotations")
+        ax.set_ylabel("Community membership count")
+        plt.title("Comm count vs GO count: {}, E: {}, MI: {}"\
+            .format(self.job['outName'], commQual, mi))
+        plt.savefig('{}/{}-ScatterPlotCommVsGO.pdf'.\
+            format(self.job['outputFolder'], self.job['outName']),
+            bbox_inches='tight')
+        plt.close()
+        ##### working out NMI (Lancichinetti 2009)

@@ -12,10 +12,10 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "configConst.txt"
-    testName = "Constructed"
-    # configFile = "config2.txt"
-    # testName = "Cutfinder"
+    # configFile = "configConst.txt"
+    # testName = "Constructed"
+    configFile = "config2.txt"
+    testName = "Cutfinder"
 
     log = logger.logger(testName)
     copyPics = False
@@ -26,8 +26,12 @@ def runAnalysis(job):
     log.log("Job: {}".format(job['outName']))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
+
     n, m, tangCounts = jobGraph.findTangleComms()
     secs = log.tock(ticktoken)
+
+    jobGraph.overLapCliquePercolation()
+
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts))])
 
 def copyPicsToLatex():

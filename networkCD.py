@@ -40,6 +40,9 @@ class graphCD():
         graph.simplify()
         self.giantComp = graph.clusters().giant()
 
+        self.protChecker = None
+        # initialising to None as easier to check for than not existing. So later only creates if needed.
+
         print("Number of nodes: {}".format(self.giantComp.vcount()))
         print("Number of edges: {}".format(self.giantComp.ecount()))
 
@@ -113,7 +116,9 @@ class graphCD():
                 tangNum+=1
 
         # this makes sure only those communities with at least 3 modes are included.
-        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
+        # the astype is necessary as df init as NaNs, which are stored as floats.
+        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
+
 
     # def analyseOverlapComms(self):
 
@@ -222,15 +227,67 @@ class graphCD():
 
         quality = coll.defaultdict(float)
 
-        self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
+        if self.protChecker is None:
+            self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
+
         NMI = self.protChecker.calculateNMI(self.foundcover)
         print("Found NMI: ", NMI)
-        # commQual = self.protChecker.getSimilarityRatio(self.foundcover)
+        commQual = self.protChecker.getSimilarityRatio(self.foundcover)
+        print("Found commQual: ", commQual)
         # overlapMI = self.protChecker.getOverlapMI(self.foundcover)
+        # print("Found numComms MI: ", overlapMI)
         # note mi is Mutual inf for (per node) num of comms vs num of GO terms
         # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
         # todo - do somthing with the qual measures
         # todo also re-add the coverage ratio
         return(quality)
+
+
+    def overLapCliquePercolation(self):
+        # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
+
+        minClique = 3
+        maxClique = 6
+
+        cliques = list(map(set, self.giantComp.maximal_cliques(min=minClique)))
+        # so, each clique is assigned an index in the list.
+
+        for k in range(minClique,maxClique+1):
+            filteredCliques = [c for c in cliques if len(c) >= k]
+
+            edgelist = []
+            # iter.combinations(iterable, 2) returns every possible pair of values
+            # in the iterable (irrespective of order), but returns them ordered
+            for i, j in iter.combinations(range(len(filteredCliques)), 2):
+                if len(filteredCliques[i].intersection(filteredCliques[j])) >= k-1:
+                    edgelist.append((i, j))
+
+            cliqueLinks = ig.Graph(edgelist, directed=False)
+            cliqueComps = cliqueLinks.components()
+
+            numComps = len(cliqueComps)
+            if numComps == 0:
+                break
+
+            self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(numComps), dtype=int)
+            for col in self.foundcover.columns:
+                self.foundcover[col].values[:] = 0
+
+            commIndex = 0
+            for comp in cliqueComps:
+                # each component is a list of clique indices
+
+                for cliqueIndex in comp:
+                    for node in filteredCliques[cliqueIndex]:
+                        # todo fix this so not refer to tangleset
+                        self.foundcover.loc[self.TangleSet.names[node], commIndex] = 1
+                commIndex+=1
+
+            # this makes sure only those communities with at least 3 modes are included.
+            # the astype is necessary as df init as NaNs, which are stored as floats.
+            self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
+
+            print("CPM: {}".format(k))
+            self.evaluateCommunities()
 
