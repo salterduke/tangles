@@ -114,8 +114,10 @@ class graphCD():
             # todo something with quality
 
         self.doPrint = True
-        if self.doPrint and socket.gethostname().find("ginger") > -1:
-            self.cytoPrint()
+        # if self.doPrint and socket.gethostname().find("ginger") > -1:
+        #     self.cytoPrint()
+        if self.doPrint:
+            self.igPrint()
 
         return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts())
 
@@ -139,6 +141,10 @@ class graphCD():
         # the astype is necessary as df init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 
+        for node in self.giantComp.vs:
+            node["color"] = "#ffffff"
+
+
         # This bit is working with the tangle tree to assign colours to the comms.
         # note that traverse default is BFS, which is what we want - deeper comms will
         # overwrite colours for parent comms.
@@ -154,7 +160,7 @@ class graphCD():
                 commIndex = int(treenode.name.replace("T", ""))
                 treedep = treenode.get_distance(self.TangleSet.TangleTree)
                 for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
-                    self.giantComp.vs.find(nodeName)["nodeCol"] = self.getColour(treedep)
+                    self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
 
 
 
@@ -189,19 +195,15 @@ class graphCD():
         #     quality["overlapcover"]
         # )
 
+    def igPrint(self):
+        ig.plot(self.giantComp)
+
     def cytoPrint(self, graphToPrint=None):
         if graphToPrint is None:
             graphToPrint = self.giantComp
 
-
         cy = CyRestClient()
-
         cy.session.delete() ### WHy do I need to do this?
-
-        for nodeObj in graphToPrint.vs:
-            if "overlapComms" in nodeObj.attributes() and nodeObj['overlapComms'] is not None:
-                nodeObj['overlapComms'] = "_".join(map(str, nodeObj['overlapComms']))
-
         cyGraph = cy.network.create_from_igraph(graphToPrint)
 
         # layouts = cy.layout.get_all()
@@ -213,8 +215,8 @@ class graphCD():
         #
         # print("--------------")
 
-        cy.layout.apply(name='kamada-kawai', network=cyGraph)
-        # cy.layout.apply(name='force-directed', network=cyGraph)
+        # cy.layout.apply(name='kamada-kawai', network=cyGraph)
+        cy.layout.apply(name='force-directed', network=cyGraph)
         cyStyle = cy.style.create('default')
         # cyStyle._Style__url = "http://red-ginger.sms.vuw.ac.nz/v1/styles/CommColours/"
 
@@ -230,7 +232,8 @@ class graphCD():
             # 'NODE_HEIGHT': 20,
             # 'NODE_WIDTH': 80,
             # 'NODE_BORDER_WIDTH': 1,
-            'NODE_PAINT': '#FFFFFF',
+            # 'NODE_PAINT': '#FFFFFF',
+            # 'NODE_BORDER_PAINT': '#000000',
             'NODE_LABEL_COLOR': '#000000',
             'EDGE_WIDTH': 1,
             'EDGE_TRANSPARENCY': 255,
@@ -241,21 +244,21 @@ class graphCD():
 
         # cyStyle.create_passthrough_mapping(column='format',
         #     vp='NODE_CUSTOMGRAPHICS_1', col_type='String')
-        cyStyle.create_passthrough_mapping(column='edgecol',
-            vp='EDGE_STROKE_UNSELECTED_PAINT', col_type='String')
+        # cyStyle.create_passthrough_mapping(column='edgecol',
+        #     vp='EDGE_STROKE_UNSELECTED_PAINT', col_type='String')
         # cyStyle.create_passthrough_mapping(column='id',
         #     vp='NODE_LABEL', col_type='String')
         cyStyle.create_passthrough_mapping(column='name',
             vp='NODE_LABEL', col_type='String')
-        cyStyle.create_passthrough_mapping(column='nodeCol',
+        cyStyle.create_passthrough_mapping(column='color',
             vp='NODE_FILL_COLOR', col_type='String')
-        cyStyle.create_passthrough_mapping(column='flow',
-            vp='EDGE_LABEL', col_type='String')
+        # cyStyle.create_passthrough_mapping(column='flow',
+        #     vp='EDGE_LABEL', col_type='String')
         cy.style.apply(cyStyle, cyGraph)
 
         cyPDF = cyGraph.get_pdf()
 
-        PDFfilename = '{}/{}-GiantComponentLayout.pdf'.\
+        PDFfilename = '{}/{}-CommLayout.pdf'.\
             format(self.job['outputFolder'], self.job['outName'])
         PDFoutfile = open(PDFfilename, 'wb')
         PDFoutfile.write(cyPDF)
