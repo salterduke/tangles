@@ -61,7 +61,7 @@ class TangleSet():
             self.log.tick("kTangle{} Build Tangle".format(k))
             if not self.kTangle(k):
                 print("No tangles at k: {}".format(k))
-                self.tangleNum = k
+                self.kmax = k-1  # todo: make sure not off-by-one
                 self.log.tock()
                 self.log.end()
                 return(False)
@@ -131,7 +131,9 @@ class TangleSet():
                 if sepNum == numkSeps-1:
                     self.foundTangle +=1
                     self.TangleLists[k].append(child)
-                    child.name = "T{}{}".format(self.currentTangle, formatSideName(side))
+                    # todo editing to make tidy tree tidier - kludge. Fix later to code with sep ids and A/B maybe?
+                    # child.name = "T{}{}".format(self.currentTangle, formatSideName(side))
+                    child.name = "T{}".format(self.currentTangle)
                     self.currentTangle += 1
 
                 self.smallSidesStack.pop()
@@ -233,55 +235,58 @@ class TangleSet():
                     f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = False
+        doTreePrint = True
         if doTreePrint:
-            outfile = "{}/{}-TangleTree-{}.png".\
-                format(self.job['outputFolder'], self.job['outName'], k)
+            self.printTangleTree(k)
 
-            style = ete3.NodeStyle()
-            style["size"] = 0
-            for n in self.TangleTree.traverse():
-                n.set_style(style)
+    def printTangleTree(self, k):
+        outfile = "{}/{}-TangleTree-{}.png". \
+            format(self.job['outputFolder'], self.job['outName'], k)
 
-            ts = ete3.TreeStyle()
-            # ts.show_branch_length = False
-            ts.show_scale = False
-            ts.show_leaf_name = False
-            def my_layout(node):
-                F = ete3.TextFace(node.name, tight_text=True)
-                # F.fsize = 16
-                F.rotation = -90
-                ete3.add_face_to_node(F, node, column=0, position="branch-right")
+        style = ete3.NodeStyle()
+        style["size"] = 0
+        for n in self.TangleTree.traverse():
+            n.set_style(style)
 
-            ts.layout_fn = my_layout
-            ts.rotation = (90)
+        ts = ete3.TreeStyle()
+        # ts.show_branch_length = False
+        ts.show_scale = False
+        ts.show_leaf_name = False
 
-            # ts.min_leaf_separation = 10
-            ts.branch_vertical_margin = 10
-            # ts.allow_face_overlap = True
+        def my_layout(node):
+            F = ete3.TextFace(node.name, tight_text=True)
+            # F.fsize = 16
+            F.rotation = -90
+            ete3.add_face_to_node(F, node, column=0, position="branch-right")
 
-            try:
-                self.TangleTree.render(outfile, tree_style=ts)
-            except Exception as rendError:
-                print(rendError)
+        ts.layout_fn = my_layout
+        ts.rotation = (90)
 
-            tidyTree = self.TangleTree.copy()
-            # print(tidyTree.get_ascii(show_internal=True))
-            for treenode in tidyTree.traverse():
-                if "T" not in treenode.name:
-                    treenode.delete(prevent_nondicotomic = False)
-            ts.show_branch_length = False
+        # ts.min_leaf_separation = 10
+        ts.branch_vertical_margin = 10
+        # ts.allow_face_overlap = True
 
-            for node in tidyTree.iter_descendants():
-                node.dist*=4
+        try:
+            self.TangleTree.render(outfile, tree_style=ts)
+        except Exception as rendError:
+            print(rendError)
 
-            ts.branch_vertical_margin = 8
-            ts.scale = 360
+        tidyTree = self.TangleTree.copy()
+        # print(tidyTree.get_ascii(show_internal=True))
+        for treenode in tidyTree.traverse():
+            if "T" not in treenode.name:
+                treenode.delete(prevent_nondicotomic=False)
+        ts.show_branch_length = False
 
+        for node in tidyTree.iter_descendants():
+            node.dist *= 4
 
-            tidyOutfile = "{}/{}-TidyTangleTree-{}.pdf".\
-                format(self.job['outputFolder'], self.job['outName'], k)
-            try:
-                tidyTree.render(tidyOutfile, tree_style=ts)
-            except Exception as rendError:
-                print(rendError)
+        ts.branch_vertical_margin = 8
+        ts.scale = 360
+
+        tidyOutfile = "{}/{}-TidyTangleTree-{}.pdf". \
+            format(self.job['outputFolder'], self.job['outName'], k)
+        try:
+            tidyTree.render(tidyOutfile, tree_style=ts)
+        except Exception as rendError:
+            print(rendError)

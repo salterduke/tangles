@@ -11,6 +11,7 @@ elif tangleType == "E":
 import pandas as pd
 import collections as coll
 import colorsys
+from matplotlib import cm
 import matplotlib.pyplot as plt
 import igraph as ig
 import itertools as iter
@@ -41,41 +42,59 @@ class graphCD():
         self.giantComp = graph.clusters().giant()
 
         self.protChecker = None
+        self.colmaps = None
         # initialising to None as easier to check for than not existing. So later only creates if needed.
 
         print("Number of nodes: {}".format(self.giantComp.vcount()))
         print("Number of edges: {}".format(self.giantComp.ecount()))
 
 
+
     ## Creates a list of colours evenly distributed around the hue spectrum
     # with fixed saturation and value
-    def getColourList(self, format="rgb", overlap=False):
-        self.colList = []
-        if overlap:
-            commRange = self.numOverlapComms
-        else:
-            commRange = self.CDnumComps
+    # def getColourList(self, format="rgb"):
+    #     self.colList = []
+    #
+    #     if format=="hsv":
+    #         for i in range(0,commRange):
+    #             self.colList.append(
+    #                 "{:0<4f} {:0<4f} {:0<4f}".format(i/commRange, 1, 0.7))
+    #     elif format=="rgb":
+    #         for i in range(0,commRange):
+    #             rgblist = list(colorsys.hsv_to_rgb(i/commRange, 1, 0.7))
+    #             self.colList.append(
+    #                 "#{}".format("".join(map(lambda x: hex(int(x*255)).\
+    #                     split("0x")[1].zfill(2),rgblist))))
+    #     else:
+    #         print("Incorrect colour format, press any key to continue")
+    #         input()
 
-        if format=="hsv":
-            for i in range(0,commRange):
-                self.colList.append(
-                    "{:0<4f} {:0<4f} {:0<4f}".format(i/commRange, 1, 0.7))
-        elif format=="rgb":
-            for i in range(0,commRange):
-                rgblist = list(colorsys.hsv_to_rgb(i/commRange, 1, 0.7))
-                self.colList.append(
-                    "#{}".format("".join(map(lambda x: hex(int(x*255)).\
-                        split("0x")[1].zfill(2),rgblist))))
-        else:
-            print("Incorrect colour format, press any key to continue")
-            input()
+
+    def getColour(self, nodedep, stream = 0):
+
+        if self.colmaps is None:
+            self.colStreams = 1  # todo fix later
+            self.colDep = self.TangleSet.kmax - self.TangleSet.kmin + 2
+            # note, +1 for tangle depth, +1 again for leaving white for not in tangle
+
+            self.colmaps = [cm.get_cmap("Purples", self.colDep+1)]
+
+
+        colCode = self.colmaps[stream](nodedep/self.colDep)
+
+        # convert to #ffffff format
+        return("#{}".format("".join(map(lambda x: hex(int(x*255)).\
+                split("0x")[1].zfill(2),colCode[0:3]))))
+
+
 
 
     def findTangleComms(self):
 
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
-        dep = 4
+        dep = 4 # note, finds dep+1 total levels
+
         if tangleType == "V":
             self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
             self.TangleSet = tset.VertexTangleSet(self.giantComp, self.job, self.log)
@@ -94,6 +113,7 @@ class graphCD():
             quality = self.evaluateCommunities()
             # todo something with quality
 
+        self.doPrint = True
         if self.doPrint and socket.gethostname().find("ginger") > -1:
             self.cytoPrint()
 
@@ -118,6 +138,25 @@ class graphCD():
         # this makes sure only those communities with at least 3 modes are included.
         # the astype is necessary as df init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
+
+        # This bit is working with the tangle tree to assign colours to the comms.
+        # note that traverse default is BFS, which is what we want - deeper comms will
+        # overwrite colours for parent comms.
+        for treenode in self.TangleSet.TangleTree.traverse():
+            if "T" not in treenode.name:
+                # keeps only complete tangles
+                treenode.delete(prevent_nondicotomic=False)
+            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
+                # keeps only tangles with >= 3 nodes
+                treenode.delete(prevent_nondicotomic=False)
+            else:
+                # these are the actual communities we want to colour
+                commIndex = int(treenode.name.replace("T", ""))
+                treedep = treenode.get_distance(self.TangleSet.TangleTree)
+                for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
+                    self.giantComp.vs.find(nodeName)["nodeCol"] = self.getColour(treedep)
+
+
 
 
     # def analyseOverlapComms(self):
@@ -191,7 +230,7 @@ class graphCD():
             # 'NODE_HEIGHT': 20,
             # 'NODE_WIDTH': 80,
             # 'NODE_BORDER_WIDTH': 1,
-            # 'NODE_LABEL_COLOR': '#FFFFFF',
+            'NODE_PAINT': '#FFFFFF',
             'NODE_LABEL_COLOR': '#000000',
             'EDGE_WIDTH': 1,
             'EDGE_TRANSPARENCY': 255,
@@ -208,6 +247,8 @@ class graphCD():
         #     vp='NODE_LABEL', col_type='String')
         cyStyle.create_passthrough_mapping(column='name',
             vp='NODE_LABEL', col_type='String')
+        cyStyle.create_passthrough_mapping(column='nodeCol',
+            vp='NODE_FILL_COLOR', col_type='String')
         cyStyle.create_passthrough_mapping(column='flow',
             vp='EDGE_LABEL', col_type='String')
         cy.style.apply(cyStyle, cyGraph)
@@ -220,7 +261,7 @@ class graphCD():
         PDFoutfile.write(cyPDF)
         PDFoutfile.close()
 
-        os.system("pdfcrop {} {}".format(PDFfilename, PDFfilename))
+        # os.system("pdfcrop {} {}".format(PDFfilename, PDFfilename))
 
     def evaluateCommunities(self):
         # see analyseOverlapComms

@@ -189,7 +189,7 @@ class EdgeTangleSet(btang.TangleSet):
                 k = self.kmin
                 self.kmax = k + maxdepth
                 basicPartition(pool)
-                self.TangleTree.add_feature("cutsets", [])
+                # self.TangleTree.add_feature("cutsets", [])
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                 # I know this looks stupid, but partcutHeap gets modified by this loop
