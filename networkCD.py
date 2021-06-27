@@ -41,6 +41,10 @@ class graphCD():
         graph.simplify()
         self.giantComp = graph.clusters().giant()
 
+        # todo remove after testing
+        self.igPrint()
+        exit()
+
         self.protChecker = None
         self.colmaps = None
         # initialising to None as easier to check for than not existing. So later only creates if needed.
@@ -196,7 +200,16 @@ class graphCD():
         # )
 
     def igPrint(self):
-        ig.plot(self.giantComp)
+        visual_style = {
+            "vertex_label": self.giantComp.vs["name"],
+            "vertex_shape": "rectangle",
+            "vertex_width": max(map(len, self.giantComp.vs["name"])) * 10 + 10,
+            "vertex_height": 20
+        }
+
+        ig.plot(self.giantComp, **visual_style)
+
+        dummy = 1
 
     def cytoPrint(self, graphToPrint=None):
         if graphToPrint is None:
