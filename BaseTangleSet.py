@@ -239,6 +239,8 @@ class TangleSet():
         if doTreePrint:
             self.printTangleTree(k)
 
+
+
     def printTangleTree(self, k):
         outfile = "{}/{}-TangleTree-{}.png". \
             format(self.job['outputFolder'], self.job['outName'], k)
@@ -290,3 +292,5 @@ class TangleSet():
             tidyTree.render(tidyOutfile, tree_style=ts)
         except Exception as rendError:
             print(rendError)
+
+

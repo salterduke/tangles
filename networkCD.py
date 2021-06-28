@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import ete3
 
 # tangleType = "V"
 tangleType = "E"
@@ -42,8 +43,8 @@ class graphCD():
         self.giantComp = graph.clusters().giant()
 
         # todo remove after testing
-        self.igPrint()
-        exit()
+        # self.igPrint()
+        # exit()
 
         self.protChecker = None
         self.colmaps = None
@@ -111,7 +112,7 @@ class graphCD():
 
         self.TangleSet.findAllTangles(depth=dep)
 
-        self.assignCommunities(thres = 1)
+        self.assignCommunities(thres = 0.95)
 
         if "Yeast" in self.job["outName"]:
             quality = self.evaluateCommunities()
@@ -126,6 +127,8 @@ class graphCD():
         return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts())
 
     # todo this probably doesn't work for vertex connectivity tangles!
+    # also note currently only does *once* at end for all k levels -
+    # could change to do each level?
     def assignCommunities(self, thres):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
         tangNum = 0
@@ -152,12 +155,15 @@ class graphCD():
         # This bit is working with the tangle tree to assign colours to the comms.
         # note that traverse default is BFS, which is what we want - deeper comms will
         # overwrite colours for parent comms.
+        # todo if change to every level, need to do on *copy* of tangletree.
         for treenode in self.TangleSet.TangleTree.traverse():
             if "T" not in treenode.name:
                 # keeps only complete tangles
+                print("deleting non-tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
                 # keeps only tangles with >= 3 nodes
+                print("deleting trivial tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             else:
                 # these are the actual communities we want to colour
@@ -165,8 +171,45 @@ class graphCD():
                 treedep = treenode.get_distance(self.TangleSet.TangleTree)
                 for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
                     self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
+        self.printCommTree()
 
+    def printCommTree(self):
+        outfile = "{}/{}-CommTree.png". \
+            format(self.job['outputFolder'], self.job['outName'])
 
+        style = ete3.NodeStyle()
+        style["size"] = 0
+        for n in self.TangleSet.TangleTree.traverse():
+            n.set_style(style)
+            # n.dist *= 4
+
+        ts = ete3.TreeStyle()
+        # ts.show_branch_length = False
+        ts.show_scale = False
+        ts.show_leaf_name = False
+
+        def my_layout(node):
+            F = ete3.TextFace(node.name, tight_text=True)
+            # F.fsize = 16
+            F.rotation = -90
+            ete3.add_face_to_node(F, node, column=0, position="branch-right")
+
+        ts.layout_fn = my_layout
+        ts.rotation = (90)
+
+        ts.branch_vertical_margin = 10
+        ts.show_branch_length = False
+
+        for node in self.TangleSet.TangleTree.iter_descendants():
+            node.dist *= 4
+
+        ts.branch_vertical_margin = 8
+        ts.scale = 360
+
+        try:
+            self.TangleSet.TangleTree.render(outfile, tree_style=ts)
+        except Exception as rendError:
+            print(rendError)
 
 
     # def analyseOverlapComms(self):
