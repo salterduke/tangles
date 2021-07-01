@@ -204,6 +204,8 @@ class EdgeTangleSet(btang.TangleSet):
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
 
+            # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
+
     def addToSepList(self, partial):
         def cutIsSuperset(newCut):
             for cut in self.cuts:
@@ -226,11 +228,13 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
-        if cutIsSuperset(partial.cutEdges):
-            return
 
         components = extractComponents(partial.mcut, self.Gdirected.vcount())
         components = sorted(components, key=len)
+
+        # turns out we need to include the supersets!
+        # if cutIsSuperset(partial.cutEdges):
+        #     return
 
         size = len(partial.cutEdges)
 

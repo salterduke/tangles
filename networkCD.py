@@ -159,11 +159,11 @@ class graphCD():
         for treenode in self.TangleSet.TangleTree.traverse():
             if "T" not in treenode.name:
                 # keeps only complete tangles
-                print("deleting non-tangle treenodes")
+                # print("deleting non-tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
                 # keeps only tangles with >= 3 nodes
-                print("deleting trivial tangle treenodes")
+                # print("deleting trivial tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             else:
                 # these are the actual communities we want to colour
