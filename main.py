@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # configFile = "configConst.txt"
     # testName = "Constructed"
     configFile = "config2.txt"
-    testName = "Cutfinder"
+    testName = "FixSupersets"
 
     log = logger.logger(testName)
     copyPics = False

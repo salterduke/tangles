@@ -118,7 +118,7 @@ class graphCD():
             quality = self.evaluateCommunities()
             # todo something with quality
 
-        self.doPrint = True
+        self.doPrint = False
         # if self.doPrint and socket.gethostname().find("ginger") > -1:
         #     self.cytoPrint()
         if self.doPrint:

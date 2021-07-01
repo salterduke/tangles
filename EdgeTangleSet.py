@@ -207,11 +207,19 @@ class EdgeTangleSet(btang.TangleSet):
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
 
     def addToSepList(self, partial):
-        def cutIsSuperset(newCut):
-            for cut in self.cuts:
-                if newCut.issuperset(cut):
-                    return True
-            return False
+        def addDefSmall(newcomp, newsize):
+
+            for size in range(self.kmin, newsize):
+                oldlength = len(self.definitelySmall[size])
+                self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
+                                              if not newcomp.issuperset(comp)]
+                newlength = len(self.definitelySmall[size])
+                if oldlength != newlength:
+                    print("Not equal!")
+            self.definitelySmall[newsize].append(newcomp)
+
+
+
 
         def printSepToFile(components, cut, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
@@ -232,21 +240,19 @@ class EdgeTangleSet(btang.TangleSet):
         components = extractComponents(partial.mcut, self.Gdirected.vcount())
         components = sorted(components, key=len)
 
-        # turns out we need to include the supersets!
-        # if cutIsSuperset(partial.cutEdges):
-        #     return
-
-        size = len(partial.cutEdges)
+        # size = len(partial.cutEdges)
+        size = int(partial.weight)
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
         # todo - what about if both sides def small?
-        # todo - add check for union of all def small sides? Only if *all* seps def orientable?
         if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
-            self.definitelySmall[size].append(components[0])
+            addDefSmall(components[0], size)
+            # self.definitelySmall[size].append(components[0])
             orientation = 1
         elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
-            self.definitelySmall[size].append(components[1])
+            addDefSmall(components[1], size)
+            # self.definitelySmall[size].append(components[1])
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
@@ -254,5 +260,6 @@ class EdgeTangleSet(btang.TangleSet):
             orientation = 3
 
         # need to do this because we need to check for superset-ness
-        self.cuts.add(partial.cutEdges)
+        # self.cuts.add(partial.cutEdges)
+        # todo consider if can remove cutEdges?
         printSepToFile(components, partial.cutEdges, orientation)
