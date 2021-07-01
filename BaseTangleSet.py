@@ -14,6 +14,7 @@ class TangleSet():
         self.job = job
         self.log = log
         self.nodeIndex = 1
+        self.smallSidesStack = []
 
     def getTangleCounts(self):
         countList = list()
@@ -88,9 +89,8 @@ class TangleSet():
             print("Define offset in checkTangleAxioms in baseTangleSet")
             exit()
 
-
         ### Axiom 2
-        for side1, side2 in it.combinations(self.smallSidesStack, 2):
+        for side1, side2 in it.combinations(it.chain(*self.definitelySmall.values(), self.smallSidesStack), 2):
 
             #### looks like shitty code, but might mean
             #### some of the unions can be avoided - O(m)
@@ -108,8 +108,8 @@ class TangleSet():
 
 
     def kTangle(self, k):
-        def sortB(sep):
-            return(len(sep[1]))
+        # def sortB(sep):
+        #     return(len(sep[1]))
 
         def formatSideName(side):   ##### fix this to switch on "verbose"
             side = str(side)
@@ -140,30 +140,46 @@ class TangleSet():
 
         self.foundTangle = 0
 
-        numkdefSmall = len(self.definitelySmall[k])
-        numkSeps = len(self.separations[k]) + numkdefSmall
+        # numkdefSmall = len(self.definitelySmall[k])
+        # numkSeps = len(self.separations[k]) + numkdefSmall
+        numkSeps = len(self.separations[k])
 
         prevBranches = self.TangleLists[k-1]
 
+        if(k == 4):
+            print("Moocow")
+
+        # now does not add the def small seps to the tangle tree. Includes them in the axiom check.
         for sepNum in range(numkSeps):
             currentBranches = prevBranches
             prevBranches = []
             for truncTangle in currentBranches:
                 self.smallSidesStack = truncTangle.smallSides   ###### *****
-                if sepNum < numkdefSmall:
-                    #### No branching
-                    addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
-                elif sepNum < numkSeps:
-                    ### check both sides of the separation
-                    # NOTE: Edited so that only the side with fewest elements is stored
-                    # other must be calculated
-                    # for side in self.separations[k][sepNum - numkdefSmall]:
-                    #     addSideAsSep(side, truncTangle, sepNum)
-                    # todo has NOT been checked for correctness with vertex tangles.
-                    side = self.separations[k][sepNum - numkdefSmall]
-                    addSideAsSep(side, truncTangle, sepNum)
-                    complement = self.groundset - side
-                    addSideAsSep(complement, truncTangle, sepNum)
+                # todo has NOT been checked for correctness with vertex tangles.
+                side = self.separations[k][sepNum]
+                addSideAsSep(side, truncTangle, sepNum)
+                complement = self.groundset - side
+                addSideAsSep(complement, truncTangle, sepNum)
+
+        # for sepNum in range(numkSeps):
+        #     currentBranches = prevBranches
+        #     prevBranches = []
+        #     for truncTangle in currentBranches:
+        #         self.smallSidesStack = truncTangle.smallSides   ###### *****
+        #         if sepNum < numkdefSmall:
+        #             #### No branching
+        #             addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
+        #         elif sepNum < numkSeps:
+        #             ### check both sides of the separation
+        #             # NOTE: Edited so that only the side with fewest elements is stored
+        #             # other must be calculated
+        #             # for side in self.separations[k][sepNum - numkdefSmall]:
+        #             #     addSideAsSep(side, truncTangle, sepNum)
+        #             # todo has NOT been checked for correctness with vertex tangles.
+        #             side = self.separations[k][sepNum - numkdefSmall]
+        #             addSideAsSep(side, truncTangle, sepNum)
+        #             complement = self.groundset - side
+        #             addSideAsSep(complement, truncTangle, sepNum)
 
         if self.foundTangle:
             self.finaliseAndPrint(k)

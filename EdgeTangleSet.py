@@ -210,16 +210,9 @@ class EdgeTangleSet(btang.TangleSet):
         def addDefSmall(newcomp, newsize):
 
             for size in range(self.kmin, newsize):
-                oldlength = len(self.definitelySmall[size])
                 self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
                                               if not newcomp.issuperset(comp)]
-                newlength = len(self.definitelySmall[size])
-                if oldlength != newlength:
-                    print("Not equal!")
             self.definitelySmall[newsize].append(newcomp)
-
-
-
 
         def printSepToFile(components, cut, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
