@@ -98,7 +98,8 @@ class graphCD():
 
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
-        dep = 4 # note, finds dep+1 total levels
+        # dep = 4 # note, finds dep+1 total levels
+        dep = 3
 
         if tangleType == "V":
             self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
@@ -131,6 +132,7 @@ class graphCD():
     # could change to do each level?
     def assignCommunities(self, thres):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
+
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
             for tang in self.TangleSet.TangleLists[order]:
@@ -143,6 +145,11 @@ class graphCD():
                         1 if (1-smallCounter[v]/numSeps >= thres) else 0
 
                 tangNum+=1
+
+        outfile = "{}/{}-TangNodes.csv". \
+            format(self.job['outputFolder'], self.job['outName'])
+        self.foundcover.to_csv(outfile)
+
 
         # this makes sure only those communities with at least 3 modes are included.
         # the astype is necessary as df init as NaNs, which are stored as floats.

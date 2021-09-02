@@ -90,19 +90,31 @@ class TangleSet():
             exit()
 
         ### Axiom 2
-        for side1, side2 in it.combinations(it.chain(*self.definitelySmall.values(), self.smallSidesStack), 2):
+        # todo - reverting to storing all def small in stack to handle cases where *all* def small
+        # todo - consider doing properly later
+        # sepsSoFar = list(it.chain(*self.definitelySmall.values(), self.smallSidesStack))
+        sepsSoFar = list(self.smallSidesStack)
 
-            #### looks like shitty code, but might mean
-            #### some of the unions can be avoided - O(m)
+        if len(sepsSoFar) == 1:
+            side1 = sepsSoFar[0]
             double1 = side1 | newSep
             if len(double1) >= self.groundsetSize - offset:
                 return False
-            double2 = side2 | newSep
-            if len(double2) >= self.groundsetSize - offset:
-                return False
-            triple = side1 | double2
-            if len(triple) == self.groundsetSize:
-                return False
+        else:
+            # for side1, side2 in it.combinations(it.chain(*self.definitelySmall.values(), self.smallSidesStack), 2):
+            for side1, side2 in it.combinations(sepsSoFar, 2):
+
+                #### looks like shitty code, but might mean
+                #### some of the unions can be avoided - O(m)
+                double1 = side1 | newSep
+                if len(double1) >= self.groundsetSize - offset:
+                    return False
+                double2 = side2 | newSep
+                if len(double2) >= self.groundsetSize - offset:
+                    return False
+                triple = side1 | double2
+                if len(triple) == self.groundsetSize:
+                    return False
 
         return True
 
@@ -110,6 +122,7 @@ class TangleSet():
     def kTangle(self, k):
         # def sortB(sep):
         #     return(len(sep[1]))
+        print(k)
 
         def formatSideName(side):   ##### fix this to switch on "verbose"
             side = str(side)
@@ -140,46 +153,48 @@ class TangleSet():
 
         self.foundTangle = 0
 
-        # numkdefSmall = len(self.definitelySmall[k])
-        # numkSeps = len(self.separations[k]) + numkdefSmall
-        numkSeps = len(self.separations[k])
+        numkdefSmall = len(self.definitelySmall[k])
+        numkSeps = len(self.separations[k]) + numkdefSmall
+        # numkSeps = len(self.separations[k])
 
         prevBranches = self.TangleLists[k-1]
 
-        if(k == 4):
-            print("Moocow")
 
+        # --------------------------------------------------------------------------
         # now does not add the def small seps to the tangle tree. Includes them in the axiom check.
-        for sepNum in range(numkSeps):
-            currentBranches = prevBranches
-            prevBranches = []
-            for truncTangle in currentBranches:
-                self.smallSidesStack = truncTangle.smallSides   ###### *****
-                # todo has NOT been checked for correctness with vertex tangles.
-                side = self.separations[k][sepNum]
-                addSideAsSep(side, truncTangle, sepNum)
-                complement = self.groundset - side
-                addSideAsSep(complement, truncTangle, sepNum)
-
+        # todo - get this working.
+        # does not work correctly if all seps def small
         # for sepNum in range(numkSeps):
         #     currentBranches = prevBranches
         #     prevBranches = []
         #     for truncTangle in currentBranches:
         #         self.smallSidesStack = truncTangle.smallSides   ###### *****
-        #         if sepNum < numkdefSmall:
-        #             #### No branching
-        #             addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
-        #         elif sepNum < numkSeps:
-        #             ### check both sides of the separation
-        #             # NOTE: Edited so that only the side with fewest elements is stored
-        #             # other must be calculated
-        #             # for side in self.separations[k][sepNum - numkdefSmall]:
-        #             #     addSideAsSep(side, truncTangle, sepNum)
-        #             # todo has NOT been checked for correctness with vertex tangles.
-        #             side = self.separations[k][sepNum - numkdefSmall]
-        #             addSideAsSep(side, truncTangle, sepNum)
-        #             complement = self.groundset - side
-        #             addSideAsSep(complement, truncTangle, sepNum)
+        #         # todo has NOT been checked for correctness with vertex tangles.
+        #         side = self.separations[k][sepNum]
+        #         addSideAsSep(side, truncTangle, sepNum)
+        #         complement = self.groundset - side
+        #         addSideAsSep(complement, truncTangle, sepNum)
+        # --------------------------------------------------------------------------
+
+        for sepNum in range(numkSeps):
+            currentBranches = prevBranches
+            prevBranches = []
+            for truncTangle in currentBranches:
+                self.smallSidesStack = truncTangle.smallSides   ###### *****
+                if sepNum < numkdefSmall:
+                    #### No branching
+                    addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
+                elif sepNum < numkSeps:
+                    ### check both sides of the separation
+                    # NOTE: Edited so that only the side with fewest elements is stored
+                    # other must be calculated
+                    # for side in self.separations[k][sepNum - numkdefSmall]:
+                    #     addSideAsSep(side, truncTangle, sepNum)
+                    # todo has NOT been checked for correctness with vertex tangles.
+                    side = self.separations[k][sepNum - numkdefSmall]
+                    addSideAsSep(side, truncTangle, sepNum)
+                    complement = self.groundset - side
+                    addSideAsSep(complement, truncTangle, sepNum)
 
         if self.foundTangle:
             self.finaliseAndPrint(k)
@@ -251,7 +266,7 @@ class TangleSet():
                     f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = True
+        doTreePrint = False
         if doTreePrint:
             self.printTangleTree(k)
 

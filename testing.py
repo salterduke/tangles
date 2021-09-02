@@ -1,48 +1,106 @@
 import igraph as ig
+import numpy as np
 import random
 
-fbase = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/"
-fullSize = 2016
-edgesToDel = 252
+
+# G = ig.Graph.Famous("Zachary")
+
+gname = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
+# gname = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyEdges.csv"
+G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
+
+print(G.vs["name"])
+shell = np.array(G.coreness())
+print(np.where(shell==1))
+G.delete_vertices(np.where(shell==1)[0])
 
 
-G = ig.Graph.Full(64)
-fname = fbase + "Graph_v_64_es_2016.ncol"
-G.write_ncol(fname, None, None)
+ig.plot(G)
 
-for i in range(1, 8):
-    delCount = 0
-    print("Graph {}".format(i))
-    while(delCount < edgesToDel):
-        Es = list(G.es.indices)
-        newEs = random.sample(Es, len(Es)-1)
-        newG = G.subgraph_edges(newEs, delete_vertices = False)
-        if (newG.is_connected()) :
-            delCount += 1
-            G = newG
-    fname = "{}Graph_v_64_es_{}.ncol".format(fbase, G.ecount())
-    print("---------------------")
-    print("Number of nodes: {}".format(G.vcount()))
-    print("Number of edges: {}".format(G.ecount()))
-    G.write_ncol(fname, None, None)
+GH = G.gomory_hu_tree(flow = "label")
+# GH = G.gomory_hu_tree()
 
-edgesToDel = 21
+# def concatNames()
 
-for i in range(1, 10    ):
-    delCount = 0
-    print("Graph {}".format(i))
-    while(delCount < edgesToDel):
-        Es = list(G.es.indices)
-        newEs = random.sample(Es, len(Es)-1)
-        newG = G.subgraph_edges(newEs, delete_vertices = False)
-        if (newG.is_connected()) :
-            delCount += 1
-            G = newG
-    fname = "{}Graph_v_64_es_{}.ncol".format(fbase, G.ecount())
-    print("---------------------")
-    print("Number of nodes: {}".format(G.vcount()))
-    print("Number of edges: {}".format(G.ecount()))
-    G.write_ncol(fname, None, None)
+# GH.contract_vertices([0,0,0,1,2,3,3,3,3], combine_attrs="concat")
+
+
+visual_style = {}
+visual_style["vertex_size"] = 40
+visual_style["vertex_label"] = GH.vs["name"]
+visual_style["vertex_color"] = "white"
+visual_style["vertex_label_size"] = 8
+# visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
+# visual_style["layout"] = layout
+# visual_style["bbox"] = (300, 300)
+
+# ig.plot(GH, **visual_style)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# fbase = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/"
+# fullSize = 2016
+# edgesToDel = 252
+#
+#
+# G = ig.Graph.Full(64)
+# fname = fbase + "Graph_v_64_es_2016.ncol"
+# G.write_ncol(fname, None, None)
+#
+# for i in range(1, 8):
+#     delCount = 0
+#     print("Graph {}".format(i))
+#     while(delCount < edgesToDel):
+#         Es = list(G.es.indices)
+#         newEs = random.sample(Es, len(Es)-1)
+#         newG = G.subgraph_edges(newEs, delete_vertices = False)
+#         if (newG.is_connected()) :
+#             delCount += 1
+#             G = newG
+#     fname = "{}Graph_v_64_es_{}.ncol".format(fbase, G.ecount())
+#     print("---------------------")
+#     print("Number of nodes: {}".format(G.vcount()))
+#     print("Number of edges: {}".format(G.ecount()))
+#     G.write_ncol(fname, None, None)
+#
+# edgesToDel = 21
+#
+# for i in range(1, 10    ):
+#     delCount = 0
+#     print("Graph {}".format(i))
+#     while(delCount < edgesToDel):
+#         Es = list(G.es.indices)
+#         newEs = random.sample(Es, len(Es)-1)
+#         newG = G.subgraph_edges(newEs, delete_vertices = False)
+#         if (newG.is_connected()) :
+#             delCount += 1
+#             G = newG
+#     fname = "{}Graph_v_64_es_{}.ncol".format(fbase, G.ecount())
+#     print("---------------------")
+#     print("Number of nodes: {}".format(G.vcount()))
+#     print("Number of edges: {}".format(G.ecount()))
+#     G.write_ncol(fname, None, None)
 
 
 # # import sqlite3
