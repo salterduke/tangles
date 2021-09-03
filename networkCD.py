@@ -99,7 +99,7 @@ class graphCD():
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
         # dep = 4 # note, finds dep+1 total levels
-        dep = 3
+        dep = 2
 
         if tangleType == "V":
             self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
@@ -133,10 +133,14 @@ class graphCD():
     def assignCommunities(self, thres):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
 
+        tangOrders = []
+
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
             for tang in self.TangleSet.TangleLists[order]:
                 numSeps = len(tang.smallSides)
+                tangOrders.append(order)
+
                 # tang.smallSides is list of sets
                 smallCounter = coll.Counter([x for s in tang.smallSides for x in s])
 
@@ -148,7 +152,10 @@ class graphCD():
 
         outfile = "{}/{}-TangNodes.csv". \
             format(self.job['outputFolder'], self.job['outName'])
-        self.foundcover.to_csv(outfile)
+        # making copy to add row for orders without messing with anything else.
+        cover_copy = self.foundcover.copy(deep = True)
+        cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        cover_copy.to_csv(outfile)
 
 
         # this makes sure only those communities with at least 3 modes are included.

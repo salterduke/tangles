@@ -153,8 +153,8 @@ class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
         # todo check this change
-        # shell = np.array(G.coreness())
-        # G.delete_vertices(np.where(shell == 1)[0])
+        shell = np.array(G.coreness())
+        G.delete_vertices(np.where(shell == 1)[0])
         # todo change ends here
         self.G = G
 
