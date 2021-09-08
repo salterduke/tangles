@@ -154,7 +154,21 @@ class EdgeTangleSet(btang.TangleSet):
 
         # todo check this change
         shell = np.array(G.coreness())
-        G.delete_vertices(np.where(shell == 1)[0])
+        # remove 1-shell completely:
+        # G.delete_vertices(np.where(shell == 1)[0])
+
+        # leave "stubs"
+        del_Vs = []
+        for vid in np.where(shell == 1)[0]:
+            to_del = True
+            for nb in G.neighbors(vid):
+                if shell[nb] > 1:
+                    to_del = False
+            if to_del:
+                del_Vs.append(vid)
+
+        G.delete_vertices(del_Vs)
+
         # todo change ends here
         self.G = G
 

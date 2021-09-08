@@ -135,6 +135,7 @@ class graphCD():
 
         tangOrders = []
 
+        # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
             for tang in self.TangleSet.TangleLists[order]:

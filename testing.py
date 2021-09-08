@@ -1,40 +1,58 @@
 import igraph as ig
 import numpy as np
+import pandas as pd
 import random
 
 
 # G = ig.Graph.Famous("Zachary")
 
+# g= ig.Graph.Full(n=4)
+# t = g.gomory_hu_tree(flow="label")
+# visual_style = {}
+# visual_style["vertex_color"] = "white"
+# visual_style["vertex_label"] = range(4)
+# ig.plot(t, **visual_style)
+
+
 gname = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
 # gname = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyEdges.csv"
 G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
 
-print(G.vs["name"])
+# origVs = pd.DataFrame({"name": G.vs["name"],
+#                        "deg": G.degree()})
+
 shell = np.array(G.coreness())
-print(np.where(shell==1))
-G.delete_vertices(np.where(shell==1)[0])
+
+del_Vs = []
+for vid in np.where(shell==1)[0]:
+    to_del = True
+    for nb in G.neighbors(vid):
+        if shell[nb] > 1:
+            to_del = False
+    if to_del:
+        del_Vs.append(vid)
+
+G.delete_vertices(del_Vs)
 
 
-ig.plot(G)
+# ig.plot(G)
 
 GH = G.gomory_hu_tree(flow = "label")
 # GH = G.gomory_hu_tree()
-
-# def concatNames()
 
 # GH.contract_vertices([0,0,0,1,2,3,3,3,3], combine_attrs="concat")
 
 
 visual_style = {}
 visual_style["vertex_size"] = 40
-visual_style["vertex_label"] = GH.vs["name"]
+visual_style["vertex_label"] = t.vs["name"]
 visual_style["vertex_color"] = "white"
 visual_style["vertex_label_size"] = 8
 # visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
 # visual_style["layout"] = layout
 # visual_style["bbox"] = (300, 300)
 
-# ig.plot(GH, **visual_style)
+# ig.plot(t, **visual_style)
 
 
 
