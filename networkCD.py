@@ -23,8 +23,8 @@ import socket
 
 from py2cytoscape.data.cyrest_client import CyRestClient
 
-from igraph import arpack_options
-arpack_options.maxiter=300000
+# from igraph import arpack_options
+# arpack_options.maxiter=300000
 
 class graphCD():
     def __init__(self, job, log):
@@ -94,12 +94,11 @@ class graphCD():
 
 
 
-    def findTangleComms(self):
+    def findTangleComms(self, dep = 2):
 
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
-        # dep = 4 # note, finds dep+1 total levels
-        dep = 2
+        #### note, finds dep+1 total levels
 
         if tangleType == "V":
             self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}

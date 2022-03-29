@@ -4,6 +4,9 @@ import multiprocessing
 import sys
 import numpy as np
 import igraph as ig
+import collections as coll
+import itertools as iter
+
 
 import BaseTangleSet as btang
 
@@ -25,25 +28,6 @@ def extCutIsSuperset(currCuts, newCut):
         if newCut.issuperset(cut):
             return True
     return False
-
-# next two defs just stubs...
-class HO_cutfinder(object):
-    def __init__(self, Gdir):
-        # modified init
-        pass
-
-    def findmin(self):
-        pass
-
-    def relabel(self):
-        pass
-
-    def selectSink(self):
-        pass
-
-def HO_mincut(Gdir):
-    cutfinder = HO_cutfinder(Gdir)
-
 
 def externalExtractMinPart(partcut, Gdir, kmax):
     longpcut = extractComponents(partcut.pcut["binrep"], partcut.pcut["binlen"])
@@ -149,6 +133,115 @@ class partialCut(object):
         # todo add more shit later?
         return "\nwt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
+class HaoOrlin():
+    #### Partitions the partial cut P(s, \empty), and returns all elements <= kmax
+    #### Assumes G is directed
+    # todo add check for directed
+    def __init__(self, H):
+        self.H = H
+        self.H.es["flow"] = 0
+        if not self.H.is_weighted():
+            self.H.es["weight"] = 1
+
+    def initFor_s(self, s):
+        # s is the *index* of the vertex (at this stage, assuming it works)
+        self.Dset = []
+        J = self.H.successors(s)
+        # todo this could be more efficient with get_eids and a comprehension, but let's just get it working first, hey?
+        for j in J:
+            eid = self.H.get_eid(s, j)
+            self.H.es[eid]["flow"] = self.H.es[eid]["weight"]
+
+        self.Dset.append({s})
+        self.Dmax = 0
+        self.W = set(self.H.vs.indices)
+        self.W.discard(s)
+        self.S = {s}
+        self.t = 1  # todo write checks s != t
+        self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
+        self.d[self.sink] = 0
+        self.dCount = coll.Counter({1:(self.H.vcount()-1), 0:1})
+        # todo make sure to update dCount every time d is updated!
+
+        # todo *** maybe take out if not debugging?
+        self.H.es["label"] = self.H.es["flow"]
+        self.H.es["curved"] = 0
+
+
+    # if findall == False, find only the min, else find all <= kmax
+    def HOfindCuts(self, s, kmax, findall = True):
+        self.initFor_s(s)
+        while len(self.S) < self.H.vcount():
+            while self.existsActiveNode():
+                i = self.activeNode
+                if self.existsAdmissableEdge(i):
+                    self.pushFlow()
+                else:
+                    self.relabel(i)
+            self.updateCutList()
+            self.selectSink()
+
+    def updateCutList(self):
+        pass
+
+    def existsActiveNode(self):
+        # checking active node first - maybe an easier way?
+        for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
+            self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
+                sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
+            if self.excess_i > 0:
+                self.activeNode = v
+                return True
+        self.activeNode = -1
+        return False
+
+
+    def existsAdmissableEdge(self, i):
+        J = self.H.successors(i)
+        for j in self.W.intersection(J):
+            if self.d[i] == self.d[j] + 1:
+                self.ij = self.H.get_eid(i, j)
+                self.ji = self.H.get_eid(j, i)
+                self.r_ij = self.H.es[self.ij]["weight"] - self.H.es[self.ij]["flow"] + self.H.es[self.ji]
+                if  self.r_ij > 0:
+                    return True
+        return False
+
+    def pushFlow(self):
+        delta = min(self.r_ij, self.excess_i)
+
+        # reverse any backflow before pushing forward flow
+        if self.H.es[self.ji]["flow"] > 0:
+            delta_1 = min(self.H.es[self.ji]["flow"], delta)
+            self.H.es[self.ji]["flow"] -= delta_1
+            delta -= delta_1
+        self.H.es[self.ij]["flow"] += delta
+
+
+    def relabel(self, i):
+        di = self.d[i]
+        if self.dCount[di] == 1:
+            R = {j for j in self.W if self.d[j] >= di}
+            self.Dmax+=1
+            self.Dset.append(R)
+            self.W = self.W - R
+        else:
+            arcs = self.H.successors(i)
+            j_in_W = self.W.intersection(arcs)
+            if len(j_in_W) == 0:
+                R = {i}
+                self.Dmax += 1
+                self.Dset.append(R)
+                self.W = self.W - R
+            else:
+                jDists = {self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0}
+                self.d[i] = min(jDists) + 1
+        # this func done. Does it work? Who can say?
+
+    def selectSink(self):
+        pass
+
+
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
@@ -195,17 +288,30 @@ class EdgeTangleSet(btang.TangleSet):
     def findNextOrderSeparations(self, k=None, maxdepth=4):
 
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
+        # def basicPartitionPreYWS(pool):
+        #
+        #     n = self.Gdirected.vcount()
+        #     self.vids = self.Gdirected.vs.indices
+        #     # let s = node 0, (see Yeh and Wang) so start at 1
+        #     self.U = range(1,n)  # like this so easier to change later?
+        #
+        #     self.partcutHeap = [partcut for partcut in
+        #                         pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
+        #                                  range(len(self.U))) if partcut.weight <= self.kmax]
+        #     heapq.heapify(self.partcutHeap)
+
+
+
         def basicPartition(pool):
 
             n = self.Gdirected.vcount()
             self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
-            self.U = range(1,n)  # like this so easier to change later
+            HO = HaoOrlin(self.Gdirected)
+            self.partcutHeap = HO.HOfindCuts(s=0, kmax=self.kmax)
 
-            self.partcutHeap = [partcut for partcut in
-                                pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
-                                         range(len(self.U))) if partcut.weight <= self.kmax]
             heapq.heapify(self.partcutHeap)
+
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
