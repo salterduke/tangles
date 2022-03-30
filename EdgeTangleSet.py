@@ -152,12 +152,14 @@ class HaoOrlin():
             eid = self.H.get_eid(s, j)
             self.H.es[eid]["flow"] = self.H.es[eid]["weight"]
 
-        self.Dset.append({s})
+        # self.Dset.append({s})
+        self.Dset.append(1 << s)
         self.Dmax = 0
-        self.W = set(self.H.vs.indices)
-        self.W.discard(s)
-        self.S = {s}
-        self.t = 1  # todo write checks s != t
+
+        # each vertex is represented by a single bit, with all the bits combined stored as an integer
+        self.W = sum(1 << i for i in self.H.vs.indices if i != s)
+        self.S = 1 << s
+        self.t = 1  # todo write checks s != t      # todo also change to T for extract min?
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
         self.d[self.sink] = 0
         self.dCount = coll.Counter({1:(self.H.vcount()-1), 0:1})
@@ -171,7 +173,8 @@ class HaoOrlin():
     # if findall == False, find only the min, else find all <= kmax
     def HOfindCuts(self, s, kmax, findall = True):
         self.initFor_s(s)
-        while len(self.S) < self.H.vcount():
+        # bit_count() counts only 1s. Needs python 3.10, so if cracking the shits here, check that.
+        while self.S.bit_count() < self.H.vcount():
             while self.existsActiveNode():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
@@ -186,7 +189,8 @@ class HaoOrlin():
 
     def existsActiveNode(self):
         # checking active node first - maybe an easier way?
-        for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
+        # for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
+        for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx not in [self.t, self.activeNode]]):
             self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
                 sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
             if self.excess_i > 0:
@@ -198,7 +202,8 @@ class HaoOrlin():
 
     def existsAdmissableEdge(self, i):
         J = self.H.successors(i)
-        for j in self.W.intersection(J):
+        # for j in self.W.intersection(J):
+        for j in [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx in J]:
             if self.d[i] == self.d[j] + 1:
                 self.ij = self.H.get_eid(i, j)
                 self.ji = self.H.get_eid(j, i)
@@ -221,15 +226,17 @@ class HaoOrlin():
     def relabel(self, i):
         di = self.d[i]
         if self.dCount[di] == 1:
-            R = {j for j in self.W if self.d[j] >= di}
+            # R = {j for j in self.W if self.d[j] >= di}
+            R = sum(1 << idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and self.d[idx] >= di)
             self.Dmax+=1
             self.Dset.append(R)
             self.W = self.W - R
         else:
-            arcs = self.H.successors(i)
-            j_in_W = self.W.intersection(arcs)
+            J = self.H.successors(i)
+            j_in_W  = [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx in J]
+            # j_in_W = self.W.intersection(arcs)
             if len(j_in_W) == 0:
-                R = {i}
+                R = 1 << i
                 self.Dmax += 1
                 self.Dset.append(R)
                 self.W = self.W - R
@@ -240,6 +247,7 @@ class HaoOrlin():
 
     def selectSink(self):
         pass
+        # todo: up to here #####
 
 
 class EdgeTangleSet(btang.TangleSet):
