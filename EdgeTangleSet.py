@@ -2,6 +2,8 @@ import heapq
 import functools
 import multiprocessing
 import sys
+import numpy as np
+import igraph as ig
 
 import BaseTangleSet as btang
 
@@ -149,7 +151,28 @@ class partialCut(object):
 
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
+
+        # todo check this change
+        shell = np.array(G.coreness())
+        # remove 1-shell completely:
+        # G.delete_vertices(np.where(shell == 1)[0])
+
+        # leave "stubs"
+        del_Vs = []
+        for vid in np.where(shell == 1)[0]:
+            to_del = True
+            for nb in G.neighbors(vid):
+                if shell[nb] > 1:
+                    to_del = False
+            if to_del:
+                del_Vs.append(vid)
+
+        G.delete_vertices(del_Vs)
+
+        # todo change ends here
         self.G = G
+
+
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
         btang.TangleSet.__init__(self, job, log)
@@ -158,6 +181,8 @@ class EdgeTangleSet(btang.TangleSet):
 
         self.names = self.G.vs['name']
 
+        # ig.plot(self.G)
+        #
         self.sepFilename = "{}/{}-SepList-CF.tsv". \
             format(job['outputFolder'], job['outName'])
 
