@@ -389,5 +389,6 @@ class graphCD():
             self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 
             print("CPM: {}".format(k))
-            self.evaluateCommunities()
+            if "Yeast" in self.job["outName"]:
+                self.evaluateCommunities()
 

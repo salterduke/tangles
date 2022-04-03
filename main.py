@@ -30,7 +30,7 @@ def runAnalysis(job):
     n, m, tangCounts = jobGraph.findTangleComms()
     secs = log.tock(ticktoken)
 
-    jobGraph.overLapCliquePercolation()
+    # jobGraph.overLapCliquePercolation()
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts))])
 
