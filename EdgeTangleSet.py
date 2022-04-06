@@ -97,7 +97,7 @@ def externalBasicPartitionBranch(uid, tangset):
 
 
 class partialCut(object):
-    def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None, pcutlen=0):
+    def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None):
         def getMcutShort(mincut):
             component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
             # sum(c << i for i, c in enumerate(mincut.membership))
@@ -142,6 +142,7 @@ class HaoOrlin():
         self.H.es["flow"] = 0
         if not self.H.is_weighted():
             self.H.es["weight"] = 1
+        self.adj = self.H.get_adjacency(attribute = "weight")
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
@@ -173,6 +174,7 @@ class HaoOrlin():
     # if findall == False, find only the min, else find all <= kmax
     def HOfindCuts(self, s, kmax, findall = True):
         self.initFor_s(s)
+        self.kmax = kmax
         # bit_count() counts only 1s. Needs python 3.10, so if cracking the shits here, check that.
         while self.S.bit_count() < self.H.vcount():
             while self.existsActiveNode():
@@ -185,7 +187,10 @@ class HaoOrlin():
             self.selectSink()
 
     def updateCutList(self):
-        pass
+        # pcut is S, T = {t} (for basic partition)
+        # completion (mcut) is D, W
+
+
 
     def existsActiveNode(self):
         # checking active node first - maybe an easier way?
