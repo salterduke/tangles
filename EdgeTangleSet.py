@@ -96,11 +96,11 @@ def externalBasicPartitionBranch(uid, tangset):
         input("press any key to continue")
 
 class partialCut(object):
-    def __init__(self, pcutA, maskA, mcutA, weight):
+    def __init__(self, pcut, mask, mcut, weight):
         # expects bool arrays, converts to ints for storage
-        self.pcut = self.encode(pcutA)
-        self.mask = self.encode(maskA)
-        self.mcut = self.encode(mcutA)
+        self.pcut = self.encode(pcut)
+        self.mask = self.encode(mask)
+        self.mcut = self.encode(mcut)
         self.weight = weight
 
 
@@ -156,8 +156,9 @@ class HaoOrlin():
         self.H.es["flow"] = 0
         if not self.H.is_weighted():
             self.H.es["weight"] = 1
-        self.adj = self.H.get_adjacency(attribute = "weight")
+        self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
         self.N = self.H.vcount() # for convenience
+        self.pcutList = []
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
@@ -194,8 +195,8 @@ class HaoOrlin():
     def HOfindCuts(self, s, kmax, findall = True):
         self.initFor_s(s)
         self.kmax = kmax
-        # bit_count() counts only 1s. Needs python 3.10, so if cracking the shits here, check that.
-        while self.S.bit_count() < self.N:
+
+        while sum(self.S) < self.N:
             while self.existsActiveNode():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
@@ -203,6 +204,7 @@ class HaoOrlin():
                 else:
                     self.relabel(i)
             self.updateCutList()
+            dummy = 1
             self.selectSink()
 
     def updateCutList(self):
@@ -210,18 +212,25 @@ class HaoOrlin():
         # completion (mcut) is D, W (S, T)
         weight = self.adj[~self.W,:][:,self.W].sum()
         if weight <= self.kmax:
-            pass
+            # todo edit later when T is more than one vertex
+            self.T = np.zeros(self.N, dtype=bool)
+            self.T[self.t] = 1
 
-
+            self.pcutList.append(
+                partialCut(pcut = self.T,
+                           mask = self.S | self.T,
+                           mcut = self.W,
+                           weight = weight)
+            )
 
     def existsActiveNode(self):
         # for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
         # for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx not in [self.t, self.activeNode]]):
-        # checking active node first - maybe an easier way?
-        for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(self.W) if
-                                                  val == 1 and idx not in [self.t, self.activeNode]]):
-                self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
-                sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
+        for v in [idx for idx, val in enumerate(self.W) if
+                  val == 1 and idx != self.t]:
+            # todo update when T can be more than one node
+            self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
+            sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
             if self.excess_i > 0:
                 self.activeNode = v
                 return True
