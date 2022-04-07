@@ -95,8 +95,22 @@ def externalBasicPartitionBranch(uid, tangset):
         print("More than 2 components: {}".format(mincut))
         input("press any key to continue")
 
-
 class partialCut(object):
+    def __init__(self, pcutA, maskA, mcutA, weight):
+        # expects bool arrays, converts to ints for storage
+        self.pcut = self.encode(pcutA)
+        self.mask = self.encode(maskA)
+        self.mcut = self.encode(mcutA)
+        self.weight = weight
+
+
+    def encode(self, A):
+        return(sum(int(val) << idx for idx, val in enumerate(A)))
+
+    def decode(self):
+        pass
+
+class partialCut_Old(object):
     def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None):
         def getMcutShort(mincut):
             component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
@@ -143,6 +157,7 @@ class HaoOrlin():
         if not self.H.is_weighted():
             self.H.es["weight"] = 1
         self.adj = self.H.get_adjacency(attribute = "weight")
+        self.N = self.H.vcount() # for convenience
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
@@ -158,12 +173,16 @@ class HaoOrlin():
         self.Dmax = 0
 
         # each vertex is represented by a single bit, with all the bits combined stored as an integer
-        self.W = sum(1 << i for i in self.H.vs.indices if i != s)
-        self.S = 1 << s
+        self.W = np.ones(self.N, dtype = bool) # using 1 and 0 for true and false in subsequent lines
+        self.W[s] = 0
+
+        self.S = np.zeros(self.N, dtype = bool)
+        self.S[s] = 1
+
         self.t = 1  # todo write checks s != t      # todo also change to T for extract min?
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
-        self.d[self.sink] = 0
-        self.dCount = coll.Counter({1:(self.H.vcount()-1), 0:1})
+        self.d[self.t] = 0
+        self.dCount = coll.Counter({1:(self.N-1), 0:1}) # ie, there are N-1 nodes at dist 1, 1 node at dist 0
         # todo make sure to update dCount every time d is updated!
 
         # todo *** maybe take out if not debugging?
@@ -176,7 +195,7 @@ class HaoOrlin():
         self.initFor_s(s)
         self.kmax = kmax
         # bit_count() counts only 1s. Needs python 3.10, so if cracking the shits here, check that.
-        while self.S.bit_count() < self.H.vcount():
+        while self.S.bit_count() < self.N:
             while self.existsActiveNode():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
@@ -188,15 +207,20 @@ class HaoOrlin():
 
     def updateCutList(self):
         # pcut is S, T = {t} (for basic partition)
-        # completion (mcut) is D, W
+        # completion (mcut) is D, W (S, T)
+        weight = self.adj[~self.W,:][:,self.W].sum()
+        if weight <= self.kmax:
+            pass
 
 
 
     def existsActiveNode(self):
-        # checking active node first - maybe an easier way?
         # for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
-        for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx not in [self.t, self.activeNode]]):
-            self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
+        # for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx not in [self.t, self.activeNode]]):
+        # checking active node first - maybe an easier way?
+        for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(self.W) if
+                                                  val == 1 and idx not in [self.t, self.activeNode]]):
+                self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
                 sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
             if self.excess_i > 0:
                 self.activeNode = v
@@ -208,7 +232,7 @@ class HaoOrlin():
     def existsAdmissableEdge(self, i):
         J = self.H.successors(i)
         # for j in self.W.intersection(J):
-        for j in [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx in J]:
+        for j in [idx for idx, val in enumerate(self.W) if val == 1 and idx in J]:
             if self.d[i] == self.d[j] + 1:
                 self.ij = self.H.get_eid(i, j)
                 self.ji = self.H.get_eid(j, i)
@@ -232,13 +256,14 @@ class HaoOrlin():
         di = self.d[i]
         if self.dCount[di] == 1:
             # R = {j for j in self.W if self.d[j] >= di}
-            R = sum(1 << idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and self.d[idx] >= di)
+            # R = sum(1 << idx for idx, val in enumerate(self.W) if val == '1' and self.d[idx] >= di)
+            R = sum(1 << idx for idx, val in enumerate(self.W) if val == 1 and self.d[idx] >= di)
             self.Dmax+=1
             self.Dset.append(R)
             self.W = self.W - R
         else:
             J = self.H.successors(i)
-            j_in_W  = [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx in J]
+            j_in_W  = [idx for idx, val in enumerate(self.W) if val == 1 and idx in J]
             # j_in_W = self.W.intersection(arcs)
             if len(j_in_W) == 0:
                 R = 1 << i
@@ -248,6 +273,7 @@ class HaoOrlin():
             else:
                 jDists = {self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0}
                 self.d[i] = min(jDists) + 1
+                # todo update dcount!!!!
         # this func done. Does it work? Who can say?
 
     def selectSink(self):
