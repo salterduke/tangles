@@ -169,9 +169,6 @@ class HaoOrlin():
             eid = self.H.get_eid(s, j)
             self.H.es[eid]["flow"] = self.H.es[eid]["weight"]
 
-        # self.Dset.append({s})
-        self.Dset.append(1 << s)
-        self.Dmax = 0
 
         # each vertex is represented by a single bit, with all the bits combined stored as an integer
         self.W = np.ones(self.N, dtype = bool) # using 1 and 0 for true and false in subsequent lines
@@ -179,6 +176,11 @@ class HaoOrlin():
 
         self.S = np.zeros(self.N, dtype = bool)
         self.S[s] = 1
+
+        # self.Dset.append(1 << s)
+        self.Dset.append(self.S.copy())
+        self.Dmax = 0
+
 
         self.t = 1  # todo write checks s != t      # todo also change to T for extract min?
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
@@ -196,7 +198,10 @@ class HaoOrlin():
         self.initFor_s(s)
         self.kmax = kmax
 
-        while sum(self.S) < self.N:
+        doneFlag = False
+
+        # Not checking for S == N here, as done in selectSink, and no point doing sum() twice
+        while not doneFlag:
             while self.existsActiveNode():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
@@ -205,7 +210,7 @@ class HaoOrlin():
                     self.relabel(i)
             self.updateCutList()
             dummy = 1
-            self.selectSink()
+            doneFlag = self.selectSink()
 
     def updateCutList(self):
         # pcut is S, T = {t} (for basic partition)
@@ -245,7 +250,7 @@ class HaoOrlin():
             if self.d[i] == self.d[j] + 1:
                 self.ij = self.H.get_eid(i, j)
                 self.ji = self.H.get_eid(j, i)
-                self.r_ij = self.H.es[self.ij]["weight"] - self.H.es[self.ij]["flow"] + self.H.es[self.ji]
+                self.r_ij = self.H.es[self.ij]["weight"] - self.H.es[self.ij]["flow"] + self.H.es[self.ji]["flow"]
                 if  self.r_ij > 0:
                     return True
         return False
@@ -266,27 +271,36 @@ class HaoOrlin():
         if self.dCount[di] == 1:
             # R = {j for j in self.W if self.d[j] >= di}
             # R = sum(1 << idx for idx, val in enumerate(self.W) if val == '1' and self.d[idx] >= di)
-            R = sum(1 << idx for idx, val in enumerate(self.W) if val == 1 and self.d[idx] >= di)
+            R = np.fromiter((1 if val == 1 and self.d[idx] >= di else 0 for idx, val in enumerate(self.W) ),
+                            dtype=bool, count=self.N)
             self.Dmax+=1
             self.Dset.append(R)
-            self.W = self.W - R
+            self.W = self.W ^ R
         else:
             J = self.H.successors(i)
             j_in_W  = [idx for idx, val in enumerate(self.W) if val == 1 and idx in J]
             # j_in_W = self.W.intersection(arcs)
             if len(j_in_W) == 0:
-                R = 1 << i
+                # R = 1 << i
+                R = np.zeros(self.N, dtype=bool)
+                R[i] = 1
                 self.Dmax += 1
                 self.Dset.append(R)
-                self.W = self.W - R
+                self.W = self.W ^ R
             else:
                 jDists = {self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0}
                 self.d[i] = min(jDists) + 1
                 # todo update dcount!!!!
+                # todo update dcount!!!!
         # this func done. Does it work? Who can say?
 
     def selectSink(self):
-        pass
+        self.W[self.t] = 0
+        self.S[self.t] = 1
+        self.Dset[0][self.t] = 1
+        if sum(self.S) = self.N:
+            return True
+
         # todo: up to here #####
 
 
