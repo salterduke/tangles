@@ -37,9 +37,9 @@ class graphCD():
 
         self.doPrint = False
 
-        graph = ig.Graph.Read_Ncol(job['inFile'],names=True, directed=False)
+        graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False, weights=True)
 
-        graph.simplify()
+        graph.simplify(combine_edges="sum")
         self.giantComp = graph.clusters().giant()
 
         # todo remove after testing

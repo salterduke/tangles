@@ -130,7 +130,7 @@ class partialCut_Old(object):
         self.weight = mincut.value
         self.pcut = {
             "binrep": sum(1 << i for i in longpcut[1]),
-            "binlen": pcutlen
+            "binlen": len(longpcut[1])
         }
 
         self.mcut = getMcutShort(mincut)
@@ -205,12 +205,12 @@ class HaoOrlin():
             while self.existsActiveNode():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
-                    self.pushFlow()
+                    self.pushMaxFlow(i, self.j)
                 else:
                     self.relabel(i)
             self.updateCutList()
-            dummy = 1
             doneFlag = self.selectSink()
+
 
     def updateCutList(self):
         # pcut is S, T = {t} (for basic partition)
@@ -248,23 +248,43 @@ class HaoOrlin():
         # for j in self.W.intersection(J):
         for j in [idx for idx, val in enumerate(self.W) if val == 1 and idx in J]:
             if self.d[i] == self.d[j] + 1:
-                self.ij = self.H.get_eid(i, j)
-                self.ji = self.H.get_eid(j, i)
-                self.r_ij = self.H.es[self.ij]["weight"] - self.H.es[self.ij]["flow"] + self.H.es[self.ji]["flow"]
-                if  self.r_ij > 0:
+                ij = self.H.get_eid(i, j)
+                ji = self.H.get_eid(j, i)
+                r_ij = self.H.es[ij]["weight"] - self.H.es[ij]["flow"] + self.H.es[ji]["flow"]
+                # this ends up getting recalculated when doing pushflow, but it might be safer that way
+                # # since pushflow doesn't always follow this method, so making r_ij global and relying
+                # on it seems dubious
+                # todo consider alternatives
+                if  r_ij > 0:
+                    self.j = j
                     return True
+                # todo consider returning -1 if not exists, j otherwise? Better practice but fiddly
         return False
 
-    def pushFlow(self):
-        delta = min(self.r_ij, self.excess_i)
+    def pushMaxFlow(self, a, b):
+
+        ab = self.H.get_eid(a, b)
+        ba = self.H.get_eid(b, a)
+
+        r_ab = self.H.es[ab]["weight"] - self.H.es[ab]["flow"] + self.H.es[ba]["flow"]
+
+        excess_a = sum(self.H.es[self.H.incident(a, mode="in")]["flow"]) - \
+                        sum(self.H.es[self.H.incident(a, mode="out")]["flow"])
+
+        delta = min(r_ab, excess_a)
+        # if r_ab > excess_a and a == self.t:
+        #     # ie, if doing selectSink
+        #     print("Not enough excess")
+        #     exit()
+        # todo see if this is okay!!
 
         # reverse any backflow before pushing forward flow
-        if self.H.es[self.ji]["flow"] > 0:
-            delta_1 = min(self.H.es[self.ji]["flow"], delta)
-            self.H.es[self.ji]["flow"] -= delta_1
+        if self.H.es[ba]["flow"] > 0:
+            delta_1 = min(self.H.es[ba]["flow"], delta)
+            self.H.es[ba]["flow"] -= delta_1
             delta -= delta_1
-        self.H.es[self.ij]["flow"] += delta
-
+        self.H.es[ab]["flow"] += delta
+        # todo do I need an error code?
 
     def relabel(self, i):
         di = self.d[i]
@@ -288,21 +308,36 @@ class HaoOrlin():
                 self.Dset.append(R)
                 self.W = self.W ^ R
             else:
-                jDists = {self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0}
-                self.d[i] = min(jDists) + 1
-                # todo update dcount!!!!
-                # todo update dcount!!!!
+                oldDist = self.d[i]
+                minDist = min({self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+                self.d[i] = minDist + 1
+                self.dCount[oldDist]-=1
+                self.dCount[minDist + 1]+=1
+
         # this func done. Does it work? Who can say?
 
     def selectSink(self):
         self.W[self.t] = 0
         self.S[self.t] = 1
         self.Dset[0][self.t] = 1
-        if sum(self.S) = self.N:
-            return True
+        if sum(self.S) == self.N:
+            return True # ie, done = True
 
-        # todo: up to here #####
+        neighbours = self.H.successors(self.t)
+        for k in neighbours:
+            if self.S[k] == 0:  # ie, k != S
+                self.pushMaxFlow(self.t, k)
 
+        if not np.any(self.W):
+            self.W = self.Dset[self.Dmax]
+            self.Dmax-=1
+
+        # select j in W such that d[j] is minimum
+        # todo is there a nice way of doing this?
+        jlist = list((idx for idx, val in enumerate(self.W) if val == 1))
+        self.t = jlist[np.argmin(self.d[jlist])]
+        dummy = 1
+        return False
 
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
@@ -370,15 +405,15 @@ class EdgeTangleSet(btang.TangleSet):
             self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             HO = HaoOrlin(self.Gdirected)
-            self.partcutHeap = HO.HOfindCuts(s=0, kmax=self.kmax)
-
+            HO.HOfindCuts(s=0, kmax=self.kmax)
+            self.partcutHeap = HO.pcutList
             heapq.heapify(self.partcutHeap)
 
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
-                self.kmin = int(self.Gdirected.mincut().value)
+                self.kmin = int(self.Gdirected.mincut(capacity = "weight").value)
                 k = self.kmin
                 self.kmax = k + maxdepth
                 basicPartition(pool)
