@@ -30,6 +30,25 @@ def extCutIsSuperset(currCuts, newCut):
     return False
 
 def externalExtractMinPart(partcut, Gdir, kmax):
+    # new partcut is pcut, mcut, weight, mask
+    pass
+
+def externalMergeVertices(Gdir, partcut):
+    minS = min(pcut[0])
+    # next((idx for idx, val in np.ndenumerate(a) if val == 400), None)
+
+    minT = min(pcut[1])
+
+    Gdircopy = Gdir.copy()
+    # todo - can I think of a faster way of doing this?
+    mapvector = [minS if v in pcut[0] else (minT if v in pcut[1] else v) for v in Gdircopy.vs.indices]
+
+    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+    return Gdircopy, minS, minT
+
+
+
+def externalExtractMinPartOld(partcut, Gdir, kmax):
     longpcut = extractComponents(partcut.pcut["binrep"], partcut.pcut["binlen"])
 
     SuT = longpcut[0].union(longpcut[1])
@@ -66,7 +85,7 @@ def externalExtractMinPart(partcut, Gdir, kmax):
     return newHeapCuts
 
 
-def externalMergeVertices(Gdir, pcut):
+def externalMergeVerticesOld(Gdir, pcut):
     minS = min(pcut[0])
     minT = min(pcut[1])
 
@@ -96,19 +115,41 @@ def externalBasicPartitionBranch(uid, tangset):
         input("press any key to continue")
 
 class partialCut(object):
-    def __init__(self, pcut, mask, mcut, weight):
+    # class attribute so not stored a gajillion times
+    bitlen = 0 # set on __init__
+    # todo consider only setting once? and error checking?
+
+    def __init__(self, S, T, Tstar, weight):
         # expects bool arrays, converts to ints for storage
-        self.pcut = self.encode(pcut)
-        self.mask = self.encode(mask)
-        self.mcut = self.encode(mcut)
+        # note that int bits are right-to-left, bools are left-to-right
+        self.pcut = self.encode(T)
+        self.mask = self.encode(S | T)
+        self.mcut = self.encode(Tstar)
         self.weight = weight
+        partialCut.bitlen = len(S) # todo error checking etc.
 
+    def encode(self, Arr):
+        # note that int bits are right-to-left, bools are left-to-right
+        return(sum(int(val) << idx for idx, val in enumerate(Arr)))
 
-    def encode(self, A):
-        return(sum(int(val) << idx for idx, val in enumerate(A)))
+    def decode(self, bits):
+        # note that int bits are right-to-left, bools are left-to-right
+        # -1 reverses the order, :1 leaves out the "0b". bitlen saves time by allowing pre-allocation.
+        return (np.fromiter((int(i) for i in bin(bits)[:1:-1]), dtype=bool, count=partialCut.bitlen))
 
-    def decode(self):
-        pass
+    def S(self):
+        return self.decode(self.mask) ^ self.decode(self.pcut)
+        # todo check if ^ works inside decode brackets
+
+    def T(self):
+        return self.decode(self.pcut)
+
+    def Sstar(self):
+        return ~self.decode(self.mcut)
+
+    def Tstar(self):
+        return self.decode(self.mcut)
+
 
 class partialCut_Old(object):
     def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None):
@@ -159,6 +200,7 @@ class HaoOrlin():
         self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
         self.N = self.H.vcount() # for convenience
         self.pcutList = []
+        self.flowlist = []
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
@@ -222,11 +264,18 @@ class HaoOrlin():
             self.T[self.t] = 1
 
             self.pcutList.append(
-                partialCut(pcut = self.T,
-                           mask = self.S | self.T,
-                           mcut = self.W,
+                partialCut(S = self.S,
+                           T = self.T,
+                           Tstar = self.W,
                            weight = weight)
             )
+            # self.pcutList.append(
+            #     partialCut(pcut = self.T,
+            #                mask = self.S | self.T,
+            #                mcut = self.W,
+            #                weight = weight)
+            # )
+            self.flowlist.append(self.H.es["flow"]) # todo remove when done debugging
 
     def existsActiveNode(self):
         # for v in iter.chain(self.activeNode, self.W - {self.t, self.activeNode}):
@@ -385,23 +434,9 @@ class EdgeTangleSet(btang.TangleSet):
     def findNextOrderSeparations(self, k=None, maxdepth=4):
 
         # from Yeh, Li-Pu, Biing-Feng Wang, and Hsin-Hao Su. 2010. “Efficient Algorithms for the Problems of Enumerating Cuts by Non-Decreasing Weights.” Algorithmica. An International Journal in Computer Science 56 (3): 297–312.
-        # def basicPartitionPreYWS(pool):
-        #
-        #     n = self.Gdirected.vcount()
-        #     self.vids = self.Gdirected.vs.indices
-        #     # let s = node 0, (see Yeh and Wang) so start at 1
-        #     self.U = range(1,n)  # like this so easier to change later?
-        #
-        #     self.partcutHeap = [partcut for partcut in
-        #                         pool.map(functools.partial(externalBasicPartitionBranch, tangset=self),
-        #                                  range(len(self.U))) if partcut.weight <= self.kmax]
-        #     heapq.heapify(self.partcutHeap)
 
+        def basicPartition():
 
-
-        def basicPartition(pool):
-
-            n = self.Gdirected.vcount()
             self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             HO = HaoOrlin(self.Gdirected)
@@ -416,7 +451,7 @@ class EdgeTangleSet(btang.TangleSet):
                 self.kmin = int(self.Gdirected.mincut(capacity = "weight").value)
                 k = self.kmin
                 self.kmax = k + maxdepth
-                basicPartition(pool)
+                basicPartition()  # not done with pool (at least at this stage)
                 # self.TangleTree.add_feature("cutsets", [])
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
@@ -430,6 +465,7 @@ class EdgeTangleSet(btang.TangleSet):
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
+                    heapq.heappush(self.partcutHeap, partcut)
                     heapq.heappush(self.partcutHeap, partcut)
 
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
