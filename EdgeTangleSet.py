@@ -31,19 +31,34 @@ def extCutIsSuperset(currCuts, newCut):
 
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
-    pass
+    Gdircopy, s, t = externalMergeVertices(Gdir, partcut)
+    print("moocow")
+
 
 def externalMergeVertices(Gdir, partcut):
-    minS = min(pcut[0])
-    # next((idx for idx, val in np.ndenumerate(a) if val == 400), None)
 
-    minT = min(pcut[1])
+    S = partcut.S()
+    T = partcut.T()
+
+    minS = 0
+    if not S[0]:
+        print("What the shit? node 0 not in S")
+        exit()
+
+    minT = T.argmax()
+    if not T[minT]:
+        print("What the shit? no nodes in T")
+        exit()
+
 
     Gdircopy = Gdir.copy()
     # todo - can I think of a faster way of doing this?
-    mapvector = [minS if v in pcut[0] else (minT if v in pcut[1] else v) for v in Gdircopy.vs.indices]
+    mapvector = [minS if S[v] else (minT if T[v] else v) for v in Gdircopy.vs.indices]
 
+    Gdircopy.vs["name"] = Gdircopy.vs.indices
     Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+    Gdircopy.simplify(combine_edges="sum")
+
     return Gdircopy, minS, minT
 
 
@@ -98,6 +113,7 @@ def externalMergeVerticesOld(Gdir, pcut):
 
 
 # NOTE can probably just pass the few bits of tangset we need, but this isn't the slow bit, so eh...
+# NOTE not being used for YWS
 def externalBasicPartitionBranch(uid, tangset):
     newpcut = [
         set(tangset.U[0:uid]).union([0]),
@@ -145,10 +161,23 @@ class partialCut(object):
         return self.decode(self.pcut)
 
     def Sstar(self):
+        # not sure if this will ever get used
         return ~self.decode(self.mcut)
 
     def Tstar(self):
         return self.decode(self.mcut)
+
+    def __lt__(self, other):
+        return self.weight < other.weight
+
+    def components(self):
+        # returns [Sstar, Tstar] as sets of vertex indices
+        compList = [set(), set()]
+        Tstar = self.Tstar()
+        for idx, elem in enumerate(Tstar):
+            compList[elem].add(idx)
+        return compList
+
 
 
 class partialCut_Old(object):
@@ -199,7 +228,7 @@ class HaoOrlin():
             self.H.es["weight"] = 1
         self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
         self.N = self.H.vcount() # for convenience
-        self.pcutList = []
+        self.partcutList = []
         self.flowlist = []
 
     def initFor_s(self, s):
@@ -236,7 +265,7 @@ class HaoOrlin():
 
 
     # if findall == False, find only the min, else find all <= kmax
-    def HOfindCuts(self, s, kmax, findall = True):
+    def HOfindCuts(self, s, kmax):
         self.initFor_s(s)
         self.kmax = kmax
 
@@ -263,18 +292,12 @@ class HaoOrlin():
             self.T = np.zeros(self.N, dtype=bool)
             self.T[self.t] = 1
 
-            self.pcutList.append(
+            self.partcutList.append(
                 partialCut(S = self.S,
                            T = self.T,
                            Tstar = self.W,
                            weight = weight)
             )
-            # self.pcutList.append(
-            #     partialCut(pcut = self.T,
-            #                mask = self.S | self.T,
-            #                mcut = self.W,
-            #                weight = weight)
-            # )
             self.flowlist.append(self.H.es["flow"]) # todo remove when done debugging
 
     def existsActiveNode(self):
@@ -441,7 +464,7 @@ class EdgeTangleSet(btang.TangleSet):
             # let s = node 0, (see Yeh and Wang) so start at 1
             HO = HaoOrlin(self.Gdirected)
             HO.HOfindCuts(s=0, kmax=self.kmax)
-            self.partcutHeap = HO.pcutList
+            self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
 
 
@@ -470,7 +493,7 @@ class EdgeTangleSet(btang.TangleSet):
 
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
 
-    def addToSepList(self, partial):
+    def addToSepList(self, partcut):
         def addDefSmall(newcomp, newsize):
 
             for size in range(self.kmin, newsize):
@@ -478,27 +501,19 @@ class EdgeTangleSet(btang.TangleSet):
                                               if not newcomp.issuperset(comp)]
             self.definitelySmall[newsize].append(newcomp)
 
-        def printSepToFile(components, cut, orientation):
+        def printSepToFile(components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
             complementNodes = sorted([self.names[node] for node in components[1]])
 
-            cutLong = []
-            for eid in cut:
-                edge = self.Gdirected.es[eid]
-                eString = "('{}', '{}')".format(self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
-                cutLong.append(eString)
-
-            text = "{}\t{}\t{}\t{}\t{}\n".format(len(cut), sorted(cutLong), sideNodes, complementNodes, orientation)
+            text = "{}\t{}\t{}\t{}\n".format(len(cut), sideNodes, complementNodes, orientation)
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
-
-        components = extractComponents(partial.mcut, self.Gdirected.vcount())
+        components = partcut.components()
         components = sorted(components, key=len)
 
-        # size = len(partial.cutEdges)
-        size = int(partial.weight)
+        size = int(partcut.weight)
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
@@ -516,7 +531,4 @@ class EdgeTangleSet(btang.TangleSet):
             self.separations[size].append(components[0])
             orientation = 3
 
-        # need to do this because we need to check for superset-ness
-        # self.cuts.add(partial.cutEdges)
-        # todo consider if can remove cutEdges?
-        printSepToFile(components, partial.cutEdges, orientation)
+        printSepToFile(components, orientation)
