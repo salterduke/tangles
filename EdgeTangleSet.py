@@ -6,61 +6,22 @@ import numpy as np
 import igraph as ig
 import collections as coll
 import itertools as iter
-
-
 import BaseTangleSet as btang
-
-def extractComponents(mcut, vcount):
-    # probably there's a quicker way of doing this, but just get it working for now.
-    mcutList = list('{0:b}'.format(mcut).zfill(vcount)[::-1])
-    comps = [set(), set()]
-    for i in range(len(mcutList)):
-        comps[int(mcutList[i])].add(i)
-    return (comps)
 
 
 def mergeVnames(names):
     return ",".join(names)
 
-
-def extCutIsSuperset(currCuts, newCut):
-    for cut in currCuts:
-        if newCut.issuperset(cut):
-            return True
-    return False
-
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
-    Gdircopy, s, t = externalMergeVertices(Gdir, partcut)
+
+    HO = HaoOrlin(Gdir)
+    HO.initForPartial(partcut)
+
+
+    HO.HOfindCuts(s=0, kmax=kmax)
+
     print("moocow")
-
-
-def externalMergeVertices(Gdir, partcut):
-
-    S = partcut.S()
-    T = partcut.T()
-
-    minS = 0
-    if not S[0]:
-        print("What the shit? node 0 not in S")
-        exit()
-
-    minT = T.argmax()
-    if not T[minT]:
-        print("What the shit? no nodes in T")
-        exit()
-
-
-    Gdircopy = Gdir.copy()
-    # todo - can I think of a faster way of doing this?
-    mapvector = [minS if S[v] else (minT if T[v] else v) for v in Gdircopy.vs.indices]
-
-    Gdircopy.vs["name"] = Gdircopy.vs.indices
-    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
-    Gdircopy.simplify(combine_edges="sum")
-
-    return Gdircopy, minS, minT
-
 
 
 def externalExtractMinPartOld(partcut, Gdir, kmax):
@@ -221,8 +182,9 @@ class HaoOrlin():
     #### Partitions the partial cut P(s, \empty), and returns all elements <= kmax
     #### Assumes G is directed
     # todo add check for directed
-    def __init__(self, H):
-        self.H = H
+    def __init__(self, G):
+        self.G = G.copy()   # I think this is necessary so we don't fuck up the original?
+        self.H = self.G     # G H is the working version. for basic partition, they're the same. later will be only S* or T*
         self.H.es["flow"] = 0
         if not self.H.is_weighted():
             self.H.es["weight"] = 1
@@ -263,10 +225,52 @@ class HaoOrlin():
         self.H.es["label"] = self.H.es["flow"]
         self.H.es["curved"] = 0
 
+    def initForPartial(self, partcut):
 
-    # if findall == False, find only the min, else find all <= kmax
-    def HOfindCuts(self, s, kmax):
-        self.initFor_s(s)
+        S = partcut.S()
+        T = partcut.T()
+
+        minS = 0
+        if not S[0]:
+            print("What the shit? node 0 not in S")
+            exit()
+
+        minT = T.argmax()
+        if not T[minT]:
+            print("What the shit? no nodes in T")
+            exit()
+
+        Gdircopy =
+        # todo - can I think of a faster way of doing this?
+        mapvector = [minS if S[v] else (minT if T[v] else v) for v in self.G.vs.indices]
+
+        self.G.vs["name"] = self.G.vs.indices
+        self.G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames)) # todo consider replacing with a lambda
+        self.G.simplify(combine_edges="sum")
+
+        self.H = self.G
+        self.minS = minS
+        self.minT = minT
+
+        # get flow and check it matches up
+        f = self.G.maxflow(minS, minT, capacity="weight")
+        if f.value == partcut.weight:
+            print("What the shit? flow and cut weights don't match up")
+            exit()
+        # todo up to here. How to create residual network?
+        # todo and check that it corresponds to mcut
+        # todo what do I do if it doesn't?
+
+    def getSideS(self):
+        self.s = self.minS
+
+    def getSideT(self):
+        self.s = self.minT
+
+
+    def HOfindCuts(self, kmax):
+
+        self.initFor_s(self.s)
         self.kmax = kmax
 
         doneFlag = False
@@ -460,7 +464,7 @@ class EdgeTangleSet(btang.TangleSet):
 
         def basicPartition():
 
-            self.vids = self.Gdirected.vs.indices
+            # self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             HO = HaoOrlin(self.Gdirected)
             HO.HOfindCuts(s=0, kmax=self.kmax)
@@ -489,16 +493,19 @@ class EdgeTangleSet(btang.TangleSet):
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-                    heapq.heappush(self.partcutHeap, partcut)
 
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
 
     def addToSepList(self, partcut):
         def addDefSmall(newcomp, newsize):
 
-            for size in range(self.kmin, newsize):
-                self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
-                                              if not newcomp.issuperset(comp)]
+            # todo I think this needs to not happen. Might be okay to do just for the same size?
+            # for size in range(self.kmin, newsize):
+            #     self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
+            #                                   if not newcomp.issuperset(comp)]
+            # todo: possible version?
+            # self.definitelySmall[newsize] = [comp for comp in self.definitelySmall[newsize]\
+            #                               if not newcomp.issuperset(comp)]
             self.definitelySmall[newsize].append(newcomp)
 
         def printSepToFile(components, orientation):
@@ -530,5 +537,6 @@ class EdgeTangleSet(btang.TangleSet):
             # Note: edited so only adding the shortest side.
             self.separations[size].append(components[0])
             orientation = 3
+        # todo seems okay, but unsure what the issue mentioned on slack was.
 
         printSepToFile(components, orientation)
