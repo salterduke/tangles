@@ -15,6 +15,10 @@ def mergeVnames(names):
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
 
+    partialCut.bitlen = Gdir.vcount()
+    # this is previously defined in partialCut.__init__(), but since that isn't run on existing partialCuts passed to
+    # pool workers, the processes don't know about it. See if this works.
+
     HO = HaoOrlin(Gdir)
     HO.initForPartial(partcut)
 
@@ -112,24 +116,49 @@ class partialCut(object):
     def decode(self, bits):
         # note that int bits are right-to-left, bools are left-to-right
         # -1 reverses the order, :1 leaves out the "0b". bitlen saves time by allowing pre-allocation.
-        return (np.fromiter((int(i) for i in bin(bits)[:1:-1]), dtype=bool, count=partialCut.bitlen))
+        return (np.fromiter((int(i) for i in bin(bits)[:1:-1].ljust(partialCut.bitlen, "0")), dtype=bool, count=partialCut.bitlen))
 
-    def S(self):
-        return self.decode(self.mask) ^ self.decode(self.pcut)
-        # todo check if ^ works inside decode brackets
+    def S(self, asString = False):
+        if asString:
+            return(bin(self.mask ^ self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
+            # todo check this works
+        else:
+            return self.decode(self.mask) ^ self.decode(self.pcut)
+            # todo check if ^ works inside decode brackets
 
-    def T(self):
-        return self.decode(self.pcut)
+    def T(self, asString = False):
+        if asString:
+            return(bin(self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
+        else:
+            return self.decode(self.pcut)
 
-    def Sstar(self):
+    def Sstar(self, asString = False):
         # not sure if this will ever get used
-        return ~self.decode(self.mcut)
+        if asString:
+            # xor with all 1s
+            return bin(self.mcut ^ (2 ** (partialCut.bitlen + 1)) - 1)[:1:-1].ljust(partialCut.bitlen, "0")
+            # todo check this later.
+        else:
+            return ~self.decode(self.mcut)
 
-    def Tstar(self):
-        return self.decode(self.mcut)
+    def Tstar(self, asString = False):
+        if asString:
+            return bin(self.mcut)[:1:-1].ljust(partialCut.bitlen, "0")
+        else:
+            return self.decode(self.mcut)
 
     def __lt__(self, other):
         return self.weight < other.weight
+
+    def __str__(self):
+        # todo add more shit later?
+        return "wt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.S(asString=True), self.T(asString=True), self.Tstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
+
+
+    def __repr__(self):
+        # todo add more shit later?
+        return "\nwt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.S(asString=True), self.T(asString=True), self.Tstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
+
 
     def components(self):
         # returns [Sstar, Tstar] as sets of vertex indices
@@ -195,13 +224,14 @@ class HaoOrlin():
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
+        self.s = s
+
         self.Dset = []
         J = self.H.successors(s)
         # todo this could be more efficient with get_eids and a comprehension, but let's just get it working first, hey?
         for j in J:
             eid = self.H.get_eid(s, j)
             self.H.es[eid]["flow"] = self.H.es[eid]["weight"]
-
 
         # each vertex is represented by a single bit, with all the bits combined stored as an integer
         self.W = np.ones(self.N, dtype = bool) # using 1 and 0 for true and false in subsequent lines
@@ -230,6 +260,9 @@ class HaoOrlin():
         S = partcut.S()
         T = partcut.T()
 
+        print("in initForPartial")
+        print(partcut)
+
         minS = 0
         if not S[0]:
             print("What the shit? node 0 not in S")
@@ -240,11 +273,11 @@ class HaoOrlin():
             print("What the shit? no nodes in T")
             exit()
 
-        Gdircopy =
+        # Gdircopy =
         # todo - can I think of a faster way of doing this?
         mapvector = [minS if S[v] else (minT if T[v] else v) for v in self.G.vs.indices]
 
-        self.G.vs["name"] = self.G.vs.indices
+        self.G.vs["name"] = [str(id) for id in self.G.vs.indices]
         self.G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames)) # todo consider replacing with a lambda
         self.G.simplify(combine_edges="sum")
 
@@ -257,6 +290,8 @@ class HaoOrlin():
         if f.value == partcut.weight:
             print("What the shit? flow and cut weights don't match up")
             exit()
+
+
         # todo up to here. How to create residual network?
         # todo and check that it corresponds to mcut
         # todo what do I do if it doesn't?
@@ -269,8 +304,6 @@ class HaoOrlin():
 
 
     def HOfindCuts(self, kmax):
-
-        self.initFor_s(self.s)
         self.kmax = kmax
 
         doneFlag = False
@@ -467,7 +500,8 @@ class EdgeTangleSet(btang.TangleSet):
             # self.vids = self.Gdirected.vs.indices
             # let s = node 0, (see Yeh and Wang) so start at 1
             HO = HaoOrlin(self.Gdirected)
-            HO.HOfindCuts(s=0, kmax=self.kmax)
+            HO.initFor_s(0)
+            HO.HOfindCuts(kmax=self.kmax)
             self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
 
@@ -508,11 +542,11 @@ class EdgeTangleSet(btang.TangleSet):
             #                               if not newcomp.issuperset(comp)]
             self.definitelySmall[newsize].append(newcomp)
 
-        def printSepToFile(components, orientation):
+        def printSepToFile(cutweight, components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
             complementNodes = sorted([self.names[node] for node in components[1]])
 
-            text = "{}\t{}\t{}\t{}\n".format(len(cut), sideNodes, complementNodes, orientation)
+            text = "{}\t{}\t{}\t{}\n".format(cutweight, sideNodes, complementNodes, orientation)
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
@@ -539,4 +573,4 @@ class EdgeTangleSet(btang.TangleSet):
             orientation = 3
         # todo seems okay, but unsure what the issue mentioned on slack was.
 
-        printSepToFile(components, orientation)
+        printSepToFile(size, components, orientation)
