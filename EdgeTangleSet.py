@@ -21,9 +21,8 @@ def externalExtractMinPart(partcut, Gdir, kmax):
 
     HO = HaoOrlin(Gdir)
     HO.initForPartial(partcut)
-
-
-    HO.HOfindCuts(s=0, kmax=kmax)
+    HO.getSide(sideID = 0, partial = partcut)
+    HO.HOfindCuts(kmax=kmax)
 
     print("moocow")
 
@@ -118,7 +117,7 @@ class partialCut(object):
         # -1 reverses the order, :1 leaves out the "0b". bitlen saves time by allowing pre-allocation.
         return (np.fromiter((int(i) for i in bin(bits)[:1:-1].ljust(partialCut.bitlen, "0")), dtype=bool, count=partialCut.bitlen))
 
-    def S(self, asString = False):
+    def getS(self, asString = False):
         if asString:
             return(bin(self.mask ^ self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
             # todo check this works
@@ -126,13 +125,13 @@ class partialCut(object):
             return self.decode(self.mask) ^ self.decode(self.pcut)
             # todo check if ^ works inside decode brackets
 
-    def T(self, asString = False):
+    def getT(self, asString = False):
         if asString:
             return(bin(self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
         else:
             return self.decode(self.pcut)
 
-    def Sstar(self, asString = False):
+    def getSstar(self, asString = False):
         # not sure if this will ever get used
         if asString:
             # xor with all 1s
@@ -141,32 +140,76 @@ class partialCut(object):
         else:
             return ~self.decode(self.mcut)
 
-    def Tstar(self, asString = False):
+    def getTstar(self, asString = False):
         if asString:
             return bin(self.mcut)[:1:-1].ljust(partialCut.bitlen, "0")
         else:
             return self.decode(self.mcut)
+
+    def mapvector(self):
+        # these take up more memory, so this only done *after* popped out of heap
+        self.S = self.getS()
+        self.T = self.getT()
+
+        # print("in initForPartial")
+        # print(self)
+        #
+        minS = 0
+        if not self.S[0]:
+            print("What the shit? node 0 not in getS")
+            exit()
+
+        minT = self.T.argmax()
+        if not self.T[minT]:
+            print("What the shit? no nodes in getT")
+            exit()
+
+        # todo - can I think of a faster way of doing this?
+        # note - this assumes that G.vs.indices == range(bitlen)
+        return [minS if self.S[v] else (minT if self.T[v] else v) for v in range(partialCut.bitlen)], minS, minT
+
+    def matchesPartition(self, partn):
+        # partn is list of lists.
+
+        self.Tstar = self.getTstar()
+
+        if 0 in partn[1]:
+            # so ordered as getSstar, getTstar
+            partn.reverse()
+
+        for sideID in (0, 1):
+            for vid in partn[sideID]:
+                if self.Tstar[vid] != sideID:
+                    print("Oops, partition doesn't match mincut")
+                    print("Partition", partn)
+                    print(self)
+                    return False
+
+        return True
 
     def __lt__(self, other):
         return self.weight < other.weight
 
     def __str__(self):
         # todo add more shit later?
-        return "wt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.S(asString=True), self.T(asString=True), self.Tstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
+        return "wt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.getS(asString=True), self.getT(asString=True), self.getTstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
 
 
     def __repr__(self):
         # todo add more shit later?
-        return "\nwt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.S(asString=True), self.T(asString=True), self.Tstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
+        return "\nwt {} S:{}, T: {}, Tstar: {}".format(self.weight, self.getS(asString=True), self.getT(asString=True), self.getTstar(asString=True)) + " wt {} pcut:{}, mask: {}, mcut: {}".format(self.weight, self.pcut, self.mask, self.mcut)
 
 
     def components(self):
-        # returns [Sstar, Tstar] as sets of vertex indices
-        compList = [set(), set()]
-        Tstar = self.Tstar()
-        for idx, elem in enumerate(Tstar):
-            compList[elem].add(idx)
-        return compList
+        # returns [getSstar, getTstar] as sets of vertex indices
+        if not hasattr(self, "compList"):
+            # todo add hasattr check to other "get" functions
+            self.compList = [set(), set()]
+            Tstar = self.getTstar()
+            for idx, elem in enumerate(Tstar):
+                self.compList[elem].add(idx)
+
+        return self.compList
 
 
 
@@ -213,7 +256,12 @@ class HaoOrlin():
     # todo add check for directed
     def __init__(self, G):
         self.G = G.copy()   # I think this is necessary so we don't fuck up the original?
-        self.H = self.G     # G H is the working version. for basic partition, they're the same. later will be only S* or T*
+        self.H = self.G     # G is the full graph, H is the working version. for basic partition, they're the same. later will be only getS* or getT*
+
+    def initFor_s(self, s):
+        # s is the *index* of the vertex (at this stage, assuming it works)
+        self.s = s
+
         self.H.es["flow"] = 0
         if not self.H.is_weighted():
             self.H.es["weight"] = 1
@@ -222,9 +270,6 @@ class HaoOrlin():
         self.partcutList = []
         self.flowlist = []
 
-    def initFor_s(self, s):
-        # s is the *index* of the vertex (at this stage, assuming it works)
-        self.s = s
 
         self.Dset = []
         J = self.H.successors(s)
@@ -245,7 +290,7 @@ class HaoOrlin():
         self.Dmax = 0
 
 
-        self.t = 1  # todo write checks s != t      # todo also change to T for extract min?
+        self.t = 1  # todo write checks s != t      # todo also change to getT for extract min?
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
         self.d[self.t] = 0
         self.dCount = coll.Counter({1:(self.N-1), 0:1}) # ie, there are N-1 nodes at dist 1, 1 node at dist 0
@@ -257,58 +302,50 @@ class HaoOrlin():
 
     def initForPartial(self, partcut):
 
-        S = partcut.S()
-        T = partcut.T()
+        mapvector, minS, minT = partcut.mapvector()
 
-        print("in initForPartial")
-        print(partcut)
-
-        minS = 0
-        if not S[0]:
-            print("What the shit? node 0 not in S")
-            exit()
-
-        minT = T.argmax()
-        if not T[minT]:
-            print("What the shit? no nodes in T")
-            exit()
-
-        # Gdircopy =
-        # todo - can I think of a faster way of doing this?
-        mapvector = [minS if S[v] else (minT if T[v] else v) for v in self.G.vs.indices]
 
         self.G.vs["name"] = [str(id) for id in self.G.vs.indices]
         self.G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames)) # todo consider replacing with a lambda
         self.G.simplify(combine_edges="sum")
 
-        self.H = self.G
-        self.minS = minS
-        self.minT = minT
+        self.mergedNodes = [minS, minT]
 
         # get flow and check it matches up
-        f = self.G.maxflow(minS, minT, capacity="weight")
-        if f.value == partcut.weight:
+        flow = self.G.maxflow(minS, minT, capacity="weight")
+        if flow.value != partcut.weight:
             print("What the shit? flow and cut weights don't match up")
+            print("moocow")
             exit()
 
+        if not partcut.matchesPartition(flow.partition):
+            print("What the shit? Partition sides don't match up")
+            exit()
 
-        # todo up to here. How to create residual network?
-        # todo and check that it corresponds to mcut
-        # todo what do I do if it doesn't?
+        print("moocow")
 
-    def getSideS(self):
-        self.s = self.minS
 
-    def getSideT(self):
-        self.s = self.minT
 
+        for ij_idx in self.G.es.indices:
+            i = self.G.es[ij_idx].source
+            j = self.G.es[ij_idx].target
+            ji_idx = self.G.get_eid(j, i)
+            self.G.es[ij_idx]["weight"] = self.G.es[ij_idx]["weight"] - flow.flow[ij_idx] + flow.flow[ji_idx]
+        self.partcut = partcut
+
+    def getSide(self, sideID, partial):
+        sourceName = self.G.vs[self.mergedNodes[sideID]]["name"]
+        self.H = self.G.induced_subgraph(partial.components()[sideID])
+        self.H.delete_vertices([v.index for v in self.H.vs if v.degree() == 0] )
+        self.s = self.H.vs.find(sourceName).index   # in case indices get all stuffed about, can't just use minS, minT?
+        self.initFor_s(self.s)
 
     def HOfindCuts(self, kmax):
         self.kmax = kmax
 
         doneFlag = False
 
-        # Not checking for S == N here, as done in selectSink, and no point doing sum() twice
+        # Not checking for getS == N here, as done in selectSink, and no point doing sum() twice
         while not doneFlag:
             while self.existsActiveNode():
                 i = self.activeNode
@@ -321,11 +358,11 @@ class HaoOrlin():
 
 
     def updateCutList(self):
-        # pcut is S, T = {t} (for basic partition)
-        # completion (mcut) is D, W (S, T)
+        # pcut is getS, getT = {t} (for basic partition)
+        # completion (mcut) is D, W (getS, getT)
         weight = self.adj[~self.W,:][:,self.W].sum()
         if weight <= self.kmax:
-            # todo edit later when T is more than one vertex
+            # todo edit later when getT is more than one vertex
             self.T = np.zeros(self.N, dtype=bool)
             self.T[self.t] = 1
 
@@ -342,7 +379,7 @@ class HaoOrlin():
         # for v in iter.chain(self.activeNode, [idx for idx, val in enumerate(bin(self.W)[:1:-1]) if val == '1' and idx not in [self.t, self.activeNode]]):
         for v in [idx for idx, val in enumerate(self.W) if
                   val == 1 and idx != self.t]:
-            # todo update when T can be more than one node
+            # todo update when getT can be more than one node
             self.excess_i = sum(self.H.es[self.H.incident(v, mode="in")]["flow"]) - \
             sum(self.H.es[self.H.incident(v, mode="out")]["flow"])
             if self.excess_i > 0:
@@ -434,7 +471,7 @@ class HaoOrlin():
 
         neighbours = self.H.successors(self.t)
         for k in neighbours:
-            if self.S[k] == 0:  # ie, k != S
+            if self.S[k] == 0:  # ie, k != getS
                 self.pushMaxFlow(self.t, k)
 
         if not np.any(self.W):
@@ -523,6 +560,10 @@ class EdgeTangleSet(btang.TangleSet):
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
+
+                # todo remove after debugging this part!!!!
+                externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
+                exit()
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay

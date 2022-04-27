@@ -171,17 +171,17 @@ class graphCD():
         # overwrite colours for parent comms.
         # todo if change to every level, need to do on *copy* of tangletree.
         for treenode in self.TangleSet.TangleTree.traverse():
-            if "T" not in treenode.name:
+            if "getT" not in treenode.name:
                 # keeps only complete tangles
                 # print("deleting non-tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
-            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
+            elif int(treenode.name.replace("getT", "")) not in self.foundcover.columns:
                 # keeps only tangles with >= 3 nodes
                 # print("deleting trivial tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             else:
                 # these are the actual communities we want to colour
-                commIndex = int(treenode.name.replace("T", ""))
+                commIndex = int(treenode.name.replace("getT", ""))
                 treedep = treenode.get_distance(self.TangleSet.TangleTree)
                 for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
                     self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
