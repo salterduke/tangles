@@ -15,14 +15,11 @@ def mergeVnames(names):
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
 
-    partialCut.bitlen = Gdir.vcount()
-    # this is previously defined in partialCut.__init__(), but since that isn't run on existing partialCuts passed to
-    # pool workers, the processes don't know about it. See if this works.
-
     HO = HaoOrlin(Gdir)
     HO.initForPartial(partcut)
     HO.getSide(sideID = 0, partial = partcut)
     HO.HOfindCuts(kmax=kmax)
+    HO.getInducedCuts(sideID = 0, oldpart = partcut)
 
     print("moocow")
 
@@ -95,9 +92,6 @@ def externalBasicPartitionBranch(uid, tangset):
         input("press any key to continue")
 
 class partialCut(object):
-    # class attribute so not stored a gajillion times
-    bitlen = 0 # set on __init__
-    # todo consider only setting once? and error checking?
 
     def __init__(self, S, T, Tstar, weight):
         # expects bool arrays, converts to ints for storage
@@ -106,7 +100,11 @@ class partialCut(object):
         self.mask = self.encode(S | T)
         self.mcut = self.encode(Tstar)
         self.weight = weight
-        partialCut.bitlen = len(S) # todo error checking etc.
+        self.bitlen = len(S) # todo error checking etc.
+        # todo
+        # since bitlen changes when v's contracted, have to store for each separate object rather than globally
+        # this takes up extra space. At some point, if too much mem used, look into converting to array of ints?
+        # Will this reduce total overhead?
 
     def encode(self, Arr):
         # note that int bits are right-to-left, bools are left-to-right
@@ -115,11 +113,11 @@ class partialCut(object):
     def decode(self, bits):
         # note that int bits are right-to-left, bools are left-to-right
         # -1 reverses the order, :1 leaves out the "0b". bitlen saves time by allowing pre-allocation.
-        return (np.fromiter((int(i) for i in bin(bits)[:1:-1].ljust(partialCut.bitlen, "0")), dtype=bool, count=partialCut.bitlen))
+        return (np.fromiter((int(i) for i in bin(bits)[:1:-1].ljust(self.bitlen, "0")), dtype=bool, count=self.bitlen))
 
     def getS(self, asString = False):
         if asString:
-            return(bin(self.mask ^ self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
+            return(bin(self.mask ^ self.pcut)[:1:-1].ljust(self.bitlen, "0"))
             # todo check this works
         else:
             return self.decode(self.mask) ^ self.decode(self.pcut)
@@ -127,7 +125,7 @@ class partialCut(object):
 
     def getT(self, asString = False):
         if asString:
-            return(bin(self.pcut)[:1:-1].ljust(partialCut.bitlen, "0"))
+            return(bin(self.pcut)[:1:-1].ljust(self.bitlen, "0"))
         else:
             return self.decode(self.pcut)
 
@@ -135,14 +133,14 @@ class partialCut(object):
         # not sure if this will ever get used
         if asString:
             # xor with all 1s
-            return bin(self.mcut ^ (2 ** (partialCut.bitlen + 1)) - 1)[:1:-1].ljust(partialCut.bitlen, "0")
+            return bin(self.mcut ^ (2 ** (self.bitlen + 1)) - 1)[:1:-1].ljust(self.bitlen, "0")
             # todo check this later.
         else:
             return ~self.decode(self.mcut)
 
     def getTstar(self, asString = False):
         if asString:
-            return bin(self.mcut)[:1:-1].ljust(partialCut.bitlen, "0")
+            return bin(self.mcut)[:1:-1].ljust(self.bitlen, "0")
         else:
             return self.decode(self.mcut)
 
@@ -166,7 +164,7 @@ class partialCut(object):
 
         # todo - can I think of a faster way of doing this?
         # note - this assumes that G.vs.indices == range(bitlen)
-        return [minS if self.S[v] else (minT if self.T[v] else v) for v in range(partialCut.bitlen)], minS, minT
+        return [minS if self.S[v] else (minT if self.T[v] else v) for v in range(self.bitlen)], minS, minT
 
     def matchesPartition(self, partn):
         # partn is list of lists.
@@ -339,6 +337,9 @@ class HaoOrlin():
         self.H.delete_vertices([v.index for v in self.H.vs if v.degree() == 0] )
         self.s = self.H.vs.find(sourceName).index   # in case indices get all stuffed about, can't just use minS, minT?
         self.initFor_s(self.s)
+
+    def getInducedCuts(self, sideID, oldpart):
+        pass
 
     def HOfindCuts(self, kmax):
         self.kmax = kmax
