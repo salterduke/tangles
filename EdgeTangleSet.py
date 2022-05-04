@@ -122,6 +122,7 @@ class partialCut(object):
         else:
             return self.decode(self.mask) ^ self.decode(self.pcut)
             # todo check if ^ works inside decode brackets
+            # todo check for mask false but pcut true? Should be impossible?
 
     def getT(self, asString = False):
         if asString:
@@ -339,7 +340,9 @@ class HaoOrlin():
         self.initFor_s(self.s)
 
     def getInducedCuts(self, sideID, oldpart):
-        pass
+        for sidepart in self.partcutList:
+            pass
+            # newpart =
 
     def HOfindCuts(self, kmax):
         self.kmax = kmax
