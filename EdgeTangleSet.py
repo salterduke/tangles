@@ -216,34 +216,6 @@ class partialCut(object):
         return self.compList
 
 
-
-class partialCut_Old(object):
-    def __init__(self, Gdir, Gdircopy, mincut=None, longpcut=None):
-        def getMcutShort(mincut):
-            component1 = unmergeVnames(mincut.partition[1])  # only need [1] because only 1s add to binary val
-            # sum(c << i for i, c in enumerate(mincut.membership))
-            return(sum(1 << i for i in component1))
-
-        def unmergeVnames(mergedVids):
-
-            newVids = set()
-            # todo unmerge, but check for lone vertices being assigned to the wrong side
-            for vid in mergedVids:
-                # print(vid)
-                if len(Gdircopy.vs[vid]["name"]) > 0:
-                    newVids.update(v.index for v in map(Gdir.vs.find, Gdircopy.vs[vid]["name"].split(",")))
-            return newVids
-
-        self.weight = mincut.value
-        self.pcut = {
-            "binrep": sum(1 << i for i in longpcut[1]),
-            "binlen": len(longpcut[1])
-        }
-
-        self.mcut = getMcutShort(mincut)
-        self.cutEdges = frozenset([edge.index for edge in mincut.es])
-
-
 class HaoOrlin():
     #### Partitions the partial cut P(s, \empty), and returns all elements <= kmax
     #### Assumes G is directed
@@ -261,7 +233,10 @@ class HaoOrlin():
 
         self.H.es["flow"] = 0
 
-        self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
+        if self.H.ecount() > 0:
+            self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
+        else:
+            self.adj = np.array(self.H.get_adjacency(attribute=None).data)
 
         self.N = self.H.vcount() # for convenience
         self.partcutList = []
@@ -287,8 +262,12 @@ class HaoOrlin():
         self.Dmax = 0
 
 
+        # todo sort out what happens when N = 1, also check that N is updated properly.
         self.t = 1  # todo write checks s != t      # todo also change to getT for extract min?
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
+        print("--------------")
+        print(self.H.vcount(), self.t, self.N)
+        print("--------------**")
         self.d[self.t] = 0
         self.dCount = coll.Counter({1:(self.N-1), 0:1}) # ie, there are N-1 nodes at dist 1, 1 node at dist 0
         # todo make sure to update dCount every time d is updated!
@@ -312,15 +291,10 @@ class HaoOrlin():
         flow = self.G.maxflow(minS, minT, capacity="weight")
         if flow.value != partcut.weight:
             print("What the shit? flow and cut weights don't match up")
-            print("moocow")
             exit()
 
         if not partcut.matchesPartition(flow.partition):
-            print("What the shit? Partition sides don't match up")
             exit()
-
-        print("moocow")
-
 
 
         for ij_idx in self.G.es.indices:
@@ -333,16 +307,37 @@ class HaoOrlin():
 
     def getSide(self, sideID, partial):
         sourceName = self.G.vs[self.mergedNodes[sideID]]["name"]
+        # print("---------------")
+        # print(sideID, self.mergedNodes[sideID], sourceName)
+        # print(self.G.vs.indices)
+        # print(self.G.vs["name"])
         self.H = self.G.induced_subgraph(partial.components()[sideID])
-        self.H.delete_vertices([v.index for v in self.H.vs if v.degree() == 0] )
+        # print(self.H.vs.indices)
+        # print(self.H.vs["name"])
+
+        self.H.delete_vertices([v.index for v in self.H.vs if v["name"] == ''] )
+        # print(self.H.vs.indices)
+        # print(self.H.vs["name"])
+        # print("partial components:")
+        # print(partial.components())
+        # print("---------------**")
+
         self.s = self.H.vs.find(sourceName).index   # in case indices get all stuffed about, can't just use minS, minT?
 
         if sideID == 1:
             # ie, side T - need to get graph transpose
+            print("---------------------")
+            print(self.H.edge_attributes())
+
             A = np.array(self.H.get_adjacency(attribute = "weight").data)
-            newH = ig.Graph.Weighted_Adjacency(A.T.tolist()) # transpose
+            newH = ig.Graph.Weighted_Adjacency(A.T.tolist(), attr="weight") # transpose
             newH.vs["name"] = self.H.vs["name"] # copy names
             self.H = newH
+            print(self.H.edge_attributes())
+            print(self.H.es.indices)
+            print(self.H.vs.indices)
+            print(self.H.vs["name"])
+            print("---------------------**")
             # I don't think there's an easier way to do it?
 
         self.initFor_s(self.s)
@@ -616,10 +611,10 @@ class EdgeTangleSet(btang.TangleSet):
                     self.addToSepList(newpartcut)
 
                 # todo remove after debugging this part!!!!
-                res = externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
-                print(res)
-                print("moocow")
-                exit()
+                # res = externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
+                # print(res)
+                # print("moocow")
+                # exit()
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
