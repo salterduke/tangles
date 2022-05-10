@@ -17,11 +17,16 @@ def externalExtractMinPart(partcut, Gdir, kmax):
 
     HO = HaoOrlin(Gdir)
     HO.initForPartial(partcut)
-    HO.getSide(sideID = 0, partial = partcut)
+    HO.getSide(sideID = 0, partial = partcut)  # sets .H to be just the source side of partcut
     HO.HOfindCuts(kmax=kmax)
-    HO.getInducedCuts(sideID = 0, oldpart = partcut)
+    newPartcutList = HO.getInducedCuts(sideID = 0, oldpart = partcut)
 
-    print("moocow")
+    HO.getSide(sideID = 1, partial = partcut)  # sets .H to be just the target side of partcut
+    HO.HOfindCuts(kmax=kmax)
+    newPartcutList = newPartcutList + HO.getInducedCuts(sideID = 1, oldpart = partcut)
+
+    return newPartcutList
+
 
 
 def externalExtractMinPartOld(partcut, Gdir, kmax):
@@ -134,7 +139,7 @@ class partialCut(object):
         # not sure if this will ever get used
         if asString:
             # xor with all 1s
-            return bin(self.mcut ^ (2 ** (self.bitlen + 1)) - 1)[:1:-1].ljust(self.bitlen, "0")
+            return bin(self.mcut ^ (2 ** (self.bitlen)) - 1)[:1:-1].ljust(self.bitlen, "0")
             # todo check this later.
         else:
             return ~self.decode(self.mcut)
@@ -238,16 +243,6 @@ class partialCut_Old(object):
         self.mcut = getMcutShort(mincut)
         self.cutEdges = frozenset([edge.index for edge in mincut.es])
 
-    def __lt__(self, other):
-        return self.weight < other.weight
-
-    def __str__(self):
-        # todo add more shit later?
-        return "wt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
-
-    def __repr__(self):
-        # todo add more shit later?
-        return "\nwt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
 class HaoOrlin():
     #### Partitions the partial cut P(s, \empty), and returns all elements <= kmax
@@ -255,6 +250,9 @@ class HaoOrlin():
     # todo add check for directed
     def __init__(self, G):
         self.G = G.copy()   # I think this is necessary so we don't fuck up the original?
+        if not self.G.is_weighted():
+            self.G.es["weight"] = 1
+        self.Gadj = np.array(self.G.get_adjacency(attribute = "weight").data)
         self.H = self.G     # G is the full graph, H is the working version. for basic partition, they're the same. later will be only getS* or getT*
 
     def initFor_s(self, s):
@@ -262,9 +260,9 @@ class HaoOrlin():
         self.s = s
 
         self.H.es["flow"] = 0
-        if not self.H.is_weighted():
-            self.H.es["weight"] = 1
+
         self.adj = np.array(self.H.get_adjacency(attribute = "weight").data)
+
         self.N = self.H.vcount() # for convenience
         self.partcutList = []
         self.flowlist = []
@@ -330,6 +328,7 @@ class HaoOrlin():
             j = self.G.es[ij_idx].target
             ji_idx = self.G.get_eid(j, i)
             self.G.es[ij_idx]["weight"] = self.G.es[ij_idx]["weight"] - flow.flow[ij_idx] + flow.flow[ji_idx]
+            # update weights to get residual graph
         self.partcut = partcut
 
     def getSide(self, sideID, partial):
@@ -337,12 +336,63 @@ class HaoOrlin():
         self.H = self.G.induced_subgraph(partial.components()[sideID])
         self.H.delete_vertices([v.index for v in self.H.vs if v.degree() == 0] )
         self.s = self.H.vs.find(sourceName).index   # in case indices get all stuffed about, can't just use minS, minT?
+
+        if sideID == 1:
+            # ie, side T - need to get graph transpose
+            A = np.array(self.H.get_adjacency(attribute = "weight").data)
+            newH = ig.Graph.Weighted_Adjacency(A.T.tolist()) # transpose
+            newH.vs["name"] = self.H.vs["name"] # copy names
+            self.H = newH
+            # I don't think there's an easier way to do it?
+
         self.initFor_s(self.s)
 
     def getInducedCuts(self, sideID, oldpart):
+        newList = []
         for sidepart in self.partcutList:
-            pass
-            # newpart =
+            Sside = self.expandLabels(sidepart.getS())
+            Tside = self.expandLabels(sidepart.getT())
+            Sstarside = self.expandLabels(sidepart.getSstar())
+            Tstarside = self.expandLabels(sidepart.getTstar())
+            # Note, can't do this within partial cut, as that doesn't store the graphs
+
+            if sideID == 0:
+                # ie, side S
+                Snew = Sside
+                Tnew = oldpart.getT() | Tside
+                Sstarnew = Sstarside
+                Tstarnew = oldpart.getTstar() | Tstarside
+            elif sideID == 1:
+                # ie, side T - note that these are based on edge-reversed version of graph
+                Snew = oldpart.getSstar() | Tside
+                Tnew = Sside
+                Sstarnew = oldpart.getSstar() | Tstarside
+                Tstarnew = Sstarside
+            else:
+                print("Crack the shits, invalid sideID, ", sideID)
+                exit()
+
+            # todo check that Sstar + Tstar is everything, and disjoint
+            weight = self.Gadj[Sstarnew, :][:, Tstarnew].sum()
+            # note using full adjacency, not just part
+
+            newList.append(partialCut(
+                S = Snew,
+                T = Tnew,
+                Tstar = Tstarnew,
+                weight = weight
+            ))
+        return newList
+
+    def expandLabels(self, valArray):
+        labels = [longlabel.split(",") for longlabel in
+                   self.H.vs[(idx for idx, val in enumerate(valArray) if val == 1)]["name"] ]
+        vids = [int(label) for label in iter.chain.from_iterable(labels)]
+        newArray = np.zeros(self.G.vcount(), dtype=bool)
+        newArray[vids] = 1
+        return newArray
+        # could probably combine into one command, but that seems hard to read!
+
 
     def HOfindCuts(self, kmax):
         self.kmax = kmax
@@ -566,7 +616,9 @@ class EdgeTangleSet(btang.TangleSet):
                     self.addToSepList(newpartcut)
 
                 # todo remove after debugging this part!!!!
-                externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
+                res = externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
+                print(res)
+                print("moocow")
                 exit()
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
