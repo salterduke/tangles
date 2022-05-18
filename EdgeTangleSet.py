@@ -15,15 +15,28 @@ def mergeVnames(names):
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
 
-    HO = HaoOrlin(Gdir)
-    HO.initForPartial(partcut)
-    HO.getSide(sideID = 0, partial = partcut)  # sets .H to be just the source side of partcut
-    HO.HOfindCuts(kmax=kmax)
-    newPartcutList = HO.getInducedCuts(sideID = 0, oldpart = partcut)
+    newPartcutList = []
 
-    HO.getSide(sideID = 1, partial = partcut)  # sets .H to be just the target side of partcut
-    HO.HOfindCuts(kmax=kmax)
-    newPartcutList = newPartcutList + HO.getInducedCuts(sideID = 1, oldpart = partcut)
+    HO = HaoOrlin(Gdir)
+    print("------------------- After creation")
+    print(Gdir.vs.indices)
+    print(HO.G.vs.indices)
+    HO.initForPartial(partcut)
+    print("------------------- before side 0")
+    print(Gdir.vs.indices)
+    print(HO.G.vs.indices)
+    if HO.getSide(sideID = 0, partial = partcut):  # sets .H to be just the source side of partcut
+        HO.HOfindCuts(kmax=kmax)
+        newPartcutList = HO.getInducedCuts(sideID = 0, oldpart = partcut)
+
+    print("------------------- before side 1")
+    print(HO.G.vs.indices)
+    if HO.getSide(sideID = 1, partial = partcut):  # sets .H to be just the target side of partcut
+        HO.HOfindCuts(kmax=kmax)
+        newPartcutList = newPartcutList + HO.getInducedCuts(sideID = 1, oldpart = partcut)
+
+    print("------------------- after side 1")
+    print(HO.G.vs.indices)
 
     return newPartcutList
 
@@ -284,6 +297,8 @@ class HaoOrlin():
         self.G.vs["name"] = [str(id) for id in self.G.vs.indices]
         self.G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames)) # todo consider replacing with a lambda
         self.G.simplify(combine_edges="sum")
+        self.G.delete_vertices([v.index for v in self.G.vs if v["name"] == ''] )
+
 
         self.mergedNodes = [minS, minT]
 
@@ -307,40 +322,34 @@ class HaoOrlin():
 
     def getSide(self, sideID, partial):
         sourceName = self.G.vs[self.mergedNodes[sideID]]["name"]
-        # print("---------------")
-        # print(sideID, self.mergedNodes[sideID], sourceName)
-        # print(self.G.vs.indices)
-        # print(self.G.vs["name"])
-        self.H = self.G.induced_subgraph(partial.components()[sideID])
-        # print(self.H.vs.indices)
-        # print(self.H.vs["name"])
+        print("---------------------")
+        print(sourceName, sideID)
+        print(partial.components())
+        print(self.G.vs.indices)
+        print(self.G.vs["name"])
+        if self.G.vcount() < 5:
+            print("moocow")
+        print("---------------------**")
 
-        self.H.delete_vertices([v.index for v in self.H.vs if v["name"] == ''] )
-        # print(self.H.vs.indices)
-        # print(self.H.vs["name"])
-        # print("partial components:")
-        # print(partial.components())
-        # print("---------------**")
+
+        self.H = self.G.induced_subgraph(self.G.vs.select(
+            lambda v: {int(vid) for vid in v["name"].split(",")}.issubset(partial.components()[sideID])).indices)
+        if self.H.vcount() <= 1:
+            return False
 
         self.s = self.H.vs.find(sourceName).index   # in case indices get all stuffed about, can't just use minS, minT?
 
         if sideID == 1:
             # ie, side T - need to get graph transpose
-            print("---------------------")
-            print(self.H.edge_attributes())
 
             A = np.array(self.H.get_adjacency(attribute = "weight").data)
             newH = ig.Graph.Weighted_Adjacency(A.T.tolist(), attr="weight") # transpose
             newH.vs["name"] = self.H.vs["name"] # copy names
             self.H = newH
-            print(self.H.edge_attributes())
-            print(self.H.es.indices)
-            print(self.H.vs.indices)
-            print(self.H.vs["name"])
-            print("---------------------**")
             # I don't think there's an easier way to do it?
 
         self.initFor_s(self.s)
+        return True
 
     def getInducedCuts(self, sideID, oldpart):
         newList = []
@@ -384,6 +393,10 @@ class HaoOrlin():
                    self.H.vs[(idx for idx, val in enumerate(valArray) if val == 1)]["name"] ]
         vids = [int(label) for label in iter.chain.from_iterable(labels)]
         newArray = np.zeros(self.G.vcount(), dtype=bool)
+        print("----------------------------------")
+        print(self.G.vcount())
+        print(labels)
+        print(vids)
         newArray[vids] = 1
         return newArray
         # could probably combine into one command, but that seems hard to read!
