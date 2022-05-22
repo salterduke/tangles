@@ -40,75 +40,6 @@ def externalExtractMinPart(partcut, Gdir, kmax):
 
     return newPartcutList
 
-
-
-def externalExtractMinPartOld(partcut, Gdir, kmax):
-    longpcut = extractComponents(partcut.pcut["binrep"], partcut.pcut["binlen"])
-
-    SuT = longpcut[0].union(longpcut[1])
-    U = [u for u in range(1, Gdir.vcount()) if u not in SuT]
-    newHeapCuts = []
-
-    components = extractComponents(partcut.mcut, Gdir.vcount())
-
-    for uid in range(len(U)):
-
-        newnode = U[uid]
-        sidetoaddto = 1 if newnode in components[0] else 0
-        # note for this bit, we're adding the new node to the side that *doesn't* match the mcut
-
-        newpcut = [
-            longpcut[0].union(components[0].intersection(U[0:uid])),
-            longpcut[1].union(components[1].intersection(U[0:uid]))
-        ]
-        newpcut[sidetoaddto].add(newnode)
-
-        Gdircopy, s, t = externalMergeVertices(Gdir, newpcut)
-        mincut = Gdircopy.mincut(source=s, target=t)
-
-        if mincut.value <= kmax:
-            pcutlen = uid + len(SuT) + 1
-            newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, pcutlen)  # todo again, do I need a + 1?
-
-            if True:
-            # todo - this is the check that speeds it up lots, but doesn't seem valid.
-            # todo - are there alternate checks that are valid?
-            # if not extCutIsSuperset(currCuts, newPartial.cutEdges):
-                newHeapCuts.append(newPartial)
-                # note that partialCut takes care of the vids re the adjusted graph
-    return newHeapCuts
-
-
-def externalMergeVerticesOld(Gdir, pcut):
-    minS = min(pcut[0])
-    minT = min(pcut[1])
-
-    Gdircopy = Gdir.copy()
-    # todo - can I think of a faster way of doing this?
-    mapvector = [minS if v in pcut[0] else (minT if v in pcut[1] else v) for v in Gdircopy.vs.indices]
-
-    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
-    return Gdircopy, minS, minT
-
-
-# NOTE can probably just pass the few bits of tangset we need, but this isn't the slow bit, so eh...
-# NOTE not being used for YWS
-def externalBasicPartitionBranch(uid, tangset):
-    newpcut = [
-        set(tangset.U[0:uid]).union([0]),
-        set([tangset.U[uid]])
-    ]
-    Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
-    mincut = Gdircopy.mincut(source=s, target=t)
-    dummy = 1
-    if len(mincut.partition) == 2:
-        return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid+2) # todo note, 2 for: node 0, and 0 indexing
-        # note that partialCut takes care of the vids re the adjusted graph
-    else:
-        # todo Is this okay? I think we don't want it on the heap if non-minimal.
-        print("More than 2 components: {}".format(mincut))
-        input("press any key to continue")
-
 class partialCut(object):
 
     def __init__(self, S, T, Tstar, weight):
@@ -176,7 +107,7 @@ class partialCut(object):
             print("What the shit? node 0 not in getS")
             exit()
 
-        minT = self.T.argmax()
+        minT = self.T.argmax() # max value is "True", so argmax returns index of first true.
         if not self.T[minT]:
             print("What the shit? no nodes in getT")
             exit()
@@ -239,6 +170,7 @@ class HaoOrlin():
             self.G.es["weight"] = 1
         self.Gadj = np.array(self.G.get_adjacency(attribute = "weight").data)
         self.H = self.G     # G is the full graph, H is the working version. for basic partition, they're the same. later will be only getS* or getT*
+        self.totalN = self.G.vcount()
 
     def initFor_s(self, s):
         # s is the *index* of the vertex (at this stage, assuming it works)
@@ -299,16 +231,26 @@ class HaoOrlin():
         self.G.simplify(combine_edges="sum")
         self.G.delete_vertices([v.index for v in self.G.vs if v["name"] == ''] )
 
+        newT = self.G.vs.select(lambda v: str(minT) in v["name"].split(",")).indices[0]
+        # get the new index of the node containing vertex t. No need to do for s, as always 0.
 
-        self.mergedNodes = [minS, minT]
+        self.mergedNodes = [minS, newT]
 
         # get flow and check it matches up
-        flow = self.G.maxflow(minS, minT, capacity="weight")
+        try:
+            flow = self.G.maxflow(minS, newT, capacity="weight")
+        except:
+            print("moocow")
         if flow.value != partcut.weight:
             print("What the shit? flow and cut weights don't match up")
             exit()
 
-        if not partcut.matchesPartition(flow.partition):
+        partn = [[], []]
+        for side in (0,1):
+            labels = self.G.vs[flow.partition[side]]["name"]
+            partn[side] = [int(label) for label in iter.chain.from_iterable([label.split(",") for label in labels])]
+
+        if not partcut.matchesPartition(partn):
             exit()
 
 
@@ -322,15 +264,6 @@ class HaoOrlin():
 
     def getSide(self, sideID, partial):
         sourceName = self.G.vs[self.mergedNodes[sideID]]["name"]
-        print("---------------------")
-        print(sourceName, sideID)
-        print(partial.components())
-        print(self.G.vs.indices)
-        print(self.G.vs["name"])
-        if self.G.vcount() < 5:
-            print("moocow")
-        print("---------------------**")
-
 
         self.H = self.G.induced_subgraph(self.G.vs.select(
             lambda v: {int(vid) for vid in v["name"].split(",")}.issubset(partial.components()[sideID])).indices)
@@ -392,12 +325,14 @@ class HaoOrlin():
         labels = [longlabel.split(",") for longlabel in
                    self.H.vs[(idx for idx, val in enumerate(valArray) if val == 1)]["name"] ]
         vids = [int(label) for label in iter.chain.from_iterable(labels)]
-        newArray = np.zeros(self.G.vcount(), dtype=bool)
+        newArray = np.zeros(self.totalN, dtype=bool)
         print("----------------------------------")
-        print(self.G.vcount())
         print(labels)
         print(vids)
-        newArray[vids] = 1
+        try:
+            newArray[vids] = 1
+        except:
+            print("moocow")
         return newArray
         # could probably combine into one command, but that seems hard to read!
 
