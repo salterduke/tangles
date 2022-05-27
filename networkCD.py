@@ -37,7 +37,10 @@ class graphCD():
 
         self.doPrint = False
 
-        graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False, weights=True)
+        graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
+
+        if not graph.is_weighted():
+            graph.es["weight"] = 1
 
         graph.simplify(combine_edges="sum")
         self.giantComp = graph.clusters().giant()

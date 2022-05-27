@@ -166,8 +166,6 @@ class HaoOrlin():
     # todo add check for directed
     def __init__(self, G):
         self.G = G.copy()   # I think this is necessary so we don't fuck up the original?
-        if not self.G.is_weighted():
-            self.G.es["weight"] = 1
         self.Gadj = np.array(self.G.get_adjacency(attribute = "weight").data)
         self.H = self.G     # G is the full graph, H is the working version. for basic partition, they're the same. later will be only getS* or getT*
         self.totalN = self.G.vcount()
@@ -312,6 +310,8 @@ class HaoOrlin():
             # todo check that Sstar + Tstar is everything, and disjoint
             weight = self.Gadj[Sstarnew, :][:, Tstarnew].sum()
             # note using full adjacency, not just part
+
+            dummy = 1
 
             newList.append(partialCut(
                 S = Snew,
