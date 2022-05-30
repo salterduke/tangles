@@ -200,7 +200,6 @@ class HaoOrlin():
         self.S = np.zeros(self.N, dtype = bool)
         self.S[s] = 1
 
-        # self.Dset.append(1 << s)
         self.Dset.append(self.S.copy())
         self.Dmax = 0
 
@@ -348,10 +347,12 @@ class HaoOrlin():
                 i = self.activeNode
                 if self.existsAdmissableEdge(i):
                     self.pushMaxFlow(i, self.j)
+                    dummy = 1
                 else:
                     self.relabel(i)
             self.updateCutList()
             doneFlag = self.selectSink()
+            dummy = 1
 
 
     def updateCutList(self):
@@ -414,11 +415,17 @@ class HaoOrlin():
         excess_a = sum(self.H.es[self.H.incident(a, mode="in")]["flow"]) - \
                         sum(self.H.es[self.H.incident(a, mode="out")]["flow"])
 
-        delta = min(r_ab, excess_a)
-        # if r_ab > excess_a and a == self.t:
-        #     # ie, if doing selectSink
-        #     print("Not enough excess")
-        #     exit()
+        if r_ab > excess_a and a == self.t:
+            # ie, if doing selectSink
+            print("Not enough excess", a, b, excess_a)
+            dummy = 1
+        if a == self.t:
+            # ie, if doing selectSink
+            delta = r_ab
+        else:
+            # ie, if pushing on admissable edge
+            delta = min(r_ab, excess_a)
+
         # todo see if this is okay!!
 
         # reverse any backflow before pushing forward flow
@@ -452,7 +459,10 @@ class HaoOrlin():
                 self.W = self.W ^ R
             else:
                 oldDist = self.d[i]
-                minDist = min({self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+                try:
+                    minDist = min({self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+                except:
+                    print("moocow")
                 self.d[i] = minDist + 1
                 self.dCount[oldDist]-=1
                 self.dCount[minDist + 1]+=1
@@ -472,8 +482,9 @@ class HaoOrlin():
                 self.pushMaxFlow(self.t, k)
 
         if not np.any(self.W):
-            self.W = self.Dset[self.Dmax]
             self.Dmax-=1
+            # todo Does this Fix it??????
+            self.W = self.Dset.pop()
 
         # select j in W such that d[j] is minimum
         # todo is there a nice way of doing this?
@@ -538,6 +549,7 @@ class EdgeTangleSet(btang.TangleSet):
             HO.HOfindCuts(kmax=self.kmax)
             self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
+            print("moocow")
 
 
         with multiprocessing.Pool() as pool:
@@ -557,12 +569,7 @@ class EdgeTangleSet(btang.TangleSet):
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
-
-                # todo remove after debugging this part!!!!
-                # res = externalExtractMinPart(partcutList[0], Gdir=self.Gdirected, kmax=self.kmax)
-                # print(res)
-                # print("moocow")
-                # exit()
+                print("moocow")
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
