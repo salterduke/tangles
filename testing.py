@@ -4,6 +4,11 @@ import igraph as ig
 # import random
 
 
+minDist = min({self.d[j] for j in j_in_W
+               if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+
+
+
 print(ig.__version__)
 
 #

@@ -18,25 +18,27 @@ def externalExtractMinPart(partcut, Gdir, kmax):
     newPartcutList = []
 
     HO = HaoOrlin(Gdir)
-    print("------------------- After creation")
-    print(Gdir.vs.indices)
-    print(HO.G.vs.indices)
+    # print("------------------- After creation")
+    # print(Gdir.vs.indices)
+    # print(HO.G.vs.indices)
     HO.initForPartial(partcut)
     print("------------------- before side 0")
-    print(Gdir.vs.indices)
-    print(HO.G.vs.indices)
+    # print(Gdir.vs.indices)
+    # print(HO.G.vs.indices)
     if HO.getSide(sideID = 0, partial = partcut):  # sets .H to be just the source side of partcut
+        print(HO.H.vs["name"])
         HO.HOfindCuts(kmax=kmax)
         newPartcutList = HO.getInducedCuts(sideID = 0, oldpart = partcut)
 
     print("------------------- before side 1")
-    print(HO.G.vs.indices)
+    # print(HO.G.vs.indices)
     if HO.getSide(sideID = 1, partial = partcut):  # sets .H to be just the target side of partcut
+        print(HO.H.vs["name"])
         HO.HOfindCuts(kmax=kmax)
         newPartcutList = newPartcutList + HO.getInducedCuts(sideID = 1, oldpart = partcut)
 
     print("------------------- after side 1")
-    print(HO.G.vs.indices)
+    # print(HO.G.vs.indices)
 
     return newPartcutList
 
@@ -186,7 +188,10 @@ class HaoOrlin():
 
 
         # todo sort out what happens when N = 1, also check that N is updated properly.
-        self.t = 1  # todo write checks s != t      # todo also change to getT for extract min?
+        # self.t = 1
+        self.t = next(v for v in self.H.vs.indices if v != s)
+
+
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
         print("--------------")
         print(self.H.vcount(), self.t, self.N)
@@ -247,11 +252,18 @@ class HaoOrlin():
         if sideID == 1:
             # ie, side T - need to get graph transpose
 
-            A = np.array(self.H.get_adjacency(attribute = "weight").data)
-            newH = ig.Graph.Weighted_Adjacency(A.T.tolist(), attr="weight") # transpose
-            newH.vs["name"] = self.H.vs["name"] # copy names
-            self.H = newH
+            # A = np.array(self.H.get_adjacency(attribute = "weight").data)
+            # newH = ig.Graph.Weighted_Adjacency(A.T.tolist(), attr="weight") # transpose
+            # newH.vs["name"] = self.H.vs["name"] # copy names
+            # self.H = newH
             # I don't think there's an easier way to do it?
+
+            el = self.H.get_edgelist()
+            el_t = (tuple(reversed(e)) for e in el)
+            newH = ig.Graph(el_t, directed=True)
+            newH.vs["name"] = self.H.vs["name"]
+            newH.es["weight"] = self.H.es["weight"]
+            self.H = newH
 
         self.initFor_s(self.s)
         return True
@@ -287,6 +299,9 @@ class HaoOrlin():
 
             dummy = 1
 
+            if not any(Tnew):
+                print("Somehow got no T????")
+
             newList.append(partialCut(
                 S = Snew,
                 T = Tnew,
@@ -303,6 +318,8 @@ class HaoOrlin():
         print("----------------------------------")
         print(labels)
         print(vids)
+        if vids == [8]:
+            print("seems to hang here?")
         try:
             newArray[vids] = 1
         except:
@@ -423,8 +440,14 @@ class HaoOrlin():
             self.W = self.W ^ R
         else:
             J = self.H.successors(i)
-            j_in_W  = [idx for idx, val in enumerate(self.W) if val == 1 and idx in J]
-            # j_in_W = self.W.intersection(arcs)
+            j_in_W  = [j for j, val in enumerate(self.W) if
+                       val == 1 and
+                       j in J and
+                       (self.H.es[self.H.get_eid(i, j)]["weight"] -
+                        self.H.es[self.H.get_eid(i, j)]["flow"] +
+                        self.H.es[self.H.get_eid(j, i)]["flow"]) > 0
+                       ] # j is the index in self.W
+            # Checking that the residual is positive, ie, in G(x)
             if len(j_in_W) == 0:
                 # R = 1 << i
                 R = np.zeros(self.N, dtype=bool)
@@ -435,7 +458,7 @@ class HaoOrlin():
             else:
                 oldDist = self.d[i]
                 try:
-                    minDist = min({self.d[j] for j in j_in_W if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+                    minDist = min({self.d[j] for j in j_in_W})
                 except:
                     print("moocow")
                 self.d[i] = minDist + 1
@@ -524,7 +547,6 @@ class EdgeTangleSet(btang.TangleSet):
             HO.HOfindCuts(kmax=self.kmax)
             self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
-            print("moocow")
 
 
         with multiprocessing.Pool() as pool:
@@ -536,6 +558,17 @@ class EdgeTangleSet(btang.TangleSet):
                 basicPartition()  # not done with pool (at least at this stage)
                 # self.TangleTree.add_feature("cutsets", [])
 
+            # todo remove when done debugging
+            # externalExtractMinPart(
+            #     partialCut(S=np.array([1, 1, 1, 1, 1, 0, 0, 0, 0], dtype=bool),
+            #                T=np.array([0, 0, 0, 0, 0, 0, 1, 0, 0], dtype=bool),
+            #                Tstar=np.array([0, 0, 0, 0, 0, 1, 1, 1, 1], dtype=bool),
+            #                weight=1.0),
+            #     self.Gdirected, self.kmax
+            # )
+            # dummy = 1
+            # exit()
+
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                 # I know this looks stupid, but partcutHeap gets modified by this loop
                 # and we want to repeat until no more relevant partcuts in heap
@@ -544,23 +577,22 @@ class EdgeTangleSet(btang.TangleSet):
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
-                print("moocow")
 
-                externalExtractMinPart(partialCut(
-                    S=np.array([1,0,0,0,0,0,0,0,0], dtype=bool),
-                    T=np.array([0,1,0,0,0,0,0,0,0], dtype=bool),
-                    Tstar=np.array([0,1,1,1,1,1,1,1,1], dtype=bool),
-                    weight=2
-                ),
-                Gdir=self.Gdirected, kmax=self.kmax)
-                dummy=1
-                exit()
+                # externalExtractMinPart(partialCut(
+                #     S=np.array([1,0,0,0,0,0,0,0,0], dtype=bool),
+                #     T=np.array([0,1,0,0,0,0,0,0,0], dtype=bool),
+                #     Tstar=np.array([0,1,1,1,1,1,1,1,1], dtype=bool),
+                #     weight=2
+                # ),
+                # Gdir=self.Gdirected, kmax=self.kmax)
+                # dummy=1
+                # exit()
 
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-
+                dummy=1
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
 
     def addToSepList(self, partcut):
