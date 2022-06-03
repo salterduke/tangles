@@ -116,25 +116,6 @@ class partialCut(object):
         # note - this assumes that G.vs.indices == range(bitlen)
         return [minS if self.S[v] else (minT if self.T[v] else v) for v in range(self.bitlen)], minS, minT
 
-    def matchesPartition(self, partn):
-        # partn is list of lists.
-
-        self.Tstar = self.getTstar()
-
-        if 0 in partn[1]:
-            # so ordered as getSstar, getTstar
-            partn.reverse()
-
-        for sideID in (0, 1):
-            for vid in partn[sideID]:
-                if self.Tstar[vid] != sideID:
-                    print("Oops, partition doesn't match mincut")
-                    print("Partition", partn)
-                    print(self)
-                    return False
-
-        return True
-
     def __lt__(self, other):
         return self.weight < other.weight
 
@@ -240,16 +221,10 @@ class HaoOrlin():
             print("moocow")
         if flow.value != partcut.weight:
             print("What the shit? flow and cut weights don't match up")
+            # note that we *don't* need to check if the partition in flow matches our partcut Tstar
+            # since the edges in partcut will have resid 0 regardless.
+            # But if the weights don't match, then obviously something is wrong.
             exit()
-
-        partn = [[], []]
-        for side in (0,1):
-            labels = self.G.vs[flow.partition[side]]["name"]
-            partn[side] = [int(label) for label in iter.chain.from_iterable([label.split(",") for label in labels])]
-
-        if not partcut.matchesPartition(partn):
-            exit()
-
 
         for ij_idx in self.G.es.indices:
             i = self.G.es[ij_idx].source
@@ -570,6 +545,17 @@ class EdgeTangleSet(btang.TangleSet):
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
                 print("moocow")
+
+                externalExtractMinPart(partialCut(
+                    S=np.array([1,0,0,0,0,0,0,0,0], dtype=bool),
+                    T=np.array([0,1,0,0,0,0,0,0,0], dtype=bool),
+                    Tstar=np.array([0,1,1,1,1,1,1,1,1], dtype=bool),
+                    weight=2
+                ),
+                Gdir=self.Gdirected, kmax=self.kmax)
+                dummy=1
+                exit()
+
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
