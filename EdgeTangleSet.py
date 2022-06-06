@@ -18,27 +18,14 @@ def externalExtractMinPart(partcut, Gdir, kmax):
     newPartcutList = []
 
     HO = HaoOrlin(Gdir)
-    # print("------------------- After creation")
-    # print(Gdir.vs.indices)
-    # print(HO.G.vs.indices)
     HO.initForPartial(partcut)
-    print("------------------- before side 0")
-    # print(Gdir.vs.indices)
-    # print(HO.G.vs.indices)
     if HO.getSide(sideID = 0, partial = partcut):  # sets .H to be just the source side of partcut
-        print(HO.H.vs["name"])
         HO.HOfindCuts(kmax=kmax)
         newPartcutList = HO.getInducedCuts(sideID = 0, oldpart = partcut)
 
-    print("------------------- before side 1")
-    # print(HO.G.vs.indices)
     if HO.getSide(sideID = 1, partial = partcut):  # sets .H to be just the target side of partcut
-        print(HO.H.vs["name"])
         HO.HOfindCuts(kmax=kmax)
         newPartcutList = newPartcutList + HO.getInducedCuts(sideID = 1, oldpart = partcut)
-
-    print("------------------- after side 1")
-    # print(HO.G.vs.indices)
 
     return newPartcutList
 
@@ -101,9 +88,6 @@ class partialCut(object):
         self.S = self.getS()
         self.T = self.getT()
 
-        # print("in initForPartial")
-        # print(self)
-        #
         minS = 0
         if not self.S[0]:
             print("What the shit? node 0 not in getS")
@@ -193,9 +177,6 @@ class HaoOrlin():
 
 
         self.d = np.ones(self.H.vcount(), dtype=np.int16) # todo consider dtype
-        print("--------------")
-        print(self.H.vcount(), self.t, self.N)
-        print("--------------**")
         self.d[self.t] = 0
         self.dCount = coll.Counter({1:(self.N-1), 0:1}) # ie, there are N-1 nodes at dist 1, 1 node at dist 0
         # todo make sure to update dCount every time d is updated!
@@ -220,10 +201,7 @@ class HaoOrlin():
         self.mergedNodes = [minS, newT]
 
         # get flow and check it matches up
-        try:
-            flow = self.G.maxflow(minS, newT, capacity="weight")
-        except:
-            print("moocow")
+        flow = self.G.maxflow(minS, newT, capacity="weight")
         if flow.value != partcut.weight:
             print("What the shit? flow and cut weights don't match up")
             # note that we *don't* need to check if the partition in flow matches our partcut Tstar
@@ -315,15 +293,8 @@ class HaoOrlin():
                    self.H.vs[(idx for idx, val in enumerate(valArray) if val == 1)]["name"] ]
         vids = [int(label) for label in iter.chain.from_iterable(labels)]
         newArray = np.zeros(self.totalN, dtype=bool)
-        print("----------------------------------")
-        print(labels)
-        print(vids)
-        if vids == [8]:
-            print("seems to hang here?")
-        try:
-            newArray[vids] = 1
-        except:
-            print("moocow")
+        newArray[vids] = 1
+
         return newArray
         # could probably combine into one command, but that seems hard to read!
 
@@ -407,18 +378,12 @@ class HaoOrlin():
         excess_a = sum(self.H.es[self.H.incident(a, mode="in")]["flow"]) - \
                         sum(self.H.es[self.H.incident(a, mode="out")]["flow"])
 
-        if r_ab > excess_a and a == self.t:
-            # ie, if doing selectSink
-            print("Not enough excess", a, b, excess_a)
-            dummy = 1
         if a == self.t:
             # ie, if doing selectSink
             delta = r_ab
         else:
             # ie, if pushing on admissable edge
             delta = min(r_ab, excess_a)
-
-        # todo see if this is okay!!
 
         # reverse any backflow before pushing forward flow
         if self.H.es[ba]["flow"] > 0:
@@ -457,10 +422,7 @@ class HaoOrlin():
                 self.W = self.W ^ R
             else:
                 oldDist = self.d[i]
-                try:
-                    minDist = min({self.d[j] for j in j_in_W})
-                except:
-                    print("moocow")
+                minDist = min({self.d[j] for j in j_in_W})
                 self.d[i] = minDist + 1
                 self.dCount[oldDist]-=1
                 self.dCount[minDist + 1]+=1
@@ -528,7 +490,7 @@ class EdgeTangleSet(btang.TangleSet):
         self.sepFilename = "{}/{}-SepList-CF.tsv". \
             format(job['outputFolder'], job['outName'])
 
-        text = "order\tcut\tside1\tside2\torientation\n"
+        text = "order\tside1\tside2\torientation\n"
         with open(self.sepFilename, 'w+') as the_file:
             the_file.write(text)
 

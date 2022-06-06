@@ -117,8 +117,8 @@ class graphCD():
 
         self.assignCommunities(thres = 0.95)
 
-        if "Yeast" in self.job["outName"]:
-            quality = self.evaluateCommunities()
+        # if "Yeast" in self.job["outName"]:
+        #     quality = self.evaluateCommunities()
             # todo something with quality
 
         self.doPrint = False
