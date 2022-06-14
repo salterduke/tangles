@@ -457,21 +457,22 @@ class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
         # todo check this change
-        shell = np.array(G.coreness())
-        # remove 1-shell completely:
-        # G.delete_vertices(np.where(shell == 1)[0])
+        # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
+        # since a twig is always "small", don't need to deal with all parts of the twig.
+        outershell = G.induced_subgraph(np.where(np.array(G.coreness()) == 1)[0])
+        twigs = outershell.clusters()
 
-        # leave "stubs"
-        del_Vs = []
-        for vid in np.where(shell == 1)[0]:
-            to_del = True
-            for nb in G.neighbors(vid):
-                if shell[nb] > 1:
-                    to_del = False
-            if to_del:
-                del_Vs.append(vid)
+        mapvector = G.vs.indices
+        for twig in twigs:
+            vnames = outershell.vs[twig]["name"]
+            vids_inG = G.vs.select(name_in=vnames).indices
+            for i in vids_inG:
+                mapvector[i] = min(vids_inG)
+                # probably a oneliner way of doing this, but eh.
 
-        G.delete_vertices(del_Vs)
+        G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+        G.simplify()
+        G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
 
         # todo change ends here
         self.G = G
