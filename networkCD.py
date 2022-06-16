@@ -23,8 +23,8 @@ import socket
 
 from py2cytoscape.data.cyrest_client import CyRestClient
 
-from igraph import arpack_options
-arpack_options.maxiter=300000
+# from igraph import arpack_options
+# arpack_options.maxiter=300000
 
 class graphCD():
     def __init__(self, job, log):
@@ -37,7 +37,7 @@ class graphCD():
 
         self.doPrint = False
 
-        graph = ig.Graph.Read_Ncol(job['inFile'],names=True, directed=False)
+        graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
         graph.simplify()
         self.giantComp = graph.clusters().giant()
@@ -94,12 +94,11 @@ class graphCD():
 
 
 
-    def findTangleComms(self):
+    def findTangleComms(self, dep = 4, sepsOnly = False):
 
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
-        # dep = 4 # note, finds dep+1 total levels
-        dep = 2
+        #### note, finds dep+1 total levels
 
         if tangleType == "V":
             self.groundset = {"{}_{}".format(self.giantComp.vs[edge.source]['name'], self.giantComp.vs[edge.target]['name']) for edge in self.giantComp.es}
@@ -111,12 +110,12 @@ class graphCD():
         else:
             print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
-        self.TangleSet.findAllTangles(depth=dep)
+        timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
         self.assignCommunities(thres = 0.95)
 
-        if "Yeast" in self.job["outName"]:
-            quality = self.evaluateCommunities()
+        # if "Yeast" in self.job["outName"]:
+        #     quality = self.evaluateCommunities()
             # todo something with quality
 
         self.doPrint = False
@@ -125,7 +124,8 @@ class graphCD():
         if self.doPrint:
             self.igPrint()
 
-        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts())
+        # todo return timings for each k
+        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts(), timings)
 
     # todo this probably doesn't work for vertex connectivity tangles!
     # also note currently only does *once* at end for all k levels -
@@ -404,6 +404,5 @@ class graphCD():
             self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 
             print("CPM: {}".format(k))
-            if "Yeast" in self.job["outName"]:
-                self.evaluateCommunities()
+            self.evaluateCommunities()
 
