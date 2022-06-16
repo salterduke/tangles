@@ -29,8 +29,10 @@ class TangleSet():
         raise NotImplementedError
 
     #### delete depth later, when we're sure this works. ******
-    def findAllTangles(self, depth=4):
+    def findAllTangles(self, depth=4, sepsOnly = False):
         print("Finding All Tangles")
+
+        timings = []
 
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
@@ -40,34 +42,37 @@ class TangleSet():
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
-        self.log.tock()
+        timings.append(self.log.tock())
         self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
 
-        # ### see Evrendilek for heuristic?
-        self.log.tick("kTangle{} (min) Build Tangle".format(self.kmin))
-        if not self.kTangle(self.kmin):
-            print("No tangles exist")
-            self.log.tock()
-            return
-        else:
-            self.log.tock()
+        if not sepsOnly:
+            # ### see Evrendilek for heuristic?
+            self.log.tick("kTangle{} (min) Build Tangle".format(self.kmin))
+            if not self.kTangle(self.kmin):
+                print("No tangles exist")
+                self.log.tock()
+                return
+            else:
+                self.log.tock()
 
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
             self.log.tick("kTangle{} Find seps".format(k))
             self.findNextOrderSeparations(k)
-            self.log.tock()
-            self.log.tick("kTangle{} Build Tangle".format(k))
-            if not self.kTangle(k):
-                print("No tangles at k: {}".format(k))
-                self.kmax = k-1  # todo: make sure not off-by-one
+            timings.append(self.log.tock())
+            if not sepsOnly:
+                self.log.tick("kTangle{} Build Tangle".format(k))
+                if not self.kTangle(k):
+                    print("No tangles at k: {}".format(k))
+                    self.kmax = k-1  # todo: make sure not off-by-one
+                    self.log.tock()
+                    self.log.end()
+                    return(False)
                 self.log.tock()
-                self.log.end()
-                return(False)
-            self.log.tock()
         self.log.end()
+        return(timings)
 
 
     def checkTangleAxioms(self, newSep):

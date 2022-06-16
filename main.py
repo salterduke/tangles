@@ -27,12 +27,12 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts = jobGraph.findTangleComms()
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
 
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts))])
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
 def copyPicsToLatex():
     picFolder = "./output{}".format(testName)
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     if copyPics:
         copyPicsToLatex()
 
-    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts'])
+    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings'])
 
-    resultsDF.to_csv("./output{}/allfiles.csv".format(testName))
+    resultsDF.to_csv("./output{}/results{}.csv".format(testName))
     # todo fix so file doesn't get overwritten each time?
 
     log.end()

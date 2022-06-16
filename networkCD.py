@@ -97,7 +97,7 @@ class graphCD():
 
 
 
-    def findTangleComms(self, dep = 2):
+    def findTangleComms(self, dep = 4, sepsOnly = False):
 
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
@@ -113,7 +113,7 @@ class graphCD():
         else:
             print("incorrect tangle type {} specified. Use V or E".format(tangleType))
 
-        self.TangleSet.findAllTangles(depth=dep)
+        timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
         self.assignCommunities(thres = 0.95)
 
@@ -127,7 +127,8 @@ class graphCD():
         if self.doPrint:
             self.igPrint()
 
-        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts())
+        # todo return timings for each k
+        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts(), timings)
 
     # todo this probably doesn't work for vertex connectivity tangles!
     # also note currently only does *once* at end for all k levels -

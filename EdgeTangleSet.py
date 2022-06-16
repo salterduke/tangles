@@ -471,7 +471,7 @@ class EdgeTangleSet(btang.TangleSet):
                 # probably a oneliner way of doing this, but eh.
 
         G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
-        G.simplify()
+        G.simplify(combine_edges="sum")
         G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
 
         # todo change ends here
