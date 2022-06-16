@@ -15,6 +15,8 @@ class logger():
         # #### Check if exists!!!!!!
         # self.infoData = pd.read_csv(self.datafile, index_col=0)
 
+        self.timeString = str(self.startTime).replace(":",".")
+
         text = "Test: {}, time: {}\n".format(testName, self.startTime)
         with open(self.filename, 'w+') as the_file:
             the_file.write(text)
