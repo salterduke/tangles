@@ -62,12 +62,19 @@ if __name__ == '__main__':
         jobres = runAnalysis(job)
         jobResults.append(jobres)
 
+    # timing tests:
+    # jobResults = []
+    # for index, job in jobsToRun.iterrows():
+    #     job['outputFolder'] = "./output{}".format(testName)
+    #     jobres = runAnalysis(job)
+    #     jobResults.append(jobres)
+
+
     if copyPics:
         copyPicsToLatex()
 
     resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings'])
 
-    resultsDF.to_csv("./output{}/results{}.csv".format(testName))
-    # todo fix so file doesn't get overwritten each time?
+    resultsDF.to_csv("./output{}/results{}.csv".format(testName, log.timeString))
 
     log.end()
