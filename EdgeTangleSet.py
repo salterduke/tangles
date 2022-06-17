@@ -16,8 +16,8 @@ def extractComponents(mcut, vcount):
     return (comps)
 
 
-def mergeVnames(names):
-    return ",".join(names)
+def mergeVnames(names, sep=","):
+    return sep.join(names)
 
 
 def extCutIsSuperset(currCuts, newCut):
@@ -126,7 +126,11 @@ class partialCut(object):
             for vid in mergedVids:
                 # print(vid)
                 if len(Gdircopy.vs[vid]["name"]) > 0:
-                    newVids.update(v.index for v in map(Gdir.vs.find, Gdircopy.vs[vid]["name"].split(",")))
+                    try:
+                        newVids.update(v.index for v in map(Gdir.vs.find, Gdircopy.vs[vid]["name"].split(",")))
+                    except BaseException as err:
+                        print("error here. ")
+
             return newVids
 
         self.weight = mincut.value
@@ -166,7 +170,9 @@ class EdgeTangleSet(btang.TangleSet):
                 mapvector[i] = min(vids_inG)
                 # probably a oneliner way of doing this, but eh.
 
-        G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+        functools.partial(externalBasicPartitionBranch, tangset=self)
+
+        G.contract_vertices(mapvector, combine_attrs=dict(name=functools.partial(mergeVnames,sep=";")))
         G.simplify(combine_edges="sum")
         G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
 
