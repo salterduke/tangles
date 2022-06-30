@@ -71,7 +71,7 @@ def runMadeupGraph(job, N, M):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
     secs = log.tock(ticktoken)
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
@@ -107,8 +107,8 @@ if __name__ == '__main__':
     # timing tests:
     job['outputFolder'] = "./output{}".format(testName)
     jobResults = []
-    for n in range(10,30,5):
-        for m in range(n, 2*n, 10):
+    for n in range(10,100,10):
+        for m in range(n+10, 3*n, 10):
             jobres = runMadeupGraph(n, m)
             jobResults.append(jobres)
 
