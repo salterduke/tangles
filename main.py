@@ -34,34 +34,6 @@ def runAnalysis(job):
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
-def runMadeupGraph(N, M):
-    job = {"outName": "Barabasi_{}_{}".format(N,M)}
-    log.log("Job: {}".format(job['outName']))
-    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
-    # jobGraph = netCD.graphCD(job, log)
-    jobGraph = netCD
-
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
-    secs = log.tock(ticktoken)
-
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
-
-
-def runMadeupGraph(job, N, M):
-    job["outName"] = "constructed_{}_{}".format(N,M)
-    job["construct"] = True
-    job["N"] = N
-    job["M"] = M
-    log.log("Job: {}".format(job['outName']))
-    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
-    jobGraph = netCD.graphCD(job, log)
-
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
-    secs = log.tock(ticktoken)
-
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
-
-
 def runMadeupGraph(job, N, M):
     job["outName"] = "constructed_{}_{}".format(N,M)
     job["construct"] = True
@@ -111,23 +83,6 @@ if __name__ == '__main__':
         for m in range(n+10, 3*n, 10):
             jobres = runMadeupGraph(n, m)
             jobResults.append(jobres)
-
-    # timing tests:
-    job = {'outputFolder': "./output{}".format(testName)}
-    jobResults = []
-    for n in range(40,50,5):
-        for m in range(n+10, 2*n, 10):
-            jobres = runMadeupGraph(job, n, m)
-            jobResults.append(jobres)
-
-    # timing tests:
-    job = {'outputFolder': "./output{}".format(testName)}
-    jobResults = []
-    for n in range(40,50,5):
-        for m in range(n+10, 2*n, 10):
-            jobres = runMadeupGraph(job, n, m)
-            jobResults.append(jobres)
-
 
     if copyPics:
         copyPicsToLatex()
