@@ -20,6 +20,7 @@ import protChecker
 import sklearn.metrics as skl
 import os
 import socket
+import random
 
 from py2cytoscape.data.cyrest_client import CyRestClient
 
@@ -37,7 +38,13 @@ class graphCD():
 
         self.doPrint = False
 
-        graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
+        if "construct" in job and job["construct"]:
+            graph = self.constructRandom(job)
+            # print("Edges: ", graph.ecount())
+            # ig.plot(graph)
+            # exit()
+        else:
+            graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
         if not graph.is_weighted():
             graph.es["weight"] = 1
@@ -56,7 +63,26 @@ class graphCD():
         print("Number of nodes: {}".format(self.giantComp.vcount()))
         print("Number of edges: {}".format(self.giantComp.ecount()))
 
+    def constructRandom(self, job):
+        if job["M"] < job["N"]:
+            exit("Error: asking for random graph with fewer edges than nodes")
 
+        e = 0
+        # create random graph until get one with at least enough edges,
+        # then remove randomly (as long as they don't disconnect the graph)
+        # until get exactly the right number of edges
+        while e < job["M"]:
+            # the +1 is there so don't get p = 1
+            graph = ig.Graph.Forest_Fire(job["N"], job["N"] / (job["M"] + 1))
+            e = graph.ecount()
+
+        while e > job["M"]:
+            edgeDel = random.choice([e for e in graph.es.indices if e not in graph.bridges()])
+            graph.delete_edges(edgeDel)
+            e = graph.ecount()
+
+        graph.vs["name"] = [str(v) for v in graph.vs.indices]
+        return graph
 
     ## Creates a list of colours evenly distributed around the hue spectrum
     # with fixed saturation and value
@@ -175,17 +201,17 @@ class graphCD():
         # overwrite colours for parent comms.
         # todo if change to every level, need to do on *copy* of tangletree.
         for treenode in self.TangleSet.TangleTree.traverse():
-            if "getT" not in treenode.name:
+            if "T" not in treenode.name:
                 # keeps only complete tangles
                 # print("deleting non-tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
-            elif int(treenode.name.replace("getT", "")) not in self.foundcover.columns:
+            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
                 # keeps only tangles with >= 3 nodes
                 # print("deleting trivial tangle treenodes")
                 treenode.delete(prevent_nondicotomic=False)
             else:
                 # these are the actual communities we want to colour
-                commIndex = int(treenode.name.replace("getT", ""))
+                commIndex = int(treenode.name.replace("T", ""))
                 treedep = treenode.get_distance(self.TangleSet.TangleTree)
                 for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
                     self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)

@@ -65,20 +65,24 @@ ig.plot(t)
 # # GH.contract_vertices([0,0,0,1,2,3,3,3,3], combine_attrs="concat")
 #
 #
-# visual_style = {}
-# visual_style["vertex_size"] = 40
-# visual_style["vertex_label"] = t.vs["name"]
-# visual_style["vertex_color"] = "white"
-# visual_style["vertex_label_size"] = 8
-# # visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
-# # visual_style["layout"] = layout
-# # visual_style["bbox"] = (300, 300)
+G = ig.Graph.Forest_Fire(50,0.75);G.layout_fruchterman_reingold();ig.plot(G)
+for p in range(70,100,1):
+    G = ig.Graph.Forest_Fire(50, p/100);print(p, G.vcount(), G.ecount())
+
+visual_style = {}
+visual_style["vertex_size"] = 40
+visual_style["vertex_label"] = t.vs["name"]
+visual_style["vertex_color"] = "white"
+visual_style["vertex_label_size"] = 8
+visual_style["edge_width"] = [1 + 2 * int(is_formal) for is_formal in g.es["is_formal"]]
+visual_style["layout"] = layout
+visual_style["bbox"] = (300, 300)
 #
 # # ig.plot(t, **visual_style)
 #
 #
 #
-#
+[e for e in y if e not in x]
 #
 #
 #

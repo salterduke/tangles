@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # configFile = "configConst.txt"
     # testName = "Constructed"
     configFile = "config2.txt"
-    testName = "TestCores"
+    testName = "TestVY"
 
     log = logger.logger(testName)
     copyPics = False
@@ -33,6 +33,21 @@ def runAnalysis(job):
     # jobGraph.overLapCliquePercolation()
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+
+def runMadeupGraph(job, N, M):
+    job["outName"] = "constructed_{}_{}".format(N,M)
+    job["construct"] = True
+    job["N"] = N
+    job["M"] = M
+    log.log("Job: {}".format(job['outName']))
+    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
+    jobGraph = netCD.graphCD(job, log)
+
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
+    secs = log.tock(ticktoken)
+
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+
 
 def copyPicsToLatex():
     picFolder = "./output{}".format(testName)
@@ -55,19 +70,19 @@ if __name__ == '__main__':
 
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
-    jobResults = []
-
-    for index, job in jobsToRun.iterrows():
-        job['outputFolder'] = "./output{}".format(testName)
-        jobres = runAnalysis(job)
-        jobResults.append(jobres)
-
-    # timing tests:
     # jobResults = []
     # for index, job in jobsToRun.iterrows():
     #     job['outputFolder'] = "./output{}".format(testName)
     #     jobres = runAnalysis(job)
     #     jobResults.append(jobres)
+
+    # timing tests:
+    job = {'outputFolder': "./output{}".format(testName)}
+    jobResults = []
+    for n in range(40,50,5):
+        for m in range(n+10, 2*n, 10):
+            jobres = runMadeupGraph(job, n, m)
+            jobResults.append(jobres)
 
 
     if copyPics:
