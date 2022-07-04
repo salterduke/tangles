@@ -27,7 +27,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
