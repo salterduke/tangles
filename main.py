@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # configFile = "configConst.txt"
     # testName = "Constructed"
     configFile = "config2.txt"
-    testName = "TestCores"
+    testName = "TestSupersetness"
 
     log = logger.logger(testName)
     copyPics = False
@@ -27,7 +27,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
