@@ -4,7 +4,8 @@ import multiprocessing
 import sys
 import numpy as np
 import igraph as ig
-
+import collections as coll
+import itertools as iter
 import BaseTangleSet as btang
 
 def extractComponents(mcut, vcount):
@@ -223,6 +224,17 @@ class EdgeTangleSet(btang.TangleSet):
                 basicPartition(pool)
                 # self.TangleTree.add_feature("cutsets", [])
 
+            # todo remove when done debugging
+            # externalExtractMinPart(
+            #     partialCut(S=np.array([1, 1, 1, 1, 1, 0, 0, 0, 0], dtype=bool),
+            #                T=np.array([0, 0, 0, 0, 0, 0, 1, 0, 0], dtype=bool),
+            #                Tstar=np.array([0, 0, 0, 0, 0, 1, 1, 1, 1], dtype=bool),
+            #                weight=1.0),
+            #     self.Gdirected, self.kmax
+            # )
+            # dummy = 1
+            # exit()
+
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
                 # I know this looks stupid, but partcutHeap gets modified by this loop
                 # and we want to repeat until no more relevant partcuts in heap
@@ -231,6 +243,17 @@ class EdgeTangleSet(btang.TangleSet):
                     newpartcut = heapq.heappop(self.partcutHeap)
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
+
+                # externalExtractMinPart(partialCut(
+                #     S=np.array([1,0,0,0,0,0,0,0,0], dtype=bool),
+                #     T=np.array([0,1,0,0,0,0,0,0,0], dtype=bool),
+                #     Tstar=np.array([0,1,1,1,1,1,1,1,1], dtype=bool),
+                #     weight=2
+                # ),
+                # Gdir=self.Gdirected, kmax=self.kmax)
+                # dummy=1
+                # exit()
+
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
@@ -241,14 +264,32 @@ class EdgeTangleSet(btang.TangleSet):
     def addToSepList(self, partial):
         def addDefSmall(newcomp, newsize):
 
+            toAdd = True
+            for size in range(self.kmin, newsize+1):
+                for comp in self.definitelySmall[size]:
+                    if len(newcomp) < len(comp) and newcomp.issubset(comp):
+                        toAdd = False
+                        break
+                    elif len(comp) < len(newcomp) and comp.issubset(newcomp):
+                        self.definitelySmall[size].remove(comp)
+                        # todo I know this isn't the most efficient. Not sure how to improve
+                if not toAdd:
+                    break
+                    # first break on breaks inner loop.
+                    # Don't need to continue checking at all.
+
+            if toAdd:
+                self.definitelySmall[newsize].append(newcomp)
+            # todo, note that all seps are written to file, even if not tested.
+
             # todo I think this needs to not happen. Might be okay to do just for the same size?
-            # for size in range(self.kmin, newsize):
+            # for size in range(self.kmin, newsize+1):
             #     self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
             #                                   if not newcomp.issuperset(comp)]
             # todo: possible version?
             # self.definitelySmall[newsize] = [comp for comp in self.definitelySmall[newsize]\
             #                               if not newcomp.issuperset(comp)]
-            self.definitelySmall[newsize].append(newcomp)
+            # self.definitelySmall[newsize].append(newcomp)
 
         def printSepToFile(components, cut, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
