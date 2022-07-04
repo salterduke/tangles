@@ -579,6 +579,7 @@ class EdgeTangleSet(btang.TangleSet):
 
             if toAdd:
                 self.definitelySmall[newsize].append(newcomp)
+            # todo, note that all seps are written to file, even if not tested.
 
             # todo I think this needs to not happen. Might be okay to do just for the same size?
             # for size in range(self.kmin, newsize+1):
