@@ -71,10 +71,19 @@ class graphCD():
         # create random graph until get one with at least enough edges,
         # then remove randomly (as long as they don't disconnect the graph)
         # until get exactly the right number of edges
+        # need to include the fudge because otherwise it might keep running and running
+        # and never get enough edges.
+        fudge = 0
         while e < job["M"]:
             # the +1 is there so don't get p = 1
-            graph = ig.Graph.Forest_Fire(job["N"], job["N"] / (job["M"] + 1))
+
+            # these numbers are based on linear regression done previously
+            p = (job["M"] - 3.52663056*job["N"] +201.35998895)/(206.97060932) + fudge
+
+            graph = ig.Graph.Forest_Fire(job["N"], p)
             e = graph.ecount()
+            fudge+=((job["M"]-e)/(job["M"]*100)*(1-p))
+            # fudge += ((e - e_actual)/(e*100) * (1 - p))
 
         while e > job["M"]:
             edgeDel = random.choice([e for e in graph.es.indices if e not in graph.bridges()])

@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # configFile = "configConst.txt"
     # testName = "Constructed"
     configFile = "config2.txt"
-    testName = "TestCores"
+    testName = "TestVY"
 
     log = logger.logger(testName)
     copyPics = False
@@ -43,7 +43,7 @@ def runMadeupGraph(job, N, M):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
     secs = log.tock(ticktoken)
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
@@ -79,11 +79,10 @@ if __name__ == '__main__':
     # timing tests:
     job = {'outputFolder': "./output{}".format(testName)}
     jobResults = []
-    for n in range(40,50,5):
-        for m in range(n+10, 2*n, 10):
+    for n in range(10,100,10):
+        for m in range(n+10, 3*n, 10):
             jobres = runMadeupGraph(job, n, m)
             jobResults.append(jobres)
-
 
     if copyPics:
         copyPicsToLatex()
