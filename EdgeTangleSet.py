@@ -557,18 +557,38 @@ class EdgeTangleSet(btang.TangleSet):
                     heapq.heappush(self.partcutHeap, partcut)
                 dummy=1
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
+        dummy = 1
+
 
     def addToSepList(self, partcut):
         def addDefSmall(newcomp, newsize):
 
+            toAdd = True
+            for size in range(self.kmin, newsize+1):
+                for comp in self.definitelySmall[size]:
+                    if len(newcomp) < len(comp) and newcomp.issubset(comp):
+                        toAdd = False
+                        break
+                    elif len(comp) < len(newcomp) and comp.issubset(newcomp):
+                        self.definitelySmall[size].remove(comp)
+                        # todo I know this isn't the most efficient. Not sure how to improve
+                if not toAdd:
+                    break
+                    # first break on breaks inner loop.
+                    # Don't need to continue checking at all.
+
+            if toAdd:
+                self.definitelySmall[newsize].append(newcomp)
+            # todo, note that all seps are written to file, even if not tested.
+
             # todo I think this needs to not happen. Might be okay to do just for the same size?
-            # for size in range(self.kmin, newsize):
+            # for size in range(self.kmin, newsize+1):
             #     self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
             #                                   if not newcomp.issuperset(comp)]
             # todo: possible version?
             # self.definitelySmall[newsize] = [comp for comp in self.definitelySmall[newsize]\
             #                               if not newcomp.issuperset(comp)]
-            self.definitelySmall[newsize].append(newcomp)
+            # self.definitelySmall[newsize].append(newcomp)
 
         def printSepToFile(cutweight, components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
