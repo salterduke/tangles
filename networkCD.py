@@ -79,6 +79,10 @@ class graphCD():
 
             # these numbers are based on linear regression done previously
             p = (job["M"] - 3.52663056*job["N"] +201.35998895)/(206.97060932) + fudge
+            if p >= 1:
+                p = 0.99999999
+            if p <= 0:
+                p = 0.00000001
 
             graph = ig.Graph.Forest_Fire(job["N"], p)
             e = graph.ecount()
