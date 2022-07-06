@@ -79,10 +79,13 @@ if __name__ == '__main__':
     # timing tests:
     job = {'outputFolder': "./output{}".format(testName)}
     jobResults = []
+
     for n in range(10,100,10):
         for m in range(n+10, 3*n, 10):
             jobres = runMadeupGraph(job, n, m)
             jobResults.append(jobres)
+
+
 
     if copyPics:
         copyPicsToLatex()
