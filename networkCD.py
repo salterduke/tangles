@@ -7,7 +7,11 @@ tangleType = "E"
 if tangleType == "V":
     import VertexTangleSet as tset
 elif tangleType == "E":
-    import EdgeTangleSet as tset
+    if sepAlg == "VY":
+        import EdgeTangleSet_VY as tset
+    else:
+        import EdgeTangleSet_YWS as tset
+
 
 import pandas as pd
 import collections as coll
