@@ -453,7 +453,7 @@ class HaoOrlin():
         dummy = 1
         return False
 
-class EdgeTangleSet_YWS(btang.TangleSet):
+class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
         # todo check this change

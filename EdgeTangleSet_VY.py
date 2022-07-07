@@ -137,7 +137,7 @@ class partialCut(object):
         # todo add more shit later?
         return "\nwt {} binrep:{}, binlen: {}".format(self.weight, self.pcut["binrep"], self.pcut["binlen"])
 
-class EdgeTangleSet_VY(btang.TangleSet):
+class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
         # todo check this change

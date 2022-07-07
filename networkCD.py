@@ -7,6 +7,7 @@ tangleType = "E"
 if tangleType == "V":
     import VertexTangleSet as tset
 elif tangleType == "E":
+    sepAlg = "VY"
     if sepAlg == "VY":
         import EdgeTangleSet_VY as tset
     else:
