@@ -34,7 +34,7 @@ for v in range(10,100,10):
             print(p, fudge, (G.vcount(), e, G.ecount()))
 
 df = pd.DataFrame(results, columns = ["V","e","E"])
-# summ = df.groupby(["p", "V"]).to_numpy().mean()
+# summ = results_wide.groupby(["p", "V"]).to_numpy().mean()
 
 # p = summ.index.array.reshape(-1,1)
 # V = summ.V.array.reshape(-1,1)
@@ -196,16 +196,16 @@ df = pd.DataFrame(results, columns = ["V","e","E"])
 # #
 # # # for file in shortlist:
 # # # # for file in longlist:
-# # # #     df = pd.read_csv(file, sep="\t", header=None)
-# # #     df = pd.read_csv(file, sep=" ")
-# # #     print(df.head())
+# # # #     results_wide = pd.read_csv(file, sep="\t", header=None)
+# # #     results_wide = pd.read_csv(file, sep=" ")
+# # #     print(results_wide.head())
 # # #     # print("---------------")
 # # #     # print(file)
-# # #     m = len(df.index)
-# # #     Vs = pd.concat([df.iloc[:,0], df.iloc[:,1]])
+# # #     m = len(results_wide.index)
+# # #     Vs = pd.concat([results_wide.iloc[:,0], results_wide.iloc[:,1]])
 # # #     n = len(Vs.unique())
 # # #     print(file, m, n)
-# # #     # df.iloc[:,0:2].to_csv("YeastNet.csv", index=False, sep = " ", header = ["A", "B"])
+# # #     # results_wide.iloc[:,0:2].to_csv("YeastNet.csv", index=False, sep = " ", header = ["A", "B"])
 # #
 # #
 # # print((364+18+128+16+24)*25000/(1024*1024))

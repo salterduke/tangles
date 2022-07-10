@@ -207,7 +207,7 @@ class graphCD():
 
 
         # this makes sure only those communities with at least 3 modes are included.
-        # the astype is necessary as df init as NaNs, which are stored as floats.
+        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 
         for node in self.giantComp.vs:
@@ -447,7 +447,7 @@ class graphCD():
                 commIndex+=1
 
             # this makes sure only those communities with at least 3 modes are included.
-            # the astype is necessary as df init as NaNs, which are stored as floats.
+            # the astype is necessary as results_wide init as NaNs, which are stored as floats.
             self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 
             print("CPM: {}".format(k))

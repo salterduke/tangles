@@ -97,7 +97,7 @@ class commChecker():
         # for commIndex, commNodes in self.commLists.items():
         for commIndex in foundcover.columns.to_list():
             commNodes = foundcover.index[foundcover[commIndex]==1].tolist()
-            # df.index[df['BoolCol']].tolist()
+            # results_wide.index[results_wide['BoolCol']].tolist()
             if len(commNodes) >= 3:
                 for pair in iter.combinations(commNodes, 2):
                     totalCommSim += self.simDF[pair[0]][pair[1]]
