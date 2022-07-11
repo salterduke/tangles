@@ -12,10 +12,10 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    # configFile = "configConst.txt"
-    # testName = "Constructed"
     configFile = "config2.txt"
-    testName = "TestVY"
+    # testName = "TestVY"
+    testName = "TestYWS"
+    # todo: change in networkCD.py as well
 
     log = logger.logger(testName)
     copyPics = False
