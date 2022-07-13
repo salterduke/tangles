@@ -106,9 +106,10 @@ class TangleSet():
             # print("----------------------------------")
             # print(sepsSoFar)
             # print("----------------------------------")
+
+            checkedSubsets = False
             for id, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
-                if newSep.issubset(side1):
-                    # print(id, side1, newSep)
+                if not checkedSubsets and newSep.issubset(side1):
                     return True
 
                 double1 = side1 | newSep
@@ -116,10 +117,12 @@ class TangleSet():
                     return False
 
                 for side2 in sepsSoFar[id + 1:]:
+                    if not checkedSubsets and newSep.issubset(side2):
+                        return True
                     triple = side2 | double1
                     if len(triple) >= self.groundsetSize:
                         return False
-
+                checkedSubsets = True
         return True
 
 
