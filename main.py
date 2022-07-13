@@ -27,7 +27,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
@@ -70,19 +70,22 @@ if __name__ == '__main__':
 
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
-    # jobResults = []
-    # for index, job in jobsToRun.iterrows():
-    #     job['outputFolder'] = "./output{}".format(testName)
-    #     jobres = runAnalysis(job)
-    #     jobResults.append(jobres)
-
-    # timing tests:
-    job = {'outputFolder': "./output{}".format(testName)}
-    jobResults = []
-    for n in range(10,100,10):
-        for m in range(n+10, 3*n, 10):
-            jobres = runMadeupGraph(job, n, m)
+    doConstructed = False
+    if doConstructed:
+        # timing tests:
+        job = {'outputFolder': "./output{}".format(testName)}
+        jobResults = []
+        for n in range(10, 100, 10):
+            for m in range(n + 10, 3 * n, 10):
+                jobres = runMadeupGraph(job, n, m)
+                jobResults.append(jobres)
+    else:
+        jobResults = []
+        for index, job in jobsToRun.iterrows():
+            job['outputFolder'] = "./output{}".format(testName)
+            jobres = runAnalysis(job)
             jobResults.append(jobres)
+
 
     if copyPics:
         copyPicsToLatex()
