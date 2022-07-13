@@ -77,23 +77,6 @@ class TangleSet():
 
     def checkTangleAxioms(self, newSep):
 
-        ###### yes, I know this is probably not the best programming practice!!!
-        if "Edge" in str(self.__class__):
-            offset = 0
-        elif "Vertex" in str(self.__class__):
-            # because vertex tangles separate edges, and every single edge is
-            # an order 2 separation, so we do this so we don't need to include
-            # each edge explicitly
-            # We *don't* want to do this for edge tangles
-            print("Should probably worry about this when k=1 though...")
-            print("Fix later..... ******")
-            input("Press any key to continue")
-            offset = 1
-        else:
-            print("New Tangle Type: Decide what you're doing here!")
-            print("Define offset in checkTangleAxioms in baseTangleSet")
-            exit()
-
         ### Axiom 2
         # todo - reverting to storing all def small in stack to handle cases where *all* def small
         # todo - consider doing properly later
@@ -103,7 +86,7 @@ class TangleSet():
         if len(sepsSoFar) == 1:
             side1 = sepsSoFar[0]
             double1 = side1 | newSep
-            if len(double1) >= self.groundsetSize - offset:
+            if len(double1) >= self.groundsetSize:
                 return False
         else:
             # for side1, side2 in it.combinations(it.chain(*self.definitelySmall.values(), self.smallSidesStack), 2):
@@ -112,13 +95,13 @@ class TangleSet():
                 #### looks like shitty code, but might mean
                 #### some of the unions can be avoided - O(m)
                 double1 = side1 | newSep
-                if len(double1) >= self.groundsetSize - offset:
+                if len(double1) >= self.groundsetSize:
                     return False
                 double2 = side2 | newSep
-                if len(double2) >= self.groundsetSize - offset:
+                if len(double2) >= self.groundsetSize:
                     return False
                 triple = side1 | double2
-                if len(triple) == self.groundsetSize:
+                if len(triple) >= self.groundsetSize:
                     return False
 
         return True
@@ -195,7 +178,6 @@ class TangleSet():
                     # other must be calculated
                     # for side in self.separations[k][sepNum - numkdefSmall]:
                     #     addSideAsSep(side, truncTangle, sepNum)
-                    # todo has NOT been checked for correctness with vertex tangles.
                     side = self.separations[k][sepNum - numkdefSmall]
                     addSideAsSep(side, truncTangle, sepNum)
                     complement = self.groundset - side
