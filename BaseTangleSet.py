@@ -53,7 +53,7 @@ class TangleSet():
             if not self.kTangle(self.kmin):
                 print("No tangles exist")
                 self.log.tock()
-                return
+                return(timings)
             else:
                 self.log.tock()
 
@@ -69,7 +69,7 @@ class TangleSet():
                     self.kmax = k-1  # todo: make sure not off-by-one
                     self.log.tock()
                     self.log.end()
-                    return(False)
+                    return(timings)
                 self.log.tock()
         self.log.end()
         return(timings)
@@ -89,20 +89,36 @@ class TangleSet():
             if len(double1) >= self.groundsetSize:
                 return False
         else:
-            # for side1, side2 in it.combinations(it.chain(*self.definitelySmall.values(), self.smallSidesStack), 2):
-            for side1, side2 in it.combinations(sepsSoFar, 2):
+            # for side1, side2 in it.combinations(sepsSoFar, 2):
+            #
+            #     #### looks like shitty code, but might mean
+            #     #### some of the unions can be avoided - O(m)
+            #     double1 = side1 | newSep
+            #     if len(double1) >= self.groundsetSize:
+            #         return False
+            #     double2 = side2 | newSep
+            #     if len(double2) >= self.groundsetSize:
+            #         return False
+            #     triple = side1 | double2
+            #     if len(triple) >= self.groundsetSize:
+            #         return False
 
-                #### looks like shitty code, but might mean
-                #### some of the unions can be avoided - O(m)
+            # print("----------------------------------")
+            # print(sepsSoFar)
+            # print("----------------------------------")
+            for id, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
+                if newSep.issubset(side1):
+                    # print(id, side1, newSep)
+                    return True
+
                 double1 = side1 | newSep
                 if len(double1) >= self.groundsetSize:
                     return False
-                double2 = side2 | newSep
-                if len(double2) >= self.groundsetSize:
-                    return False
-                triple = side1 | double2
-                if len(triple) >= self.groundsetSize:
-                    return False
+
+                for side2 in sepsSoFar[id + 1:]:
+                    triple = side2 | double1
+                    if len(triple) >= self.groundsetSize:
+                        return False
 
         return True
 
