@@ -5,36 +5,47 @@ import matplotlib.pyplot as plt
 # import random
 from sklearn.linear_model import LinearRegression
 
-minDist = min({self.d[j] for j in j_in_W
-               if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+
+print(moocow)
 
 
+source /home/saltermich1/PhDThesisGdrive/Code/Tangles/venv/bin/activate pip install multiprocessing
 
-print(ig.__version__)
 
-results = []
+source '/home/saltermich1/PhDThesisGdrive/Code/Tangles/venv/bin/activate'
+pip install multiprocessing
 
-for v in range(10,100,10):
-    for e in range(v+10, 3*v, 10):
-        e_actual = 0
-        fudge = 0
-        print("--------------------------")
-        while e_actual < e:
-            p = (e - 3.52663056*v +201.35998895)/(206.97060932) + fudge
-            if p >= 1:
-                p = 0.99999999
-            if p <= 0:
-                p = 0.00000001
-            G = ig.Graph.Forest_Fire(v, p)
-            fudge += ((e - e_actual)/(e*100) * (1 - p))
-            # print(p, G.vcount(), G.ecount())
-        #     results.append((p, G.vcount(), G.ecount()))
-            results.append((G.vcount(), e, G.ecount()))
-            e_actual = G.ecount()
-            print(p, fudge, (G.vcount(), e, G.ecount()))
 
-df = pd.DataFrame(results, columns = ["V","e","E"])
-# summ = results_wide.groupby(["p", "V"]).to_numpy().mean()
+# minDist = min({self.d[j] for j in j_in_W
+#                if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
+#
+#
+#
+# print(ig.__version__)
+#
+# results = []
+#
+# for v in range(10,100,10):
+#     for e in range(v+10, 3*v, 10):
+#         e_actual = 0
+#         fudge = 0
+#         print("--------------------------")
+#         while e_actual < e:
+#             p = (e - 3.52663056*v +201.35998895)/(206.97060932) + fudge
+#             if p >= 1:
+#                 p = 0.99999999
+#             if p <= 0:
+#                 p = 0.00000001
+#             G = ig.Graph.Forest_Fire(v, p)
+#             fudge += ((e - e_actual)/(e*100) * (1 - p))
+#             # print(p, G.vcount(), G.ecount())
+#         #     results.append((p, G.vcount(), G.ecount()))
+#             results.append((G.vcount(), e, G.ecount()))
+#             e_actual = G.ecount()
+#             print(p, fudge, (G.vcount(), e, G.ecount()))
+#
+# df = pd.DataFrame(results, columns = ["V","e","E"])
+# # summ = results_wide.groupby(["p", "V"]).to_numpy().mean()
 
 # p = summ.index.array.reshape(-1,1)
 # V = summ.V.array.reshape(-1,1)

@@ -151,7 +151,9 @@ class graphCD():
             format(self.job['outputFolder'], self.job['outName'])
         # making copy to add row for orders without messing with anything else.
         cover_copy = self.foundcover.copy(deep = True)
-        cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        cover_copy.loc[len(cover_copy)] = tangOrders
+        cover_copy.index.values[len(cover_copy)-1] = "order"
         cover_copy.to_csv(outfile)
 
 
@@ -218,8 +220,10 @@ class graphCD():
         ts.scale = 360
 
         try:
+            # Note that this shit doesn't work correctly in Python 3.10. It's a known issue.
             self.TangleSet.TangleTree.render(outfile, tree_style=ts)
         except Exception as rendError:
+            print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
             print(rendError)
 
 
