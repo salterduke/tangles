@@ -114,7 +114,8 @@ class graphCD():
 
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
-        self.assignCommunities(thres = 0.95)
+        # if not sepsOnly:
+        #     self.assignCommunities(thres = 0.95)
 
         # if "Yeast" in self.job["outName"]:
         #     quality = self.evaluateCommunities()
