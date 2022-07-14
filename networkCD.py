@@ -28,11 +28,13 @@ class graphCD():
 
         self.log.log("{}".format(job['outName']))
 
+
         if "construct" in job and job["construct"]:
             graph = self.constructRandom(job)
-            # print("Edges: ", graph.ecount())
-            # ig.plot(graph)
-            # exit()
+            fname = "../NetworkData/Constructed/{}.ncol".format(job["outName"])
+            graph.write_ncol(fname)
+            with open("const.txt", 'a') as the_file:
+                the_file.write("{};{}".format(fname, job["outName"]))
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 

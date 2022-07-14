@@ -12,7 +12,8 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "config2.txt"
+    # configFile = "config2.txt"
+    configFile = "const.txt"
     # testName = "TestVY"
     testName = "TestYWS"
     # todo: change in networkCD.py as well
@@ -75,8 +76,8 @@ if __name__ == '__main__':
         # timing tests:
         job = {'outputFolder': "./output{}".format(testName)}
         jobResults = []
-        for n in range(10, 100, 10):
-            for m in range(n + 10, 3 * n, 10):
+        for n in (20, 50, 100):
+            for m in range(n + 10, 3 * n+10, 10):
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
     else:
