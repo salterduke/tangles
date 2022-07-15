@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 # import socket
 import random
 import seaborn as sns
-sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=resSummary)
 sns.set()
 
 VYfiles = [
@@ -29,13 +28,14 @@ def readAlgData(timingFiles, algName):
     dfList = []
 
     for id, file in enumerate(timingFiles):
+        print("Reading ", file)
         df = pd.read_csv(file, delimiter=',', header=0, comment="#")
         df["fileID"] = id
         df["algorithm"] = algName
         dfList.append(df)
 
 
-    results_wide = pd.concat(dfList)
+    results_wide = pd.concat(dfList, ignore_index=True)
 
     df1 = results_wide['tangCounts'].str.split('-', expand=True).add_prefix('Order').fillna('')
     results_wide = pd.concat([results_wide, df1], axis = 1)
@@ -97,9 +97,13 @@ results = pd.concat(resDFs)
 shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
 # shortres_noOutlier = shortres.loc[shortres.time < 1500]
 
-resSummary = shortres.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
+lowOrder = shortres.loc[shortres.order<=4].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
+highOrder = shortres.loc[shortres.order>=5].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
 
-sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=resSummary)
-plt.show()
+sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=lowOrder)
+plt.savefig("./Timings/lowOrder.png")
+
+sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=highOrder)
+plt.savefig("./Timings/highOrder.png")
 
 

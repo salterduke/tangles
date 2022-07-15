@@ -456,6 +456,7 @@ class HaoOrlin():
 class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
+        print("Initialising YWS Edge Tangle Set")
         # todo check this change
         # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
         # since a twig is always "small", don't need to deal with all parts of the twig.

@@ -4,17 +4,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 # import random
 from sklearn.linear_model import LinearRegression
+import sys
 
+print("moocow")
 
-print(moocow)
-
-
-source /home/saltermich1/PhDThesisGdrive/Code/Tangles/venv/bin/activate pip install multiprocessing
-
-
-source '/home/saltermich1/PhDThesisGdrive/Code/Tangles/venv/bin/activate'
-pip install multiprocessing
-
+print(sys.argv[0])
+print(sys.argv[1])
+print(len(sys.argv))
 
 # minDist = min({self.d[j] for j in j_in_W
 #                if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
