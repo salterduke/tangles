@@ -2,12 +2,13 @@ import math
 import numpy as np
 import ete3
 
-sepAlg = "YWS"
-# todo: change in main.py as well
-if sepAlg == "VY":
-    import EdgeTangleSet_VY as tset
-else:
-    import EdgeTangleSet_YWS as tset
+# if sepAlg == "VY":
+#     import EdgeTangleSet_VY as tset
+# else:
+#     import EdgeTangleSet_YWS as tset
+
+import EdgeTangleSet_VY
+import EdgeTangleSet_YWS
 
 
 import pandas as pd
@@ -110,7 +111,10 @@ class graphCD():
         #### note, finds dep+1 total levels
 
         self.groundset = set(self.giantComp.vs["name"])
-        self.TangleSet = tset.EdgeTangleSet(self.giantComp, self.job, self.log)
+        if "YWS" in self.job["testName"]:
+            self.TangleSet = EdgeTangleSet_YWS.EdgeTangleSet(self.giantComp, self.job, self.log)
+        else:
+            self.TangleSet = EdgeTangleSet_VY.EdgeTangleSet(self.giantComp, self.job, self.log)
 
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 

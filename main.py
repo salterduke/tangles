@@ -5,6 +5,7 @@ import pandas as pd
 import igraph as ig
 import logger
 import os
+import sys
 import shutil
 import multiprocessing
 import platform
@@ -12,11 +13,17 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    # configFile = "config2.txt"
-    configFile = "const.txt"
-    # testName = "TestVY"
-    testName = "TestYWS"
-    # todo: change in networkCD.py as well
+    configFile = "config2.txt"
+    # configFile = "const.txt"
+
+    if len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
+        print("Running YWS")
+        testName = "TestYWS"
+    elif len(sys.argv) >= 2 and "VY" in sys.argv[1]:
+        print("Running VY")
+        testName = "TestVY"
+    else:
+        exit("No test type specified. Either YWS or VY")
 
     log = logger.logger(testName)
     copyPics = False
@@ -74,7 +81,7 @@ if __name__ == '__main__':
     doConstructed = False
     if doConstructed:
         # timing tests:
-        job = {'outputFolder': "./output{}".format(testName)}
+        job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
         jobResults = []
         for n in (20, 50, 100):
             for m in range(n + 10, 3 * n+10, 10):
@@ -84,6 +91,7 @@ if __name__ == '__main__':
         jobResults = []
         for index, job in jobsToRun.iterrows():
             job['outputFolder'] = "./output{}".format(testName)
+            job['testName'] = testName
             jobres = runAnalysis(job)
             jobResults.append(jobres)
 
