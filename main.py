@@ -13,10 +13,13 @@ import platform
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "config2.txt"
-    # configFile = "const.txt"
+    configFile = "const.txt"
 
-    if len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
+    if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
+        print("Dev testing")
+        testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
+        configFile = "config2.txt"
+    elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
         print("Running YWS")
         testName = "TestYWS"
     elif len(sys.argv) >= 2 and "VY" in sys.argv[1]:
@@ -35,7 +38,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()

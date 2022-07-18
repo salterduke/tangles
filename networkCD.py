@@ -118,11 +118,12 @@ class graphCD():
 
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
-        # if not sepsOnly:
-        #     self.assignCommunities(thres = 0.95)
+        if not sepsOnly:
+            self.assignCommunities(thres = 0.95)
 
-        # if "Yeast" in self.job["outName"]:
-        #     quality = self.evaluateCommunities()
+        if "Yeast" in self.job["outName"]:
+            quality = self.evaluateCommunities()
+            dummy = 1
             # todo something with quality
 
         self.doPrint = False
@@ -258,7 +259,6 @@ class graphCD():
         # text = "{:d}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}\t{:.2f}\n".format(
         #     self.numOverlapComms,
         #     quality["enrichment"],
-        #     quality["mi"],
         #     quality["NMI"],
         #     quality["commcover"],
         #     quality["overlapcover"]
@@ -283,13 +283,10 @@ class graphCD():
         if self.protChecker is None:
             self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
 
-        NMI = self.protChecker.calculateNMI(self.foundcover)
-        print("Found NMI: ", NMI)
-        commQual = self.protChecker.getSimilarityRatio(self.foundcover)
-        print("Found commQual: ", commQual)
-        # overlapMI = self.protChecker.getOverlapMI(self.foundcover)
-        # print("Found numComms MI: ", overlapMI)
-        # note mi is Mutual inf for (per node) num of comms vs num of GO terms
+        quality["NMI"] = self.protChecker.calculateNMI(self.foundcover)
+        print("Found NMI: ", quality["NMI"])
+        quality["commQual"] = self.protChecker.getSimilarityRatio(self.foundcover)
+        print("Found commQual: ", quality["commQual"])
         # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
         # todo - do somthing with the qual measures
