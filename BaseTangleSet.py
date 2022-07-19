@@ -2,6 +2,7 @@ import pandas as pd
 import collections as coll
 import itertools as it
 import ete3
+import numpy as np
 
 class TangleSet():
     def __init__(self, job, log):
@@ -14,7 +15,7 @@ class TangleSet():
         self.job = job
         self.log = log
         self.nodeIndex = 1
-        self.smallSidesStack = []
+        self.smallSidesList = []
 
     def getTangleCounts(self):
         countList = list()
@@ -81,30 +82,44 @@ class TangleSet():
         # todo - reverting to storing all def small in stack to handle cases where *all* def small
         # todo - consider doing properly later
         # sepsSoFar = list(it.chain(*self.definitelySmall.values(), self.smallSidesStack))
-        sepsSoFar = list(self.smallSidesStack)
+        sepsSoFar = self.smallSidesList
+        self.keepSeps = np.ones(len(sepsSoFar)+1, dtype = int)
 
         if len(sepsSoFar) == 1:
             side1 = sepsSoFar[0]
             double1 = side1 | newSep
             if len(double1) >= self.groundsetSize:
+                self.keepSeps[len(self.keepSeps) - 1] = 0
                 return False
         else:
             checkedSubsets = False
-            for id, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
-                if not checkedSubsets and newSep.issubset(side1):
-                    return True
+            # using a list so easier to double iterate
+            for id1, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
+                if not checkedSubsets:
+                    if newSep.issubset(side1):
+                        self.keepSeps[len(self.keepSeps) - 1] = 0
+                        return True
+                    elif newSep.issuperset(side1):
+                        self.keepSeps[id1] = 0
 
                 double1 = side1 | newSep
                 if len(double1) >= self.groundsetSize:
+                    self.keepSeps[len(self.keepSeps) - 1] = 0
                     return False
 
-                for side2 in sepsSoFar[id + 1:]:
-                    if not checkedSubsets and newSep.issubset(side2):
-                        return True
+                for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
+                    if not checkedSubsets:
+                        if newSep.issubset(side2):
+                            self.keepSeps[len(self.keepSeps) - 1] = 0
+                            return True
+                        elif newSep.issuperset(side2):
+                            self.keepSeps[id2] = 0
                     triple = side2 | double1
                     if len(triple) >= self.groundsetSize:
+                        self.keepSeps[len(self.keepSeps) - 1] = 0
                         return False
                 checkedSubsets = True
+
         return True
 
 
@@ -125,8 +140,10 @@ class TangleSet():
 
                 child = parent.add_child(name=formatSideName(side))
                 self.nodeIndex+=1
-                self.smallSidesStack.append(side)
-                child.add_feature("smallSides", self.smallSidesStack.copy())
+                newList = [smallSide for id, smallSide in enumerate(self.smallSidesList) if self.keepSeps[id]]
+                if self.keepSeps[len(self.keepSeps)-1]:
+                    newList.append(side)
+                child.add_feature("smallSides", newList)
                 prevBranches.append(child)
 
 
@@ -138,7 +155,7 @@ class TangleSet():
                     child.name = "T{}".format(self.currentTangle)
                     self.currentTangle += 1
 
-                self.smallSidesStack.pop()
+                # self.smallSidesStack.pop()
                 return True
             else:
                 return False
@@ -161,7 +178,6 @@ class TangleSet():
         #     prevBranches = []
         #     for truncTangle in currentBranches:
         #         self.smallSidesStack = truncTangle.smallSides   ###### *****
-        #         # todo has NOT been checked for correctness with vertex tangles.
         #         side = self.separations[k][sepNum]
         #         addSideAsSep(side, truncTangle, sepNum)
         #         complement = self.groundset - side
@@ -172,7 +188,9 @@ class TangleSet():
             currentBranches = prevBranches
             prevBranches = []
             for truncTangle in currentBranches:
-                self.smallSidesStack = truncTangle.smallSides   ###### *****
+                # todo !!!! changes here.
+                # self.smallSidesStack = truncTangle.smallSides   ###### *****
+                self.smallSidesList = truncTangle.smallSides   ###### *****
                 if sepNum < numkdefSmall:
                     #### No branching
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
@@ -204,23 +222,24 @@ class TangleSet():
 
             tangOrients = []
             tangOrientsNamed = []
-            numSeps = len(tangle.smallSides)
 
             ##########################
-            for i in range(numSeps):
-                complement = self.groundset - tangle.smallSides[i]
+            # todo !!!!! change to enum over set
+            # for i in range(numSeps):
+            for smallSide in tangle.smallSides:
+                complement = self.groundset - smallSide
 
                 if verbose:
                     print("---------------------")
                     print("{}: order {}".format(tangID, tangOrder))
-                    if len(tangle.smallSides[i]) <= len(complement):
-                        print("{} / G\\*".format(set(tangle.smallSides[i])))
+                    if len(smallSide) <= len(complement):
+                        print("{} / G\\*".format(set(smallSide)))
                     else:
                         print("G\\* / {}".format(complement))
 
-                if len(tangle.smallSides[i]) <= len(complement):
-                    tangOrients.append("{} / G\\*".format(sorted(set(tangle.smallSides[i]))))
-                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, tangle.smallSides[i])))))
+                if len(smallSide) <= len(complement):
+                    tangOrients.append("{} / G\\*".format(sorted(set(smallSide))))
+                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, smallSide)))))
                 else:
                     tangOrients.append("G\\* / {}".format(sorted(complement)))
                     tangOrientsNamed.append("G\\* / {}".format(sorted(list(map(self.names.__getitem__, complement)))))
