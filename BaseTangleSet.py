@@ -89,24 +89,6 @@ class TangleSet():
             if len(double1) >= self.groundsetSize:
                 return False
         else:
-            # for side1, side2 in it.combinations(sepsSoFar, 2):
-            #
-            #     #### looks like shitty code, but might mean
-            #     #### some of the unions can be avoided - O(m)
-            #     double1 = side1 | newSep
-            #     if len(double1) >= self.groundsetSize:
-            #         return False
-            #     double2 = side2 | newSep
-            #     if len(double2) >= self.groundsetSize:
-            #         return False
-            #     triple = side1 | double2
-            #     if len(triple) >= self.groundsetSize:
-            #         return False
-
-            # print("----------------------------------")
-            # print(sepsSoFar)
-            # print("----------------------------------")
-
             checkedSubsets = False
             for id, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
                 if not checkedSubsets and newSep.issubset(side1):
@@ -157,6 +139,9 @@ class TangleSet():
                     self.currentTangle += 1
 
                 self.smallSidesStack.pop()
+                return True
+            else:
+                return False
 
         self.foundTangle = 0
 
