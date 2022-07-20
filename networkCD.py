@@ -118,13 +118,13 @@ class graphCD():
 
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
-        if not sepsOnly:
-            self.assignCommunities(thres = 0.95)
-
-        if "Yeast" in self.job["outName"]:
-            quality = self.evaluateCommunities()
-            dummy = 1
-            # todo something with quality
+        # if not sepsOnly:
+        #     self.assignCommunities(thres = 0.95)
+        #
+        # if "Yeast" in self.job["outName"]:
+        #     quality = self.evaluateCommunities()
+        #     dummy = 1
+        #     # todo something with quality
 
         self.doPrint = False
         if self.doPrint:
@@ -166,6 +166,7 @@ class graphCD():
 
 
         # this makes sure only those communities with at least 3 modes are included.
+        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 

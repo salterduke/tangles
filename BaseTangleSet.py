@@ -77,50 +77,60 @@ class TangleSet():
 
 
     def checkTangleAxioms(self, newSep):
+        # return vals are passesCheck, and addToList, for seps that are subsets so not needed
+        # (both bool)
 
         ### Axiom 2
         # todo - reverting to storing all def small in stack to handle cases where *all* def small
         # todo - consider doing properly later
         # sepsSoFar = list(it.chain(*self.definitelySmall.values(), self.smallSidesStack))
         sepsSoFar = self.smallSidesList
-        self.keepSeps = np.ones(len(sepsSoFar)+1, dtype = int)
 
-        if len(sepsSoFar) == 1:
-            side1 = sepsSoFar[0]
-            double1 = side1 | newSep
-            if len(double1) >= self.groundsetSize:
-                self.keepSeps[len(self.keepSeps) - 1] = 0
-                return False
-        else:
-            checkedSubsets = False
-            # using a list so easier to double iterate
-            for id1, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
-                if not checkedSubsets:
-                    if newSep.issubset(side1):
-                        self.keepSeps[len(self.keepSeps) - 1] = 0
-                        return True
-                    elif newSep.issuperset(side1):
-                        self.keepSeps[id1] = 0
+        if sepsSoFar is not None:
+            self.keepSeps = np.ones(len(sepsSoFar), dtype = int)
 
+            if len(sepsSoFar) == 1:
+                side1 = sepsSoFar[0]
+                if newSep.issubset(side1):
+                    # ie, it's okay, but don't need it
+                    return True, False  # todo Really not sure about this!!!
+                elif newSep.issuperset(side1):
+                    self.keepSeps[0] = 0
                 double1 = side1 | newSep
                 if len(double1) >= self.groundsetSize:
-                    self.keepSeps[len(self.keepSeps) - 1] = 0
-                    return False
-
-                for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
+                    return False, False
+            else:
+                checkedSubsets = False
+                # using a list so easier to double iterate
+                for id1, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
                     if not checkedSubsets:
-                        if newSep.issubset(side2):
-                            self.keepSeps[len(self.keepSeps) - 1] = 0
-                            return True
-                        elif newSep.issuperset(side2):
-                            self.keepSeps[id2] = 0
-                    triple = side2 | double1
-                    if len(triple) >= self.groundsetSize:
-                        self.keepSeps[len(self.keepSeps) - 1] = 0
-                        return False
-                checkedSubsets = True
+                        if newSep.issubset(side1):
+                            # ie, it's okay, but don't need it
+                            return True, False # todo Really not sure about this!!!
+                        elif newSep.issuperset(side1):
+                            self.keepSeps[id1] = 0
 
-        return True
+                    double1 = side1 | newSep
+                    if len(double1) >= self.groundsetSize:
+                        return False, False
+
+                    # todo problem is enumerate starts id2 at 0!!!!!!!!
+                    for id2 in range(id1 + 1, len(sepsSoFar)):
+                        side2 = sepsSoFar[id2]
+                    # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
+                        if not checkedSubsets:
+                            if newSep.issubset(side2):
+                                return True, False  # todo Really not sure about this!!!
+                            elif newSep.issuperset(side2):
+                                self.keepSeps[id2] = 0
+                        triple = side2 | double1
+                        if len(triple) >= self.groundsetSize:
+                            return False, False
+                    checkedSubsets = True
+
+        # return first True because we got to this point without hitting a false
+        # second true, because we did not hit early True ie subset
+        return True, True
 
 
     def kTangle(self, k):
@@ -136,26 +146,30 @@ class TangleSet():
 
         def addSideAsSep(side, parent, sepNum):
 
-            if self.checkTangleAxioms(side):
+            passes, toAdd = self.checkTangleAxioms(side)
+            if passes:
 
-                child = parent.add_child(name=formatSideName(side))
-                self.nodeIndex+=1
-                newList = [smallSide for id, smallSide in enumerate(self.smallSidesList) if self.keepSeps[id]]
-                if self.keepSeps[len(self.keepSeps)-1]:
+                if toAdd:
+                    child = parent.add_child(name=formatSideName(side))
+                    self.nodeIndex+=1
+                    newList = [smallSide for id, smallSide in enumerate(self.smallSidesList) if self.keepSeps[id]]
                     newList.append(side)
-                child.add_feature("smallSides", newList)
-                prevBranches.append(child)
+                    child.add_feature("smallSides", newList)
+                    # self.prevBranches.append(child)
+                    currentBranch = child
+                else:
+                    currentBranch = parent
 
+                self.prevBranches.append(currentBranch)
 
                 if sepNum == numkSeps-1:
                     self.foundTangle +=1
-                    self.TangleLists[k].append(child)
                     # todo editing to make tidy tree tidier - kludge. Fix later to code with sep ids and A/B maybe?
                     # child.name = "T{}{}".format(self.currentTangle, formatSideName(side))
-                    child.name = "T{}".format(self.currentTangle)
+                    currentBranch.name = "T{}".format(self.currentTangle)
+                    self.TangleLists[k].append(currentBranch)
                     self.currentTangle += 1
 
-                # self.smallSidesStack.pop()
                 return True
             else:
                 return False
@@ -166,7 +180,7 @@ class TangleSet():
         numkSeps = len(self.separations[k]) + numkdefSmall
         # numkSeps = len(self.separations[k])
 
-        prevBranches = self.TangleLists[k-1]
+        self.prevBranches = self.TangleLists[k-1]
 
 
         # --------------------------------------------------------------------------
@@ -185,12 +199,14 @@ class TangleSet():
         # --------------------------------------------------------------------------
 
         for sepNum in range(numkSeps):
-            currentBranches = prevBranches
-            prevBranches = []
+            currentBranches = self.prevBranches
+            self.prevBranches = []
             for truncTangle in currentBranches:
                 # todo !!!! changes here.
                 # self.smallSidesStack = truncTangle.smallSides   ###### *****
                 self.smallSidesList = truncTangle.smallSides   ###### *****
+                if self.smallSidesList is None:
+                    self.smallSidesList = []
                 if sepNum < numkdefSmall:
                     #### No branching
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
@@ -223,6 +239,8 @@ class TangleSet():
             tangOrients = []
             tangOrientsNamed = []
 
+            if tangle.smallSides is None:
+                tangle.smallSides = []
             ##########################
             # todo !!!!! change to enum over set
             # for i in range(numSeps):
