@@ -38,6 +38,7 @@ class TangleSet():
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
 
+        print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
         self.findNextOrderSeparations(None, depth)
         if self.kmin is None:
@@ -60,6 +61,7 @@ class TangleSet():
 
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
+            print("-------------------------------------------")
             self.log.tick("kTangle{} Find seps".format(k))
             self.findNextOrderSeparations(k)
             timings.append(self.log.tock())
@@ -134,9 +136,6 @@ class TangleSet():
 
 
     def kTangle(self, k):
-        # def sortB(sep):
-        #     return(len(sep[1]))
-        print(k)
 
         def formatSideName(side):   ##### fix this to switch on "verbose"
             side = str(side)
@@ -285,7 +284,7 @@ class TangleSet():
         OrientsOutfileNamed = "{}/{}-OrientationsNamed.csv".\
         format(self.job['outputFolder'], self.job['outName'])
         orientArrayNamed.to_csv(OrientsOutfileNamed)
-        print("OUTPUT ORIENTATIONS")
+        # print("OUTPUT ORIENTATIONS")
 
         with open('sepList.txt', 'w') as f:
             for i in [1,2,3]:

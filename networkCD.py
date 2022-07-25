@@ -2,11 +2,6 @@ import math
 import numpy as np
 import ete3
 
-# if sepAlg == "VY":
-#     import EdgeTangleSet_VY as tset
-# else:
-#     import EdgeTangleSet_YWS as tset
-
 import EdgeTangleSet_VY
 import EdgeTangleSet_YWS
 
@@ -118,8 +113,8 @@ class graphCD():
 
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
-        # if not sepsOnly:
-        #     self.assignCommunities(thres = 0.95)
+        if not sepsOnly:
+            self.assignCommunities(thres = 0.95)
         #
         # if "Yeast" in self.job["outName"]:
         #     quality = self.evaluateCommunities()
@@ -136,22 +131,64 @@ class graphCD():
     # could change to do each level?
     def assignCommunities(self, thres):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
+        # we are going to work out which seps are distinguishing
+        # I don't think we can mark them off as they're added, as we might be adding prematurely
+        self.distinguishingSeps = set()
 
         tangOrders = []
 
         # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
-            for tang in self.TangleSet.TangleLists[order]:
-                numSeps = len(tang.smallSides)
-                tangOrders.append(order)
+            for side in self.TangleSet.separations[order]:
+                sideIn = False
+                compIn = False
+                comp = set(self.giantComp.vs.indices) - side
+                for tang in self.TangleSet.TangleLists[order]:
+                    print(tang.smallSides)
+                    if side in tang.smallSides:
+                        sideIn = True
+                        if compIn:
+                            break
+                        else:
+                            continue
+                    elif comp in tang.smallSides:
+                        compIn = True
+                        if sideIn:
+                            break
+                        else:
+                            continue
+                if sideIn and compIn:
+                    # add both for easier checking
+                    self.distinguishingSeps.add(frozenset(side))
+                    self.distinguishingSeps.add(frozenset(comp))
 
-                # tang.smallSides is list of sets
-                smallCounter = coll.Counter([x for s in tang.smallSides for x in s])
+
+            for tang in self.TangleSet.TangleLists[order]:
+
+                tangOrders.append(order)
+                maximalDistSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
+                # note that if a dist sep is not in smallSides, it must be a subset of another dist sep
+
+                if len(maximalDistSmallSides) > 0:
+                    onAllBig = set(self.giantComp.vs.indices) - set.union(*maximalDistSmallSides)
+                else:
+                    onAllBig = set()
+                    # todo decide on proper handling
 
                 for v in range(self.TangleSet.groundsetSize):
                     self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
-                        1 if (1-smallCounter[v]/numSeps >= thres) else 0
+                        1 if (v in onAllBig) else 0
+
+
+                #
+                # # tang.smallSides is list of sets
+                # smallCounter = coll.Counter([x for s in tang.smallSides for x in s])
+                #
+                # for v in range(self.TangleSet.groundsetSize):
+                # todo
+                #     self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
+                #         1 if (1-smallCounter[v]/numSeps >= thres) else 0
 
                 tangNum+=1
 
@@ -166,7 +203,6 @@ class graphCD():
 
 
         # this makes sure only those communities with at least 3 modes are included.
-        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
 

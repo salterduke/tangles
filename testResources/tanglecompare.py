@@ -201,8 +201,8 @@ def compare(filename1, filename2):
 print("---------------------------------------------")
 # compareSeps("../outputCutfinder/YeastGSCompB-SepList-CF.tsv", "../outputGHU_all/YeastGSCompB-SepList-GHU.tsv")
 comparer = comparerClass()
-comparer.compareTangles("./testResources/YeastGSCompB_core-Orientations-Original.csv", "./testResources/YeastGSCompB_core-Orientations-Supersets.csv", 37)
+#comparer.compareTangles("./testResources/YeastGSCompB_core-Orientations-Original.csv", "./testResources/YeastGSCompB_core-Orientations-Supersets.csv", 37)
+
+comparer.compareTangles("YeastGSCompB_core-Orientations-Original.csv", "YeastGSCompB_core-Orientations-Supersets.csv", 37)
 print("---------------------------------------------")
-
-
 
