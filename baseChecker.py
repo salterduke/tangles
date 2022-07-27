@@ -4,7 +4,7 @@ import itertools as iter
 
 class commChecker():
     def __init__(self, nodeList):
-        self.realcover = pd.DataFrame(index=sorted(nodeList))
+        self.compareCover = pd.DataFrame(index=sorted(nodeList))
         self.nNodes = len(nodeList)
 
     # def makeSimMatrix(self):
@@ -19,13 +19,13 @@ class commChecker():
         #### Crack shits if haven't run simMatrix first
         return self.overlapMetadata
 
-    def getRealCover(self):
+    def getCompareCover(self):
         #### Crack shits if haven't run simMatrix first
-        return self.realcover
+        return self.compareCover
 
 
     def calculateNMI(self, coverY):
-        coverX = self.realcover
+        coverX = self.compareCover
 
         coverIntersection = coverX.transpose() @ coverY
 

@@ -114,11 +114,11 @@ class graphCD():
         timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
         if not sepsOnly:
-            self.assignCommunities(thres = 0.95)
+            self.assignCommunities()
         #
-        # if "Yeast" in self.job["outName"]:
-        #     quality = self.evaluateCommunities()
-        #     dummy = 1
+        if "Yeast" in self.job["outName"]:
+            quality = self.evaluateCommunities()
+            dummy = 1
         #     # todo something with quality
 
         self.doPrint = False
@@ -129,7 +129,7 @@ class graphCD():
 
     # also note currently only does *once* at end for all k levels -
     # could change to do each level?
-    def assignCommunities(self, thres):
+    def assignCommunities(self):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
         # we are going to work out which seps are distinguishing
         # I don't think we can mark them off as they're added, as we might be adding prematurely
@@ -145,14 +145,18 @@ class graphCD():
                 compIn = False
                 comp = set(self.giantComp.vs.indices) - side
                 for tang in self.TangleSet.TangleLists[order]:
-                    print(tang.smallSides)
-                    if side in tang.smallSides:
+                    # print(tang.smallSides)
+                    # if side in tang.smallSides:
+                    if any(side.issubset(smallside) for smallside in tang.smallSides):
                         sideIn = True
                         if compIn:
                             break
+                            # stop looking altogether
                         else:
                             continue
-                    elif comp in tang.smallSides:
+                            # stop looking in this tangle, keep looking for comp
+                    # elif comp in tang.smallSides:
+                    elif any(comp.issubset(smallside) for smallside in tang.smallSides):
                         compIn = True
                         if sideIn:
                             break
@@ -167,11 +171,11 @@ class graphCD():
             for tang in self.TangleSet.TangleLists[order]:
 
                 tangOrders.append(order)
-                maximalDistSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
+                distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
                 # note that if a dist sep is not in smallSides, it must be a subset of another dist sep
 
-                if len(maximalDistSmallSides) > 0:
-                    onAllBig = set(self.giantComp.vs.indices) - set.union(*maximalDistSmallSides)
+                if len(distSmallSides) > 0:
+                    onAllBig = set(self.giantComp.vs.indices) - set.union(*distSmallSides)
                 else:
                     onAllBig = set()
                     # todo decide on proper handling
@@ -179,16 +183,6 @@ class graphCD():
                 for v in range(self.TangleSet.groundsetSize):
                     self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
                         1 if (v in onAllBig) else 0
-
-
-                #
-                # # tang.smallSides is list of sets
-                # smallCounter = coll.Counter([x for s in tang.smallSides for x in s])
-                #
-                # for v in range(self.TangleSet.groundsetSize):
-                # todo
-                #     self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
-                #         1 if (1-smallCounter[v]/numSeps >= thres) else 0
 
                 tangNum+=1
 
@@ -201,10 +195,11 @@ class graphCD():
         cover_copy.index.values[len(cover_copy)-1] = "order"
         cover_copy.to_csv(outfile)
 
-
+        self.foundcover = self.foundcover.astype(np.int8)
         # this makes sure only those communities with at least 3 modes are included.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
-        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
+        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
+        # todo add check for duplicate comms
 
         for node in self.giantComp.vs:
             node["color"] = "#ffffff"
@@ -272,35 +267,6 @@ class graphCD():
             print(rendError)
 
 
-    # def analyseOverlapComms(self):
-
-        # quality = coll.defaultdict(float)
-
-        # if "Yeast" in self.job["outName"]:
-        # # if False:
-        #     quality = self.evaluateCommunities(self.foundcover)
-        # else:
-        #     quality["enrichment"] = 0
-        #     quality["mi"] = 0
-        #     quality["NMI"] = 0
-
-        # quality["commcover"] = len(graphData[graphData["commCount"] > 0]) / self.giantComp.vcount()
-        # quality["overlapcover"] = graphData["commCount"].mean()
-
-        # qualFile = "{}/{}quality.csv".format(self.job['outputFolder'], self.job['outName'])
-        # if not os.path.exists(qualFile):
-        #     text = "numComms\tcommQ\toverlapQ\tNMI\tcommCover\toverlapCover\n"
-        #     with open(qualFile, 'w') as the_file:
-        #         the_file.write(text)
-
-        # text = "{:d}\t{:.4f}\t{:.4f}\t{:.4f}\t{:.2f}\t{:.2f}\n".format(
-        #     self.numOverlapComms,
-        #     quality["enrichment"],
-        #     quality["NMI"],
-        #     quality["commcover"],
-        #     quality["overlapcover"]
-        # )
-
     def igPrint(self):
         visual_style = {
             "vertex_label": self.giantComp.vs["name"],
@@ -331,50 +297,4 @@ class graphCD():
         return(quality)
 
 
-    def overLapCliquePercolation(self):
-        # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
-
-        minClique = 3
-        maxClique = 6
-
-        cliques = list(map(set, self.giantComp.maximal_cliques(min=minClique)))
-        # so, each clique is assigned an index in the list.
-
-        for k in range(minClique,maxClique+1):
-            filteredCliques = [c for c in cliques if len(c) >= k]
-
-            edgelist = []
-            # iter.combinations(iterable, 2) returns every possible pair of values
-            # in the iterable (irrespective of order), but returns them ordered
-            for i, j in iter.combinations(range(len(filteredCliques)), 2):
-                if len(filteredCliques[i].intersection(filteredCliques[j])) >= k-1:
-                    edgelist.append((i, j))
-
-            cliqueLinks = ig.Graph(edgelist, directed=False)
-            cliqueComps = cliqueLinks.components()
-
-            numComps = len(cliqueComps)
-            if numComps == 0:
-                break
-
-            self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(numComps), dtype=int)
-            for col in self.foundcover.columns:
-                self.foundcover[col].values[:] = 0
-
-            commIndex = 0
-            for comp in cliqueComps:
-                # each component is a list of clique indices
-
-                for cliqueIndex in comp:
-                    for node in filteredCliques[cliqueIndex]:
-                        # todo fix this so not refer to tangleset
-                        self.foundcover.loc[self.TangleSet.names[node], commIndex] = 1
-                commIndex+=1
-
-            # this makes sure only those communities with at least 3 modes are included.
-            # the astype is necessary as results_wide init as NaNs, which are stored as floats.
-            self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)].astype(np.int8)
-
-            print("CPM: {}".format(k))
-            self.evaluateCommunities()
 

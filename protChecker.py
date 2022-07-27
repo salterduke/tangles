@@ -82,10 +82,10 @@ class protChecker(bch.commChecker):
                         self.org_funcs[prot]['GoTerms'][entry['GO_ID']] =\
                             entry['Aspect']
 
-                    if entry["GO_ID"] not in self.realcover.columns:
+                    if entry["GO_ID"] not in self.compareCover.columns:
                         # if col not exist, init
-                        self.realcover[entry["GO_ID"]] = np.zeros(self.nNodes, dtype=int)
-                    self.realcover.loc[key, entry["GO_ID"]] = 1
+                        self.compareCover[entry["GO_ID"]] = np.zeros(self.nNodes, dtype=int)
+                    self.compareCover.loc[key, entry["GO_ID"]] = 1
 
                     if prot in self.TAMScores.index:
                         # print("Found {}".format(prot))

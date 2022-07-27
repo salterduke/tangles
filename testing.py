@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import sys
 
+def longp(l):
+    print("\n".join(map(str, l)))
+
 print("moocow")
 
 print(sys.argv[0])
