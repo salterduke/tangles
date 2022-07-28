@@ -82,6 +82,9 @@ class protChecker(bch.commChecker):
                         self.org_funcs[prot]['GoTerms'][entry['GO_ID']] =\
                             entry['Aspect']
 
+                    if key == "YER110C":
+                        dummy = 1
+
                     if entry["GO_ID"] not in self.compareCover.columns:
                         # if col not exist, init
                         self.compareCover[entry["GO_ID"]] = np.zeros(self.nNodes, dtype=int)
@@ -97,7 +100,7 @@ class protChecker(bch.commChecker):
                                 self.protAliases.loc[key]["TAMalias"] = synonym
                                 break
 
-        self.getGOcounts(protList)  # todo check what this is doing and if I need it
+        # self.getGOcounts(protList)  # todo check what this is doing and if I need it
 
         # Based on Yu et al 2007 and 2008
         #########
@@ -119,8 +122,15 @@ class protChecker(bch.commChecker):
                     n = 1  ### if we have two different prots with the same synonyms
                     ## we can reasonably conclude they're similar (perhaps subunits of same prot)
                 else:
-                    n = self.TAMScores.loc[(self.protAliases.iloc[i]["TAMalias"],
-                        self.protAliases.iloc[j]["TAMalias"])]["LCAcount"]
+                    if (self.protAliases.iloc[i]["TAMalias"], self.protAliases.iloc[j]["TAMalias"]) in self.TAMScores.index:
+                        n = self.TAMScores.loc[(self.protAliases.iloc[i]["TAMalias"],
+                            self.protAliases.iloc[j]["TAMalias"])]["LCAcount"]
+                    elif (self.protAliases.iloc[j]["TAMalias"], self.protAliases.iloc[i]["TAMalias"]) in self.TAMScores.index:
+                        n = self.TAMScores.loc[(self.protAliases.iloc[j]["TAMalias"],
+                            self.protAliases.iloc[i]["TAMalias"])]["LCAcount"]
+                    else:
+                        n = N # makes sim = 0
+
 
                 ### Ahn et al uses this cutoff
                 simMatrix[i][j] = simMatrix[j][i] = 1 if n/N < 10**(-3) else 0

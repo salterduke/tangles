@@ -12,6 +12,7 @@ from matplotlib import cm
 import igraph as ig
 import itertools as iter
 import protChecker
+import cdChecker
 import random
 
 
@@ -41,6 +42,7 @@ class graphCD():
         self.giantComp = graph.clusters().giant()
 
         self.protChecker = None
+        self.cdChecker = None
         self.colmaps = None
         # initialising to None as easier to check for than not existing. So later only creates if needed.
 
@@ -116,9 +118,8 @@ class graphCD():
         if not sepsOnly:
             self.assignCommunities()
         #
-        if "Yeast" in self.job["outName"]:
-            quality = self.evaluateCommunities()
-            dummy = 1
+        quality = self.evaluateCommunities()
+        dummy = 1
         #     # todo something with quality
 
         self.doPrint = False
@@ -283,14 +284,19 @@ class graphCD():
 
         quality = coll.defaultdict(float)
 
-        if self.protChecker is None:
-            self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
+        if self.cdChecker is None:
+            self.cdChecker = cdChecker.cdChecker(self.giantComp)
 
-        quality["NMI"] = self.protChecker.calculateNMI(self.foundcover)
-        print("Found NMI: ", quality["NMI"])
-        quality["commQual"] = self.protChecker.getSimilarityRatio(self.foundcover)
-        print("Found commQual: ", quality["commQual"])
-        # NMI is Normalised mutual inf between assigned comms and comms by GO terms
+        # if "Yeast" in self.job["outName"]:
+        #     if self.protChecker is None:
+        #         self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
+        #     quality["NMI"] = self.protChecker.calculateNMI(self.foundcover)
+        #     print("Found NMI: ", quality["NMI"])
+        #     quality["commQual"] = self.protChecker.getSimilarityRatio(self.foundcover)
+        #     print("Found commQual: ", quality["commQual"])
+        #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
+
+        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
 
         # todo - do somthing with the qual measures
         # todo also re-add the coverage ratio

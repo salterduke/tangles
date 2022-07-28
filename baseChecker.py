@@ -4,6 +4,7 @@ import itertools as iter
 
 class commChecker():
     def __init__(self, nodeList):
+        self.nodeNames = nodeList
         self.compareCover = pd.DataFrame(index=sorted(nodeList))
         self.nNodes = len(nodeList)
 
