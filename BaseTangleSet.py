@@ -108,7 +108,7 @@ class TangleSet():
                     if not checkedSubsets:
                         if newSep.issubset(side1):
                             # ie, it's okay, but don't need it
-                            return True, False # todo Really not sure about this!!!
+                            return True, False
                         elif newSep.issuperset(side1):
                             self.keepSeps[id1] = 0
 
@@ -122,7 +122,7 @@ class TangleSet():
                     # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
                         if not checkedSubsets:
                             if newSep.issubset(side2):
-                                return True, False  # todo Really not sure about this!!!
+                                return True, False
                             elif newSep.issuperset(side2):
                                 self.keepSeps[id2] = 0
                         triple = side2 | double1
@@ -169,8 +169,15 @@ class TangleSet():
                     self.TangleLists[k].append(currentBranch)
                     self.currentTangle += 1
 
-                return True
+                if toAdd:
+                    # if it passes and we need to add it, ie, it's not a subset, then we DO need to check the comp
+                    # so precludesComp = False
+                    return False
+                else:
+                    # if we don't add it, it's because it's a subset, therefore the complement is precluded
+                    return True
             else:
+                # ret val is precludesComp. If does not pass checks, DO want to check comp
                 return False
 
         self.foundTangle = 0
@@ -197,6 +204,11 @@ class TangleSet():
         #         addSideAsSep(complement, truncTangle, sepNum)
         # --------------------------------------------------------------------------
 
+        self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
+        # Do the most uneven separations first, as they're likely to break first
+        # note that since this list only contains the smallest side of each separation
+        # the smallest small side means the most uneven separation
+
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches
             self.prevBranches = []
@@ -216,9 +228,10 @@ class TangleSet():
                     # for side in self.separations[k][sepNum - numkdefSmall]:
                     #     addSideAsSep(side, truncTangle, sepNum)
                     side = self.separations[k][sepNum - numkdefSmall]
-                    addSideAsSep(side, truncTangle, sepNum)
-                    complement = self.groundset - side
-                    addSideAsSep(complement, truncTangle, sepNum)
+                    precludesComp = addSideAsSep(side, truncTangle, sepNum)
+                    if not precludesComp:
+                        complement = self.groundset - side
+                        addSideAsSep(complement, truncTangle, sepNum)
 
         if self.foundTangle:
             self.finaliseAndPrint(k)
