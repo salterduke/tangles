@@ -2,6 +2,7 @@ import pandas as pd
 import collections as coll
 import itertools as it
 import ete3
+import numpy as np
 
 class TangleSet():
     def __init__(self, job, log):
@@ -14,7 +15,7 @@ class TangleSet():
         self.job = job
         self.log = log
         self.nodeIndex = 1
-        self.smallSidesStack = []
+        self.smallSidesList = []
 
     def getTangleCounts(self):
         countList = list()
@@ -37,6 +38,7 @@ class TangleSet():
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
 
+        print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
         self.findNextOrderSeparations(None, depth)
         if self.kmin is None:
@@ -59,6 +61,7 @@ class TangleSet():
 
         # # # ### find all tangles at each k
         for k in range(self.kmin+1, self.kmax+1):
+            print("-------------------------------------------")
             self.log.tick("kTangle{} Find seps".format(k))
             self.findNextOrderSeparations(k)
             timings.append(self.log.tock())
@@ -76,42 +79,63 @@ class TangleSet():
 
 
     def checkTangleAxioms(self, newSep):
+        # return vals are passesCheck, and addToList, for seps that are subsets so not needed
+        # (both bool)
 
         ### Axiom 2
         # todo - reverting to storing all def small in stack to handle cases where *all* def small
         # todo - consider doing properly later
         # sepsSoFar = list(it.chain(*self.definitelySmall.values(), self.smallSidesStack))
-        sepsSoFar = list(self.smallSidesStack)
+        sepsSoFar = self.smallSidesList
 
-        if len(sepsSoFar) == 1:
-            side1 = sepsSoFar[0]
-            double1 = side1 | newSep
-            if len(double1) >= self.groundsetSize:
-                return False
-        else:
-            checkedSubsets = False
-            for id, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
-                if not checkedSubsets and newSep.issubset(side1):
-                    return True
+        if sepsSoFar is not None:
+            self.keepSeps = np.ones(len(sepsSoFar), dtype = int)
 
+            if len(sepsSoFar) == 1:
+                side1 = sepsSoFar[0]
+                if newSep.issubset(side1):
+                    # ie, it's okay, but don't need it
+                    return True, False  # todo Really not sure about this!!!
+                elif newSep.issuperset(side1):
+                    self.keepSeps[0] = 0
                 double1 = side1 | newSep
                 if len(double1) >= self.groundsetSize:
-                    return False
+                    return False, False
+            else:
+                checkedSubsets = False
+                # using a list so easier to double iterate
+                for id1, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
+                    if not checkedSubsets:
+                        if newSep.issubset(side1):
+                            # ie, it's okay, but don't need it
+                            return True, False
+                        elif newSep.issuperset(side1):
+                            self.keepSeps[id1] = 0
 
-                for side2 in sepsSoFar[id + 1:]:
-                    if not checkedSubsets and newSep.issubset(side2):
-                        return True
-                    triple = side2 | double1
-                    if len(triple) >= self.groundsetSize:
-                        return False
-                checkedSubsets = True
-        return True
+                    double1 = side1 | newSep
+                    if len(double1) >= self.groundsetSize:
+                        return False, False
+
+                    # todo problem is enumerate starts id2 at 0!!!!!!!!
+                    for id2 in range(id1 + 1, len(sepsSoFar)):
+                        side2 = sepsSoFar[id2]
+                    # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
+                        if not checkedSubsets:
+                            if newSep.issubset(side2):
+                                return True, False
+                            elif newSep.issuperset(side2):
+                                self.keepSeps[id2] = 0
+                        triple = side2 | double1
+                        if len(triple) >= self.groundsetSize:
+                            return False, False
+                    checkedSubsets = True
+
+        # return first True because we got to this point without hitting a false
+        # second true, because we did not hit early True ie subset
+        return True, True
 
 
     def kTangle(self, k):
-        # def sortB(sep):
-        #     return(len(sep[1]))
-        print(k)
 
         def formatSideName(side):   ##### fix this to switch on "verbose"
             side = str(side)
@@ -121,26 +145,39 @@ class TangleSet():
 
         def addSideAsSep(side, parent, sepNum):
 
-            if self.checkTangleAxioms(side):
+            passes, toAdd = self.checkTangleAxioms(side)
+            if passes:
 
-                child = parent.add_child(name=formatSideName(side))
-                self.nodeIndex+=1
-                self.smallSidesStack.append(side)
-                child.add_feature("smallSides", self.smallSidesStack.copy())
-                prevBranches.append(child)
+                if toAdd:
+                    child = parent.add_child(name=formatSideName(side))
+                    self.nodeIndex+=1
+                    newList = [smallSide for id, smallSide in enumerate(self.smallSidesList) if self.keepSeps[id]]
+                    newList.append(side)
+                    child.add_feature("smallSides", newList)
+                    # self.prevBranches.append(child)
+                    currentBranch = child
+                else:
+                    currentBranch = parent
 
+                self.prevBranches.append(currentBranch)
 
                 if sepNum == numkSeps-1:
                     self.foundTangle +=1
-                    self.TangleLists[k].append(child)
                     # todo editing to make tidy tree tidier - kludge. Fix later to code with sep ids and A/B maybe?
                     # child.name = "T{}{}".format(self.currentTangle, formatSideName(side))
-                    child.name = "T{}".format(self.currentTangle)
+                    currentBranch.name = "T{}".format(self.currentTangle)
+                    self.TangleLists[k].append(currentBranch)
                     self.currentTangle += 1
 
-                self.smallSidesStack.pop()
-                return True
+                if toAdd:
+                    # if it passes and we need to add it, ie, it's not a subset, then we DO need to check the comp
+                    # so precludesComp = False
+                    return False
+                else:
+                    # if we don't add it, it's because it's a subset, therefore the complement is precluded
+                    return True
             else:
+                # ret val is precludesComp. If does not pass checks, DO want to check comp
                 return False
 
         self.foundTangle = 0
@@ -149,7 +186,7 @@ class TangleSet():
         numkSeps = len(self.separations[k]) + numkdefSmall
         # numkSeps = len(self.separations[k])
 
-        prevBranches = self.TangleLists[k-1]
+        self.prevBranches = self.TangleLists[k-1]
 
 
         # --------------------------------------------------------------------------
@@ -161,18 +198,26 @@ class TangleSet():
         #     prevBranches = []
         #     for truncTangle in currentBranches:
         #         self.smallSidesStack = truncTangle.smallSides   ###### *****
-        #         # todo has NOT been checked for correctness with vertex tangles.
         #         side = self.separations[k][sepNum]
         #         addSideAsSep(side, truncTangle, sepNum)
         #         complement = self.groundset - side
         #         addSideAsSep(complement, truncTangle, sepNum)
         # --------------------------------------------------------------------------
 
+        self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
+        # Do the most uneven separations first, as they're likely to break first
+        # note that since this list only contains the smallest side of each separation
+        # the smallest small side means the most uneven separation
+
         for sepNum in range(numkSeps):
-            currentBranches = prevBranches
-            prevBranches = []
+            currentBranches = self.prevBranches
+            self.prevBranches = []
             for truncTangle in currentBranches:
-                self.smallSidesStack = truncTangle.smallSides   ###### *****
+                # todo !!!! changes here.
+                # self.smallSidesStack = truncTangle.smallSides   ###### *****
+                self.smallSidesList = truncTangle.smallSides   ###### *****
+                if self.smallSidesList is None:
+                    self.smallSidesList = []
                 if sepNum < numkdefSmall:
                     #### No branching
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
@@ -183,9 +228,10 @@ class TangleSet():
                     # for side in self.separations[k][sepNum - numkdefSmall]:
                     #     addSideAsSep(side, truncTangle, sepNum)
                     side = self.separations[k][sepNum - numkdefSmall]
-                    addSideAsSep(side, truncTangle, sepNum)
-                    complement = self.groundset - side
-                    addSideAsSep(complement, truncTangle, sepNum)
+                    precludesComp = addSideAsSep(side, truncTangle, sepNum)
+                    if not precludesComp:
+                        complement = self.groundset - side
+                        addSideAsSep(complement, truncTangle, sepNum)
 
         if self.foundTangle:
             self.finaliseAndPrint(k)
@@ -204,23 +250,26 @@ class TangleSet():
 
             tangOrients = []
             tangOrientsNamed = []
-            numSeps = len(tangle.smallSides)
 
+            if tangle.smallSides is None:
+                tangle.smallSides = []
             ##########################
-            for i in range(numSeps):
-                complement = self.groundset - tangle.smallSides[i]
+            # todo !!!!! change to enum over set
+            # for i in range(numSeps):
+            for smallSide in tangle.smallSides:
+                complement = self.groundset - smallSide
 
                 if verbose:
                     print("---------------------")
                     print("{}: order {}".format(tangID, tangOrder))
-                    if len(tangle.smallSides[i]) <= len(complement):
-                        print("{} / G\\*".format(set(tangle.smallSides[i])))
+                    if len(smallSide) <= len(complement):
+                        print("{} / G\\*".format(set(smallSide)))
                     else:
                         print("G\\* / {}".format(complement))
 
-                if len(tangle.smallSides[i]) <= len(complement):
-                    tangOrients.append("{} / G\\*".format(sorted(set(tangle.smallSides[i]))))
-                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, tangle.smallSides[i])))))
+                if len(smallSide) <= len(complement):
+                    tangOrients.append("{} / G\\*".format(sorted(set(smallSide))))
+                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, smallSide)))))
                 else:
                     tangOrients.append("G\\* / {}".format(sorted(complement)))
                     tangOrientsNamed.append("G\\* / {}".format(sorted(list(map(self.names.__getitem__, complement)))))
@@ -248,7 +297,7 @@ class TangleSet():
         OrientsOutfileNamed = "{}/{}-OrientationsNamed.csv".\
         format(self.job['outputFolder'], self.job['outName'])
         orientArrayNamed.to_csv(OrientsOutfileNamed)
-        print("OUTPUT ORIENTATIONS")
+        # print("OUTPUT ORIENTATIONS")
 
         with open('sepList.txt', 'w') as f:
             for i in [1,2,3]:

@@ -488,6 +488,7 @@ class EdgeTangleSet(btang.TangleSet):
         self.names = self.G.vs['name']
 
         # ig.plot(self.G)
+        print("After stubs, {} vertices, {} edges".format(self.G.vcount(), self.G.ecount()))
         #
         self.sepFilename = "{}/{}-SepList-CF.tsv". \
             format(job['outputFolder'], job['outName'])
