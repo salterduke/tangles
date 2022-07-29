@@ -138,6 +138,8 @@ class graphCD():
 
         tangOrders = []
 
+        nonDistSeps = []
+        distSepsOneSided = []
         # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
@@ -167,6 +169,13 @@ class graphCD():
                     # add both for easier checking
                     self.distinguishingSeps.add(frozenset(side))
                     self.distinguishingSeps.add(frozenset(comp))
+                    distSepsOneSided.append([self.giantComp.vs[v]["name"] for v in side])
+                elif sideIn and not compIn:
+                    nonDistSeps.append([self.giantComp.vs[v]["name"] for v in side])
+                elif not sideIn  and compIn:
+                    nonDistSeps.append([self.giantComp.vs[v]["name"] for v in comp])
+                else:
+                    print("What the hell - neither side in there")
 
 
             for tang in self.TangleSet.TangleLists[order]:
@@ -186,6 +195,16 @@ class graphCD():
                         1 if (v in onAllBig) else 0
 
                 tangNum+=1
+        nonDistDF = pd.DataFrame({"nonDist": nonDistSeps})
+        outfile = "{}/{}-NonDist.csv". \
+            format(self.job['outputFolder'], self.job['outName'])
+        nonDistDF.to_csv(outfile)
+
+        distDF = pd.DataFrame({"Dist": distSepsOneSided})
+        outfile = "{}/{}-Dist.csv". \
+            format(self.job['outputFolder'], self.job['outName'])
+        distDF.to_csv(outfile)
+
 
         outfile = "{}/{}-TangNodes.csv". \
             format(self.job['outputFolder'], self.job['outName'])
