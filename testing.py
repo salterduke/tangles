@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import sys
 
+def longp(l):
+    print("\n".join(map(str, l)))
+
 print("moocow")
 
 print(sys.argv[0])
@@ -72,10 +75,10 @@ print(len(sys.argv))
 #
 #
 # # t = g.gomory_hu_tree()
-# visual_style = {}
-# # visual_style["vertex_color"] = "white"
-# visual_style["vertex_label"] = range(4)
-# # ig.plot(t, **visual_style)
+visual_style = {}
+# visual_style["vertex_color"] = "white"
+visual_style["vertex_label"] = range(9)
+ig.plot(t, **visual_style)
 #
 # ig.plot(t)
 

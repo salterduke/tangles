@@ -18,3 +18,4 @@ __pycache__/
 /testResources/
 /output*/
 /*.png
+/GOfiles/GO_FS.txt
