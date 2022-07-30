@@ -608,6 +608,7 @@ class EdgeTangleSet(btang.TangleSet):
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
+        # todo See Belmonte et al. 2013
         # todo - what about if both sides def small?
         if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
             addDefSmall(components[0], size)
