@@ -592,6 +592,8 @@ class EdgeTangleSet(btang.TangleSet):
 
             if size >= 3 and subG.maxdegree() <= 2:
                 # ie, it's a circuit, so carving width <=2, therefore small
+                # print("Excluded under maxdeg <= 2")
+                # print(side)
                 return True
 
             # todo check whether actions on the subgraph affect the original graph
@@ -603,7 +605,8 @@ class EdgeTangleSet(btang.TangleSet):
                 # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
                 # giving cw 3, still okay as these singleton seps are always small
                 # todo I think?
-                return True
+                if subG.maxdegree() <= 2:
+                    return True
 
             # if we get to here
             return False
