@@ -200,8 +200,8 @@ def compare(filename1, filename2):
 
 print("---------------------------------------------")
 comparer = comparerClass()
-# comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-Supersets.csv", 37)
+comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-smallCheck.csv", 37)
 # comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-Preclude.csv", 37)
-comparer.findDistSeps()
+# comparer.findDistSeps()
 print("---------------------------------------------")
 
