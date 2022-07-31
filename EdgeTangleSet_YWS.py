@@ -599,14 +599,16 @@ class EdgeTangleSet(btang.TangleSet):
             # todo check whether actions on the subgraph affect the original graph
             # todo check whether general version works okay
             # if size >= 3 and subG.maxdegree() <= 3:
-            if size >= 3 and subG.maxdegree() <= size:
-                subG.delete_vertices(subG.vs.select(_degree_eq=1))
-                # delete any leaves, and if we're left with a circuit, it's still small
-                # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
-                # giving cw 3, still okay as these singleton seps are always small
-                # todo I think?
-                if subG.maxdegree() <= 2:
-                    return True
+            # if size >= 3 and subG.maxdegree() <= size:
+            #     subG.delete_vertices(subG.vs.select(_degree_eq=1))
+            #     # delete any leaves, and if we're left with a circuit, it's still small
+            #     # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
+            #     # giving cw 3, still okay as these singleton seps are always small
+            #     # todo I think?
+            #     if subG.maxdegree() <= 2:
+            #         # print("Excluded under maxdeg {} <= size {}".format(subG.maxdegree(), size))
+            #         # print(side)
+            #         return True
 
             # if we get to here
             return False
