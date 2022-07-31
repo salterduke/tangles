@@ -583,14 +583,31 @@ class EdgeTangleSet(btang.TangleSet):
                 self.definitelySmall[newsize].append(newcomp)
             # todo, note that all seps are written to file, even if not tested.
 
-            # todo I think this needs to not happen. Might be okay to do just for the same size?
-            # for size in range(self.kmin, newsize+1):
-            #     self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
-            #                                   if not newcomp.issuperset(comp)]
-            # todo: possible version?
-            # self.definitelySmall[newsize] = [comp for comp in self.definitelySmall[newsize]\
-            #                               if not newcomp.issuperset(comp)]
-            # self.definitelySmall[newsize].append(newcomp)
+
+        def sideIsDefSmall(side, size):
+            if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and size >= 2):
+                return True
+
+            subG = self.G.induced_subgraph(side)
+
+            if size >= 3 and subG.maxdegree() <= 2:
+                # ie, it's a circuit, so carving width <=2, therefore small
+                return True
+
+            # todo check whether actions on the subgraph affect the original graph
+            # todo check whether general version works okay
+            # if size >= 3 and subG.maxdegree() <= 3:
+            if size >= 3 and subG.maxdegree() <= size:
+                subG.delete_vertices(subG.vs.select(_degree_eq=1))
+                # delete any leaves, and if we're left with a circuit, it's still small
+                # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
+                # giving cw 3, still okay as these singleton seps are always small
+                # todo I think?
+                return True
+
+            # if we get to here
+            return False
+
 
         def printSepToFile(cutweight, components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
@@ -606,22 +623,21 @@ class EdgeTangleSet(btang.TangleSet):
 
         size = int(partcut.weight)
 
+
+
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
         # todo See Belmonte et al. 2013
         # todo - what about if both sides def small?
-        if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
+        if sideIsDefSmall(components[0], size):
             addDefSmall(components[0], size)
-            # self.definitelySmall[size].append(components[0])
             orientation = 1
-        elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
+        elif sideIsDefSmall(components[1], size):
             addDefSmall(components[1], size)
-            # self.definitelySmall[size].append(components[1])
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
             self.separations[size].append(components[0])
             orientation = 3
-        # todo seems okay, but unsure what the issue mentioned on slack was.
 
         printSepToFile(size, components, orientation)
