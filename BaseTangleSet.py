@@ -96,7 +96,7 @@ class TangleSet():
                 side1 = sepsSoFar[0]
                 if newSep.issubset(side1):
                     # ie, it's okay, but don't need it
-                    return True, False  # todo Really not sure about this!!!
+                    return True, False
                 elif newSep.issuperset(side1):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
@@ -117,10 +117,8 @@ class TangleSet():
                     if len(double1) >= self.groundsetSize:
                         return False, False
 
-                    # todo problem is enumerate starts id2 at 0!!!!!!!!
                     for id2 in range(id1 + 1, len(sepsSoFar)):
                         side2 = sepsSoFar[id2]
-                    # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
                         if not checkedSubsets:
                             if newSep.issubset(side2):
                                 return True, False
@@ -189,7 +187,7 @@ class TangleSet():
 
 
         # self.prevBranches = self.TangleLists[k-1]
-
+        print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
         # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
         # Do the most uneven separations first, as they're likely to break first
         # note that since this list only contains the smallest side of each separation
@@ -220,6 +218,8 @@ class TangleSet():
                         addSideAsSep(complement, truncTangle, sepNum)
 
         self.prevBranches = self.TangleLists[k]
+        print("After building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
+
 
         if self.foundTangle:
             self.finaliseAndPrint(k)
