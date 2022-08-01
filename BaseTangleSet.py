@@ -48,6 +48,7 @@ class TangleSet():
         self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
+        self.prevBranches = [self.TangleTree]
 
         if not sepsOnly:
             # ### see Evrendilek for heuristic?
@@ -186,25 +187,10 @@ class TangleSet():
         numkSeps = len(self.separations[k]) + numkdefSmall
         # numkSeps = len(self.separations[k])
 
-        self.prevBranches = self.TangleLists[k-1]
 
+        # self.prevBranches = self.TangleLists[k-1]
 
-        # --------------------------------------------------------------------------
-        # now does not add the def small seps to the tangle tree. Includes them in the axiom check.
-        # todo - get this working.
-        # does not work correctly if all seps def small
-        # for sepNum in range(numkSeps):
-        #     currentBranches = prevBranches
-        #     prevBranches = []
-        #     for truncTangle in currentBranches:
-        #         self.smallSidesStack = truncTangle.smallSides   ###### *****
-        #         side = self.separations[k][sepNum]
-        #         addSideAsSep(side, truncTangle, sepNum)
-        #         complement = self.groundset - side
-        #         addSideAsSep(complement, truncTangle, sepNum)
-        # --------------------------------------------------------------------------
-
-        self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
+        # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
         # Do the most uneven separations first, as they're likely to break first
         # note that since this list only contains the smallest side of each separation
         # the smallest small side means the most uneven separation
@@ -232,6 +218,8 @@ class TangleSet():
                     if not precludesComp:
                         complement = self.groundset - side
                         addSideAsSep(complement, truncTangle, sepNum)
+
+        self.prevBranches = self.TangleLists[k]
 
         if self.foundTangle:
             self.finaliseAndPrint(k)

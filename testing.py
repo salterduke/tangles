@@ -77,7 +77,7 @@ print(len(sys.argv))
 # # t = g.gomory_hu_tree()
 visual_style = {}
 # visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] = range(9)
+visual_style["vertex_label"] =
 ig.plot(t, **visual_style)
 #
 # ig.plot(t)

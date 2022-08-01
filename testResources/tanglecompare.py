@@ -73,52 +73,59 @@ def compareCovers(filename1, filename2):
 
 class comparerClass():
 
-    def compareTangles(self, filename1, filename2, N):
+    def compareOrder(self, ord):
+        ordOrig = self.origDF.loc[:,("ord={}".format(ord) in self.origDF.colums)]
 
-        orients = [0,0]
-        orients[0] = pd.read_csv(filename1, sep=",")
-        orients[1] = pd.read_csv(filename2, sep=",")
+    def compareTangles(self, origFile, newFile, N):
 
+        self.origDF = pd.read_csv(origFile, sep=",")
+        self.newDF = pd.read_csv(newFile, sep=",")
+
+        self.N = N
 
         self.groundset = set(range(N))
 
         # first check column headers
-        if not all(orients[0].columns == orients[1].columns):
+        if (self.origDF.shape[1] != self.newDF.shape[1]) or not all(self.origDF.columns == self.newDF.columns):
             print("Column headers don't match")
-            print(pd.DataFrame({"file1": orients[0].columns, "file2": orients[1].columns}) )
+            # print(pd.DataFrame({"orig": self.origDF.columns, "new": self.newDF.columns}) )
             print("Testing columns that do match")
-            mismatch = np.where(orients[0].columns != orients[1].columns)[0][0]
+            mismatch = min(self.origDF.shape[1], self.newDF.shape[1])
+            # todo add better heading checking
         else:
-            mismatch = len(orients[0].columns) + 1
+            mismatch = len(self.origDF.columns)
 
         # start at col 1 as 0 is index
         tangResults = []
-        for id in range(1,mismatch-1):
-            cols = [0,0]
-            for fid in range(2):
-                cols[fid] = orients[fid].iloc[:,id]
-                cols[fid] = cols[fid][cols[fid].notna()]
+        for id in range(1,mismatch):
+            origCol = self.origDF.iloc[:,id]
+            origCol = origCol[origCol.notna()]
 
-            cols = sorted(cols, key=len)
-            shortCol = list(map(self.getSmallSide, cols[0]))
-            longCol = list(map(self.getSmallSide, cols[1]))
-            colResults = np.zeros(len(longCol), dtype=bool)
-            for sid, sideFromLong in enumerate(longCol):
-                if sideFromLong in shortCol:
+            newCol = self.newDF.iloc[:,id]
+            newCol = newCol[newCol.notna()]
+
+            origList = list(map(self.getSmallSide, origCol))
+            newList = list(map(self.getSmallSide, newCol))
+            colResults = np.zeros(len(origList), dtype=bool)
+            for sid, sideFromLong in enumerate(origList):
+                if sideFromLong in newList:
                     colResults[sid] = True
                 else:
-                    for sideFromShort in shortCol:
+                    for sideFromShort in newList:
                         if sideFromLong.issubset(sideFromShort):
                             colResults[sid] = True
                             break
             tangResults.append(all(colResults))
-            # colDF = pd.DataFrame({"seps": longCol, "result": colResults})
+            # colDF = pd.DataFrame({"seps": origList, "result": colResults})
             # print(colDF)
-            # print(shortCol)
+            # print(newList)
             dummy = 1
 
-        resultsDF = pd.DataFrame({"tangle": orients[0].columns[1:mismatch-1], "result": tangResults})
+        resultsDF = pd.DataFrame({"tangle": self.origDF.columns[1:mismatch], "result": tangResults})
         print(resultsDF)
+        
+        # for ord in range(2, 5):
+        #     self.compareOrder(ord)
 
     def getSmallSide(self, sideStr):
 
@@ -200,8 +207,8 @@ def compare(filename1, filename2):
 
 print("---------------------------------------------")
 comparer = comparerClass()
-comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-smallCheck.csv", 37)
-# comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-Preclude.csv", 37)
+# comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-smallCheck.csv", 37)
+comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "../outputDevYWS/YeastGSCompB_core-Orientations.csv", 37)
 # comparer.findDistSeps()
 print("---------------------------------------------")
 
