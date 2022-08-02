@@ -8,6 +8,8 @@ class TangleSet():
     def __init__(self, job, log):
         self.separations = coll.defaultdict(list)
         self.definitelySmall = coll.defaultdict(list)
+        self.smallMainBits = coll.defaultdict(list)
+        self.ambigMainBits = coll.defaultdict(list)
 
         self.TangleTree = ete3.Tree()
         self.TangleLists = coll.defaultdict(list)  # or set?
@@ -142,8 +144,8 @@ class TangleSet():
             side = side.replace("'", "")
             return side
 
-        def addSideAsSep(side, parent, sepNum):
-
+        def addSideAsSep(side, parent, sepNum, plusSingle = False):
+            # todo: handle singleton checking
             passes, toAdd = self.checkTangleAxioms(side)
             if passes:
 
@@ -181,17 +183,11 @@ class TangleSet():
 
         self.foundTangle = 0
 
-        numkdefSmall = len(self.definitelySmall[k])
-        numkSeps = len(self.separations[k]) + numkdefSmall
-        # numkSeps = len(self.separations[k])
-
-
-        # self.prevBranches = self.TangleLists[k-1]
-        print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
-        # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
-        # Do the most uneven separations first, as they're likely to break first
-        # note that since this list only contains the smallest side of each separation
-        # the smallest small side means the most uneven separation
+        # I know this looks stupid, but if it works, I'll tidy it up.
+        break1 = len(self.definitelySmall[k])
+        break2 = break1 + len(self.smallMainBits[k])
+        break3 = break2 + len(self.separations[k])
+        numkSeps = break3 + len(self.ambigMainBits[k])
 
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches
@@ -202,20 +198,26 @@ class TangleSet():
                 self.smallSidesList = truncTangle.smallSides   ###### *****
                 if self.smallSidesList is None:
                     self.smallSidesList = []
-                if sepNum < numkdefSmall:
+                if sepNum < break1:
                     #### No branching
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
-                elif sepNum < numkSeps:
+                elif sepNum < break2:
+                    addSideAsSep(self.smallMainBits[k][sepNum-break1], truncTangle, sepNum, plusSingle=True)
+                elif sepNum < break3:
                     ### check both sides of the separation
-                    # NOTE: Edited so that only the side with fewest elements is stored
-                    # other must be calculated
-                    # for side in self.separations[k][sepNum - numkdefSmall]:
-                    #     addSideAsSep(side, truncTangle, sepNum)
-                    side = self.separations[k][sepNum - numkdefSmall]
+                    # NOTE: Edited so that only the side with fewest elements is stored: other must be calculated
+                    side = self.separations[k][sepNum - break2]
                     precludesComp = addSideAsSep(side, truncTangle, sepNum)
                     if not precludesComp:
                         complement = self.groundset - side
                         addSideAsSep(complement, truncTangle, sepNum)
+                else:
+                    side = self.ambigMainBits[k][sepNum - break3]
+                    precludesComp = addSideAsSep(side, truncTangle, sepNum, plusSingle=True)
+                    if not precludesComp:
+                        complement = self.groundset - side
+                        addSideAsSep(complement, truncTangle, sepNum, plusSingle=True)
+
 
         self.prevBranches = self.TangleLists[k]
         print("After building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
