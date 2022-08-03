@@ -477,12 +477,12 @@ class EdgeTangleSet(btang.TangleSet):
 
         # todo change ends here
         self.G = G
-
+        self.singletons = set(self.G.vs.select(_degree_eq=1).indices)
 
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
         btang.TangleSet.__init__(self, job, log)
-        self.cuts = set()
+        # self.cuts = set()
         self.Gdirected = self.G.as_directed()
 
         self.names = self.G.vs['name']
@@ -585,7 +585,8 @@ class EdgeTangleSet(btang.TangleSet):
                     # todo, note that all seps are written to file, even if not tested.
                 else:
                     mainBit = newcomp - {singleton}
-                    self.smallMainBits[newsize].append(frozenset(mainBit))
+                    if mainBit not in self.smallMainBits[newsize]:
+                        self.smallMainBits[newsize].append(frozenset(mainBit))
 
         def sideIsDefSmall(side, sep_k):
             if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
@@ -612,7 +613,10 @@ class EdgeTangleSet(btang.TangleSet):
                     # currently only looking at ONE singleton - not sure how to deal with multiples.
                     # worry about if need to
                     if sum(isSingleton) == 1:
-                        singleton = self.G.vs.find(name_eq=comps.subgraph(isSingleton.index(1)).vs["name"]).index
+                        singleton = self.G.vs.find(name_eq=comps.subgraph(isSingleton.index(1)).vs["name"][0]).index
+                        if self.G.degree(singleton) != 1:
+                            # making sure it's a leaf not a two cut etc. Can maybe extend, but get this working first
+                            singleton = None
 
                     if all(isTree):
                         return True, singleton
@@ -644,6 +648,9 @@ class EdgeTangleSet(btang.TangleSet):
 
         sep_k = int(partcut.weight)
 
+        if ({28,11,10}.issubset(components[0]) and 9 not in components[0]):
+            print("Moocow")
+
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
         # todo See Belmonte et al. 2013
@@ -665,7 +672,9 @@ class EdgeTangleSet(btang.TangleSet):
                 if singleton is None:
                     self.separations[sep_k].append(components[0])
                 else:
-                    self.ambigMainBits[sep_k].append(frozenset(components[0]-{singleton}))
+                    mainBit = components[0]-{singleton}
+                    if mainBit not in self.ambigMainBits[sep_k]:
+                        self.ambigMainBits[sep_k].append(mainBit)
 
         # if sideIsDefSmall(components[0], sep_k):
         #     addDefSmall(components[0], sep_k)
