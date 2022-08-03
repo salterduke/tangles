@@ -477,12 +477,12 @@ class EdgeTangleSet(btang.TangleSet):
 
         # todo change ends here
         self.G = G
-
+        self.singletons = set(self.G.vs.select(_degree_eq=1).indices)
 
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
         btang.TangleSet.__init__(self, job, log)
-        self.cuts = set()
+        # self.cuts = set()
         self.Gdirected = self.G.as_directed()
 
         self.names = self.G.vs['name']
@@ -563,7 +563,7 @@ class EdgeTangleSet(btang.TangleSet):
 
 
     def addToSepList(self, partcut):
-        def addDefSmall(newcomp, newsize):
+        def addDefSmall(newcomp, newsize, singleton=None):
 
             toAdd = True
             for size in range(self.kmin, newsize+1):
@@ -580,34 +580,46 @@ class EdgeTangleSet(btang.TangleSet):
                     # Don't need to continue checking at all.
 
             if toAdd:
-                self.definitelySmall[newsize].append(newcomp)
-            # todo, note that all seps are written to file, even if not tested.
-
+                if singleton is None:
+                    self.definitelySmall[newsize].append(newcomp)
+                    # todo, note that all seps are written to file, even if not tested.
+                else:
+                    mainBit = newcomp - {singleton}
+                    if mainBit not in self.smallMainBits[newsize]:
+                        self.smallMainBits[newsize].append(frozenset(mainBit))
 
         def sideIsDefSmall(side, sep_k):
             if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
-                return True
+                return True, None
             # else:
             #     return False
 
-            # if 10 in side and 11 in side and 28 in side and 9 not in side:
-            #     print("moocow")
 
             if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
                 # ie, each of two v's makes the small side of some sep,
                 # and the union of two small sides is small if the k of each <= k of the union
-                return True
+                return True, None
 
-            # todo this might be extendable to maxdeg <= sep_k?
+            singleton = None
             if (self.G.maxdegree(side) <= sep_k) and (sep_k >= 3):
                 subG = self.G.induced_subgraph(side)
                 comps = subG.clusters()
                 if len(comps) == 1 and comps.subgraph(0).is_tree(mode="all"):
-                    return True
+                    return True, None
                 elif len(comps) > 1:
-                    isTree = [1 if comp.is_tree(mode = "all") else 0 for comp in comps.subgraphs() ]
+                    isTree = [1 if comp.is_tree(mode = "all") else 0 for comp in comps.subgraphs()]
+                    isSingleton = [1 if comp.vcount()==1 else 0 for comp in comps.subgraphs()]
+
+                    # currently only looking at ONE singleton - not sure how to deal with multiples.
+                    # worry about if need to
+                    if sum(isSingleton) == 1:
+                        singleton = self.G.vs.find(name_eq=comps.subgraph(isSingleton.index(1)).vs["name"][0]).index
+                        if self.G.degree(singleton) != 1:
+                            # making sure it's a leaf not a two cut etc. Can maybe extend, but get this working first
+                            singleton = None
+
                     if all(isTree):
-                        return True
+                        return True, singleton
                     elif sum(isTree) == len(comps) - 1:
                         notTree = comps.subgraph(isTree.index(0))
                         notTreeNames = notTree.vs["name"]
@@ -617,32 +629,10 @@ class EdgeTangleSet(btang.TangleSet):
                             # therefore terminate any tangles that contradict this
                             comp = self.groundset - set(self.G.vs.select(name_in=notTreeNames).indices)
                             self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
-                            return True
-
-
-
-
-            # if sep_k >= 3 and subG.maxdegree() <= 2:
-            #     # ie, it's a circuit, so carving width <=2, therefore small
-            #     # print("Excluded under maxdeg <= 2")
-            #     # print(side)
-            #     return True
-
-            # if size >= 3 and subG.maxdegree() <= 3:
-            # if size >= 3 and subG.maxdegree() <= size:
-            #     subG.delete_vertices(subG.vs.select(_degree_eq=1))
-            #     # delete any leaves, and if we're left with a circuit, it's still small
-            #     # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
-            #     # giving cw 3, still okay as these singleton seps are always small
-            #     # todo I think?
-            #     if subG.maxdegree() <= 2:
-            #         # print("Excluded under maxdeg {} <= size {}".format(subG.maxdegree(), size))
-            #         # print(side)
-            #         return True
+                            return True, singleton
 
             # if we get to here
-            return False
-
+            return False, singleton
 
         def printSepToFile(cutweight, components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
@@ -658,21 +648,43 @@ class EdgeTangleSet(btang.TangleSet):
 
         sep_k = int(partcut.weight)
 
-
+        if ({28,11,10}.issubset(components[0]) and 9 not in components[0]):
+            print("Moocow")
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
         # todo See Belmonte et al. 2013
         # todo - what about if both sides def small?
-        if sideIsDefSmall(components[0], sep_k):
-            addDefSmall(components[0], sep_k)
+
+        # if there is a value in mainbit, means the sep contains the main bit plus a singleton
+        # handle these separately. If mainbit None, then handle as usual
+        sideSmall, singleton = sideIsDefSmall(components[0], sep_k)
+        if sideSmall:
             orientation = 1
-        elif sideIsDefSmall(components[1], sep_k):
-            addDefSmall(components[1], sep_k)
-            orientation = 2
+            addDefSmall(components[0], sep_k, singleton)
         else:
-            # Note: edited so only adding the shortest side.
-            self.separations[sep_k].append(components[0])
-            orientation = 3
+            compSmall, compSingleton = sideIsDefSmall(components[1], sep_k)
+            if compSmall:
+                orientation = 2
+                addDefSmall(components[1], sep_k, compSingleton)
+            else: # ie, neither side small
+                orientation = 3
+                if singleton is None:
+                    self.separations[sep_k].append(components[0])
+                else:
+                    mainBit = components[0]-{singleton}
+                    if mainBit not in self.ambigMainBits[sep_k]:
+                        self.ambigMainBits[sep_k].append(mainBit)
+
+        # if sideIsDefSmall(components[0], sep_k):
+        #     addDefSmall(components[0], sep_k)
+        #     orientation = 1
+        # elif sideIsDefSmall(components[1], sep_k):
+        #     addDefSmall(components[1], sep_k)
+        #     orientation = 2
+        # else:
+        #     # Note: edited so only adding the shortest side.
+        #     self.separations[sep_k].append(components[0])
+        #     orientation = 3
 
         printSepToFile(sep_k, components, orientation)

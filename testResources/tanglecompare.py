@@ -95,6 +95,9 @@ class comparerClass():
         else:
             mismatch = len(self.origDF.columns)
 
+        compBsingletons = [32, 36, 5, 8, 12, 15, 20, 22, 24, 25, 29, 30, 31]
+        # this is a kludge! fix properly later
+
         # start at col 1 as 0 is index
         tangResults = []
         for id in range(1,mismatch):
@@ -112,8 +115,12 @@ class comparerClass():
                     colResults[sid] = True
                 else:
                     for sideFromShort in newList:
-                        if sideFromLong.issubset(sideFromShort):
-                            colResults[sid] = True
+                        for single in compBsingletons:
+                            newSide = sideFromShort | {single}
+                            if sideFromLong.issubset(newSide):
+                                colResults[sid] = True
+                                break
+                        if colResults[sid]:
                             break
             tangResults.append(all(colResults))
             # colDF = pd.DataFrame({"seps": origList, "result": colResults})

@@ -8,6 +8,8 @@ class TangleSet():
     def __init__(self, job, log):
         self.separations = coll.defaultdict(list)
         self.definitelySmall = coll.defaultdict(list)
+        self.smallMainBits = coll.defaultdict(list)
+        self.ambigMainBits = coll.defaultdict(list)
 
         self.TangleTree = ete3.Tree()
         self.TangleLists = coll.defaultdict(list)  # or set?
@@ -37,6 +39,7 @@ class TangleSet():
 
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
+        self.TangleTree.add_feature("singleCount", 0)
 
         print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
@@ -79,9 +82,11 @@ class TangleSet():
         return(timings)
 
 
-    def checkTangleAxioms(self, newSep):
+    def checkTangleAxioms(self, newSep, parent, hasSingleton=False):
         # return vals are passesCheck, and addToList, for seps that are subsets so not needed
         # (both bool)
+
+        singleCount = parent.singleCount
 
         ### Axiom 2
         # todo - reverting to storing all def small in stack to handle cases where *all* def small
@@ -94,38 +99,38 @@ class TangleSet():
 
             if len(sepsSoFar) == 1:
                 side1 = sepsSoFar[0]
-                if newSep.issubset(side1):
+                if newSep.issubset(side1) and (not hasSingleton or singleCount>0 or len(self.singletons.intersection(side1))>0):
                     # ie, it's okay, but don't need it
                     return True, False
-                elif newSep.issuperset(side1):
+                elif newSep.issuperset(side1) and (singleCount==0 or hasSingleton or len(self.singletons.intersection(newSep))>0):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
-                if len(double1) >= self.groundsetSize:
+                if len(double1) >= self.groundsetSize - (singleCount+hasSingleton):
                     return False, False
             else:
                 checkedSubsets = False
                 # using a list so easier to double iterate
                 for id1, side1 in enumerate(sepsSoFar[:len(sepsSoFar)-1]):
                     if not checkedSubsets:
-                        if newSep.issubset(side1):
+                        if newSep.issubset(side1) and (not hasSingleton or singleCount>0 or len(self.singletons.intersection(side1))>0):
                             # ie, it's okay, but don't need it
                             return True, False
-                        elif newSep.issuperset(side1):
+                        elif newSep.issuperset(side1) and (singleCount==0 or hasSingleton or len(self.singletons.intersection(newSep))>0):
                             self.keepSeps[id1] = 0
 
                     double1 = side1 | newSep
-                    if len(double1) >= self.groundsetSize:
+                    if len(double1) >= self.groundsetSize - (singleCount+hasSingleton):
                         return False, False
 
                     for id2 in range(id1 + 1, len(sepsSoFar)):
                         side2 = sepsSoFar[id2]
                         if not checkedSubsets:
-                            if newSep.issubset(side2):
+                            if newSep.issubset(side2) and (not hasSingleton or singleCount>0 or len(self.singletons.intersection(side1))>0):
                                 return True, False
-                            elif newSep.issuperset(side2):
+                            elif newSep.issuperset(side2) and (singleCount==0 or hasSingleton or len(self.singletons.intersection(newSep))>0):
                                 self.keepSeps[id2] = 0
                         triple = side2 | double1
-                        if len(triple) >= self.groundsetSize:
+                        if len(triple) >= self.groundsetSize - (singleCount+hasSingleton):
                             return False, False
                     checkedSubsets = True
 
@@ -142,9 +147,15 @@ class TangleSet():
             side = side.replace("'", "")
             return side
 
-        def addSideAsSep(side, parent, sepNum):
+        def addSideAsSep(side, parent, sepNum, hasSingleton = False):
+            # todo: handle singleton checking
+            if ({28, 11, 10}.issubset(side) and 9 not in side):
+                print("Moocow")
 
-            passes, toAdd = self.checkTangleAxioms(side)
+            if ({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36} == side):
+                print("Moocow")
+
+            passes, toAdd = self.checkTangleAxioms(side, parent, hasSingleton)
             if passes:
 
                 if toAdd:
@@ -153,6 +164,7 @@ class TangleSet():
                     newList = [smallSide for id, smallSide in enumerate(self.smallSidesList) if self.keepSeps[id]]
                     newList.append(side)
                     child.add_feature("smallSides", newList)
+                    child.add_feature("singleCount", min(2, parent.singleCount+hasSingleton))
                     # self.prevBranches.append(child)
                     currentBranch = child
                 else:
@@ -181,17 +193,11 @@ class TangleSet():
 
         self.foundTangle = 0
 
-        numkdefSmall = len(self.definitelySmall[k])
-        numkSeps = len(self.separations[k]) + numkdefSmall
-        # numkSeps = len(self.separations[k])
-
-
-        # self.prevBranches = self.TangleLists[k-1]
-        print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
-        # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
-        # Do the most uneven separations first, as they're likely to break first
-        # note that since this list only contains the smallest side of each separation
-        # the smallest small side means the most uneven separation
+        # I know this looks stupid, but if it works, I'll tidy it up.
+        break1 = len(self.definitelySmall[k])
+        break2 = break1 + len(self.smallMainBits[k])
+        break3 = break2 + len(self.separations[k])
+        numkSeps = break3 + len(self.ambigMainBits[k])
 
         for truncTangle in currentBranches:
             truncTangle.smallSides = sorted(truncTangle.smallSides, key=len, reverse=True)
@@ -205,20 +211,26 @@ class TangleSet():
                 self.smallSidesList = truncTangle.smallSides   ###### *****
                 if self.smallSidesList is None:
                     self.smallSidesList = []
-                if sepNum < numkdefSmall:
+                if sepNum < break1:
                     #### No branching
                     addSideAsSep(self.definitelySmall[k][sepNum], truncTangle, sepNum)
-                elif sepNum < numkSeps:
+                elif sepNum < break2:
+                    addSideAsSep(self.smallMainBits[k][sepNum-break1], truncTangle, sepNum, hasSingleton=True)
+                elif sepNum < break3:
                     ### check both sides of the separation
-                    # NOTE: Edited so that only the side with fewest elements is stored
-                    # other must be calculated
-                    # for side in self.separations[k][sepNum - numkdefSmall]:
-                    #     addSideAsSep(side, truncTangle, sepNum)
-                    side = self.separations[k][sepNum - numkdefSmall]
+                    # NOTE: Edited so that only the side with fewest elements is stored: other must be calculated
+                    side = self.separations[k][sepNum - break2]
                     precludesComp = addSideAsSep(side, truncTangle, sepNum)
                     if not precludesComp:
                         complement = self.groundset - side
                         addSideAsSep(complement, truncTangle, sepNum)
+                else:
+                    side = self.ambigMainBits[k][sepNum - break3]
+                    precludesComp = addSideAsSep(side, truncTangle, sepNum, hasSingleton=True)
+                    if not precludesComp:
+                        complement = self.groundset - side
+                        addSideAsSep(complement, truncTangle, sepNum, hasSingleton=True)
+
 
         self.prevBranches = self.TangleLists[k]
         print("After building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
