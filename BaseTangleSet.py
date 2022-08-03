@@ -193,6 +193,9 @@ class TangleSet():
         # note that since this list only contains the smallest side of each separation
         # the smallest small side means the most uneven separation
 
+        for truncTangle in currentBranches:
+            truncTangle.smallSides = sorted(truncTangle.smallSides, key=len, reverse=True)
+
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches
             self.prevBranches = []
