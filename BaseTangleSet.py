@@ -100,6 +100,8 @@ class TangleSet():
                 elif newSep.issuperset(side1):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
+                if len(double1) > self.groundsetSize or (-1 not in double1 and len(double1) == self.groundsetSize):
+                    return False, False
                 leafCount = int(-1 in side1) + int(-1 in newSep)
                 leftOut = self.groundset - double1
                 if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
@@ -120,6 +122,8 @@ class TangleSet():
                             self.keepSeps[id1] = 0
 
                     double1 = side1 | newSep
+                    if len(double1) > self.groundsetSize or (-1 not in double1 and len(double1) == self.groundsetSize):
+                        return False, False
                     leafCount = int(-1 in side1) + int(-1 in newSep)
                     leftOut = self.groundset - double1
                     if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
@@ -137,6 +141,8 @@ class TangleSet():
                             elif newSep.issuperset(side2):
                                 self.keepSeps[id2] = 0
                         triple = side2 | double1
+                        if len(triple) > self.groundsetSize or (-1 not in triple and len(triple) == self.groundsetSize):
+                            return False, False
                         leafCount = int(-1 in side1) + int(-1 in side2) + int(-1 in newSep)
                         leftOut = self.groundset - triple
                         if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
