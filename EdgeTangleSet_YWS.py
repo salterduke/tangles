@@ -479,6 +479,7 @@ class EdgeTangleSet(btang.TangleSet):
         self.G = G
 
         self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
+        self.leafExtent = 0
 
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
@@ -567,16 +568,17 @@ class EdgeTangleSet(btang.TangleSet):
         def convertLeaves(newcomp):
             compLeaves = self.leaves & newcomp
 
-            if len(compLeaves) > 0 and len(newcomp) > 1:
+            leafNumber = -1
+            if len(newcomp) > 1 and len(compLeaves) > 0:
                 for leaf in compLeaves:
                     if self.G.neighbors(leaf)[0] not in newcomp:
-                        dummy = 1
                         # ie, it's a separate lone leaf, not attached
                         # newcomp.remove(leaf)
                         # newcomp.add(-1)
-                        newcomp = newcomp | {-1}
+                        newcomp = newcomp | {leafNumber}
                         newcomp = newcomp - {leaf}
-                        break # we only want to do this once, to reduce complication
+                        leafNumber-=1
+                self.leafExtent = min(self.leafExtent, leafNumber)
             return newcomp
 
         def addDefSmall(newcomp, newsize):

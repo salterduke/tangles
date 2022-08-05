@@ -15,6 +15,13 @@ print(sys.argv[0])
 print(sys.argv[1])
 print(len(sys.argv))
 
+
+visual_style = {}
+# visual_style["vertex_color"] = "white"
+visual_style["vertex_label"] =
+ig.plot(t, **visual_style)
+
+
 # minDist = min({self.d[j] for j in j_in_W
 #                if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
 #
@@ -270,19 +277,5 @@ ig.plot(t, **visual_style)
 # # #     # cur2.execute(deleteString, (c[0],))
 # # #
 # # # # self.partcutConn.commit()
-
-
-self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
-
-
-
-
-def editSet(s):
-    s = s - {1}
-
-ss = {1,2,3,4,55}
-print(ss)
-editSet(ss)
-print(ss)
 
 
