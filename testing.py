@@ -270,3 +270,19 @@ ig.plot(t, **visual_style)
 # # #     # cur2.execute(deleteString, (c[0],))
 # # #
 # # # # self.partcutConn.commit()
+
+
+self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
+
+
+
+
+def editSet(s):
+    s = s - {1}
+
+ss = {1,2,3,4,55}
+print(ss)
+editSet(ss)
+print(ss)
+
+

@@ -100,8 +100,14 @@ class TangleSet():
                 elif newSep.issuperset(side1):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
-                if len(double1) >= self.groundsetSize:
+                leafCount = int(-1 in side1) + int(-1 in newSep)
+                leftOut = self.groundset - double1
+                if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                     return False, False
+                # leafCount = max(0, leafCount-1) # working out how many to disregard, but need to count one -1 if present
+                # todo put this back in if not working
+                # if len(double1) + leafCount >= self.groundsetSize:
+                #     return False, False
             else:
                 checkedSubsets = False
                 # using a list so easier to double iterate
@@ -114,8 +120,14 @@ class TangleSet():
                             self.keepSeps[id1] = 0
 
                     double1 = side1 | newSep
-                    if len(double1) >= self.groundsetSize:
+                    leafCount = int(-1 in side1) + int(-1 in newSep)
+                    leftOut = self.groundset - double1
+                    if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                         return False, False
+                    # leafCount = max(0,leafCount - 1)  # working out how many to disregard, but need to count one -1 if present
+                    # todo put back in if not working
+                    # if len(double1) + leafCount >= self.groundsetSize:
+                    #     return False, False
 
                     for id2 in range(id1 + 1, len(sepsSoFar)):
                         side2 = sepsSoFar[id2]
@@ -125,8 +137,14 @@ class TangleSet():
                             elif newSep.issuperset(side2):
                                 self.keepSeps[id2] = 0
                         triple = side2 | double1
-                        if len(triple) >= self.groundsetSize:
+                        leafCount = int(-1 in side1) + int(-1 in side2) + int(-1 in newSep)
+                        leftOut = self.groundset - triple
+                        if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                             return False, False
+                        # leafCount = max(0, leafCount - 1)  # working out how many to disregard, but need to count one -1 if present
+                        # todo put back in if not working
+                        # if len(triple) + leafCount >= self.groundsetSize:
+                        #     return False, False
                     checkedSubsets = True
 
         # return first True because we got to this point without hitting a false
@@ -143,6 +161,13 @@ class TangleSet():
             return side
 
         def addSideAsSep(side, parent, sepNum):
+
+            # compLeaves = self.leaves & side
+            #
+            # for leaf in compLeaves:
+            #     side = side | {-1}
+            #     side = side - {leaf}
+
 
             passes, toAdd = self.checkTangleAxioms(side)
             if passes:
@@ -186,15 +211,12 @@ class TangleSet():
         # numkSeps = len(self.separations[k])
 
 
-        # self.prevBranches = self.TangleLists[k-1]
         print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
         # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
         # Do the most uneven separations first, as they're likely to break first
         # note that since this list only contains the smallest side of each separation
         # the smallest small side means the most uneven separation
 
-        for truncTangle in self.prevBranches:
-            truncTangle.smallSides = sorted(truncTangle.smallSides, key=len, reverse=True)
 
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches

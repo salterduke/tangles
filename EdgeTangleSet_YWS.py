@@ -478,6 +478,7 @@ class EdgeTangleSet(btang.TangleSet):
         # todo change ends here
         self.G = G
 
+        self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
 
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
@@ -563,7 +564,24 @@ class EdgeTangleSet(btang.TangleSet):
 
 
     def addToSepList(self, partcut):
+        def convertLeaves(newcomp):
+            compLeaves = self.leaves & newcomp
+
+            if len(compLeaves) > 0 and len(newcomp) > 1:
+                for leaf in compLeaves:
+                    if self.G.neighbors(leaf)[0] not in newcomp:
+                        dummy = 1
+                        # ie, it's a separate lone leaf, not attached
+                        # newcomp.remove(leaf)
+                        # newcomp.add(-1)
+                        newcomp = newcomp | {-1}
+                        newcomp = newcomp - {leaf}
+                        break # we only want to do this once, to reduce complication
+            return newcomp
+
         def addDefSmall(newcomp, newsize):
+
+
 
             toAdd = True
             for size in range(self.kmin, newsize+1):
@@ -622,23 +640,6 @@ class EdgeTangleSet(btang.TangleSet):
 
 
 
-            # if sep_k >= 3 and subG.maxdegree() <= 2:
-            #     # ie, it's a circuit, so carving width <=2, therefore small
-            #     # print("Excluded under maxdeg <= 2")
-            #     # print(side)
-            #     return True
-
-            # if size >= 3 and subG.maxdegree() <= 3:
-            # if size >= 3 and subG.maxdegree() <= size:
-            #     subG.delete_vertices(subG.vs.select(_degree_eq=1))
-            #     # delete any leaves, and if we're left with a circuit, it's still small
-            #     # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
-            #     # giving cw 3, still okay as these singleton seps are always small
-            #     # todo I think?
-            #     if subG.maxdegree() <= 2:
-            #         # print("Excluded under maxdeg {} <= size {}".format(subG.maxdegree(), size))
-            #         # print(side)
-            #         return True
 
             # if we get to here
             return False
@@ -665,14 +666,14 @@ class EdgeTangleSet(btang.TangleSet):
         # todo See Belmonte et al. 2013
         # todo - what about if both sides def small?
         if sideIsDefSmall(components[0], sep_k):
-            addDefSmall(components[0], sep_k)
+            addDefSmall(convertLeaves(components[0]), sep_k)
             orientation = 1
         elif sideIsDefSmall(components[1], sep_k):
-            addDefSmall(components[1], sep_k)
+            addDefSmall(convertLeaves(components[1]), sep_k)
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
-            self.separations[sep_k].append(components[0])
+            self.separations[sep_k].append(convertLeaves(components[0]))
             orientation = 3
 
         printSepToFile(sep_k, components, orientation)
