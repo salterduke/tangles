@@ -633,8 +633,15 @@ class EdgeTangleSet(btang.TangleSet):
                         if notTree.maxdegree() <= 2:
                             # if this higher order sep is small this way, the subcomponent sep must be small
                             # therefore terminate any tangles that contradict this
-                            comp = self.groundset - set(self.G.vs.select(name_in=notTreeNames).indices)
+                            notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
+                            comp = self.groundset - notTreeIDs
                             self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                            for branch in self.prevBranches:
+                                try:
+                                    branch.smallSides.remove(notTreeIDs)
+                                    # is not necessary, as is subset of this larger side.
+                                except:
+                                    pass
                             return True
 
 
