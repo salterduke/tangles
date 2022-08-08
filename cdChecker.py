@@ -11,10 +11,20 @@ class cdChecker(bch.commChecker):
         bch.commChecker.__init__(self, G.vs["name"])
         self.G = G
 
-    def compareCDMethods(self, foundcover, methods = []):
-        self.overlapCliquePercolation()
-        NMI = self.calculateNMI(foundcover)
-        print("NMI: {}".format(NMI))
+    def compareCDMethods(self, foundcover, methods = ["CPM"]):
+        resList = []
+
+
+        for order in range(min(foundcover.index), max(foundcover.index) + 1):
+            for method in methods:
+                if "CPM" in method:
+                    self.overlapCliquePercolation()
+                    NMI = self.calculateNMI(foundcover)
+
+
+
+        resDF = pd.DataFrame(resList)
+        # print to file here
 
     def overlapCliquePercolation(self):
         # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries

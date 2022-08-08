@@ -10,7 +10,7 @@ import pandas as pd
 import collections as coll
 from matplotlib import cm
 import igraph as ig
-import itertools as iter
+import itertools as it
 import protChecker
 import cdChecker
 import random
@@ -179,8 +179,9 @@ class graphCD():
 
 
             for tang in self.TangleSet.TangleLists[order]:
-
-                tangOrders.append(order)
+                # note that order above is the max order of the *separations*
+                # NOT the order of the tangles. So need to add 1 to get tangle order
+                tangOrders.append(order+1)
                 distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
                 # note that if a dist sep is not in smallSides, it must be a subset of another dist sep
 
@@ -206,24 +207,23 @@ class graphCD():
         distDF.to_csv(outfile)
 
 
+        # making copy to add row for orders without messing with anything else.
+        # cover_copy = self.foundcover.copy(deep = True)
+        # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        self.foundcover.loc[len(cover_copy)] = tangOrders
+        self.foundcover.index.values[len(cover_copy)-1] = "order"
+        self.foundcover = self.foundcover.astype(np.int8)
+
         outfile = "{}/{}-TangNodes.csv". \
             format(self.job['outputFolder'], self.job['outName'])
-        # making copy to add row for orders without messing with anything else.
-        cover_copy = self.foundcover.copy(deep = True)
-        # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
-        cover_copy.loc[len(cover_copy)] = tangOrders
-        cover_copy.index.values[len(cover_copy)-1] = "order"
-        cover_copy.to_csv(outfile)
+        self.foundcover.to_csv(outfile) # to csv before removing trivial comms
 
-        self.foundcover = self.foundcover.astype(np.int8)
         # this makes sure only those communities with at least 3 modes are included.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
-        # todo add check for duplicate comms
 
         for node in self.giantComp.vs:
             node["color"] = "#ffffff"
-
 
         # This bit is working with the tangle tree to assign colours to the comms.
         # note that traverse default is BFS, which is what we want - deeper comms will
@@ -273,11 +273,11 @@ class graphCD():
         ts.branch_vertical_margin = 10
         ts.show_branch_length = False
 
-        for node in self.TangleSet.TangleTree.iter_descendants():
-            node.dist *= 4
+        # for node in self.TangleSet.TangleTree.iter_descendants():
+        #     node.dist *= 4
 
         ts.branch_vertical_margin = 8
-        ts.scale = 360
+        # ts.scale = 360
 
         try:
             # Note that this shit doesn't work correctly in Python 3.10. It's a known issue.
@@ -306,6 +306,7 @@ class graphCD():
         if self.cdChecker is None:
             self.cdChecker = cdChecker.cdChecker(self.giantComp)
 
+        # todo note that df will need order row dealing with
         # if "Yeast" in self.job["outName"]:
         #     if self.protChecker is None:
         #         self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])

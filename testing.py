@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import sys
 
+resDF = pd.DataFrame({"sep": origList, "res": colResults})
+resDF.loc[resDF.res==False,:]
+
+
 def longp(l):
     print("\n".join(map(str, l)))
 
