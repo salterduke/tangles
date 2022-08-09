@@ -38,7 +38,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 1, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])

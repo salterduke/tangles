@@ -117,10 +117,9 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-        #
-        quality = self.evaluateCommunities()
-        dummy = 1
-        #     # todo something with quality
+            #
+            quality = self.evaluateCommunities()
+            #     # todo something with quality
 
         self.doPrint = False
         if self.doPrint:
@@ -177,7 +176,6 @@ class graphCD():
                 else:
                     print("What the hell - neither side in there")
 
-
             for tang in self.TangleSet.TangleLists[order]:
                 # note that order above is the max order of the *separations*
                 # NOT the order of the tangles. So need to add 1 to get tangle order
@@ -210,8 +208,9 @@ class graphCD():
         # making copy to add row for orders without messing with anything else.
         # cover_copy = self.foundcover.copy(deep = True)
         # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
-        self.foundcover.loc[len(cover_copy)] = tangOrders
-        self.foundcover.index.values[len(cover_copy)-1] = "order"
+        tangSeries = pd.Series(tangOrders)
+        tangSeries.name = "order"
+        self.foundcover = self.foundcover.append(tangSeries)
         self.foundcover = self.foundcover.astype(np.int8)
 
         outfile = "{}/{}-TangNodes.csv". \

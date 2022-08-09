@@ -25,10 +25,14 @@ class commChecker():
         return self.compareCover
 
 
-    def calculateNMI(self, coverY):
-        coverX = self.compareCover
+    def calculateNMI(self, coverY, coverX = None):
+        if coverX is None:
+            coverX = self.compareCover
 
-        coverIntersection = coverX.transpose() @ coverY
+        try:
+            coverIntersection = coverX.transpose() @ coverY
+        except:
+            dummy = 1
 
         HXgivenY = self.conditionalEntropy(coverX, coverY, coverIntersection)
         print("HXgivenY: {}".format(HXgivenY))
@@ -78,7 +82,10 @@ class commChecker():
             HXkbigYNorm = HXkbigY / (h(PX1) + h(PX0)) # H(Xk)
             HXkbigYNormSum += HXkbigYNorm
 
-        HbigXbigYNorm = HXkbigYNormSum / coverX.shape[1]
+        try:
+            HbigXbigYNorm = HXkbigYNormSum / coverX.shape[1]
+        except:
+            dummy = 1
         return(HbigXbigYNorm)
 
 
