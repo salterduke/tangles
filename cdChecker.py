@@ -30,6 +30,8 @@ class cdChecker(bch.commChecker):
                         if cpmCover is not None:
                             print("CPM{}".format(cliqueSize))
                             NMI = self.calculateNMI(orderCover, cpmCover)
+
+                            cpm = self.getMembershipFromCover(cpmCover)
                             resList.append({"method": "CPM{}".format(cliqueSize),
                                             "order": order,
                                             "NMI": NMI})
@@ -58,11 +60,12 @@ class cdChecker(bch.commChecker):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
 
-        membership = np.zeros(self.G.vcount())
+        membership = [None]*self.G.vcount()
 
         for vid in self.G.vs.indices:
-            membership[vid] = \
-                cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
+            if any(cover.loc[self.G.vs[vid]["name"], :]==1):
+                membership[vid] = \
+                    cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
 
         return membership
 

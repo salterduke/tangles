@@ -73,6 +73,7 @@ class commChecker():
                 if h(PX1Y1) + h(PX0Y0) > h(PX1Y0) + h(PX0Y1):
                     HXkYl = h(PX1Y1) + h(PX0Y0) + h(PX1Y0) + h(PX0Y1) - \
                             h(PY1) - h(PY0)
+                    # H(X,Y) - H(Y)
                     HXkYlList.append(HXkYl)
             if len(HXkYlList) == 0:
                 HXkbigY = h(PX1) + h(PX0) # H(Xk)
