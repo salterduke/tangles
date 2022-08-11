@@ -29,9 +29,12 @@ class cdChecker(bch.commChecker):
                         cpmCover = self.overlapCliquePercolation(cliqueSize)
                         if cpmCover is not None:
                             print("CPM{}".format(cliqueSize))
-                            NMI = self.calculateNMI(orderCover, cpmCover)
+                            NMI = self.calculateNMI(orderCover, cpmCover, remove_none=True)
 
                             cpm = self.getMembershipFromCover(cpmCover)
+                            NMIcalc = ig.compare_communities(mm, cpm, method="nmi", remove_none=True)
+                            NMI_alt = self.calculateNMI_alt(mm, cpm)
+                            print(NMI, NMIcalc, NMI_alt)
                             resList.append({"method": "CPM{}".format(cliqueSize),
                                             "order": order,
                                             "NMI": NMI})

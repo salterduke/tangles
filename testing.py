@@ -9,6 +9,20 @@ import sys
 resDF = pd.DataFrame({"sep": origList, "res": colResults})
 resDF.loc[resDF.res==False,:]
 
+ordMem = [m for i, m in enumerate(mm) if cpm[i] is not None]
+cpmMem = [m for i, m in enumerate(cpm) if cpm[i] is not None]
+df = pd.DataFrame(index = sorted(pd.unique(ordMem)), columns = sorted(pd.unique(cpmMem)) )
+
+miSum = 0
+denom = len(ordMem)
+for r in df.index:
+    for c in df.columns:
+        pxy = df.loc[r, c] / denom
+        px = df.loc[r, :] / denom
+        py = df.loc[:, c] / denom
+        term = pxy * np.log2(pxy/(px*py)) if pxy != 0 else 0
+        miSum+=term
+
 
 def longp(l):
     print("\n".join(map(str, l)))
