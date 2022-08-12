@@ -164,6 +164,8 @@ class EdgeTangleSet(btang.TangleSet):
 
         # todo change ends here
         self.G = G
+        self.leafExtent = 0
+        self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
 
 
         self.groundset = set(self.G.vs.indices)
@@ -247,6 +249,65 @@ class EdgeTangleSet(btang.TangleSet):
             # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
 
     def addToSepList(self, partial):
+        def convertLeaves(newcomp):
+            compLeaves = self.leaves & newcomp
+
+            leafNumber = -1
+            if len(newcomp) > 1 and len(compLeaves) > 0:
+                for leaf in compLeaves:
+                    if self.G.neighbors(leaf)[0] not in newcomp:
+                        # ie, it's a separate lone leaf, not attached
+                        # newcomp.remove(leaf)
+                        # newcomp.add(-1)
+                        newcomp = newcomp | {leafNumber}
+                        newcomp = newcomp - {leaf}
+                        leafNumber-=1
+                self.leafExtent = min(self.leafExtent, leafNumber)
+            return newcomp
+
+        def sideIsDefSmall(side, sep_k):
+            if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
+                return True
+            # else:
+            #     return False
+
+            # if 10 in side and 11 in side and 28 in side and 9 not in side:
+            #     print("moocow")
+
+            if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
+                # ie, each of two v's makes the small side of some sep,
+                # and the union of two small sides is small if the k of each <= k of the union
+                return True
+
+            # todo this might be extendable to maxdeg <= sep_k?
+            if (self.G.maxdegree(side) <= sep_k) and (sep_k >= 3):
+                subG = self.G.induced_subgraph(side)
+                comps = subG.clusters()
+                if len(comps) == 1 and comps.subgraph(0).is_tree(mode="all"):
+                    return True
+                elif len(comps) > 1:
+                    isTree = [1 if comp.is_tree(mode = "all") else 0 for comp in comps.subgraphs() ]
+                    if all(isTree):
+                        return True
+                    elif sum(isTree) == len(comps) - 1:
+                        notTree = comps.subgraph(isTree.index(0))
+                        notTreeNames = notTree.vs["name"]
+                        notTree.delete_vertices(notTree.vs.select(_degree_eq=1))
+                        if notTree.maxdegree() <= 2:
+                            # if this higher order sep is small this way, the subcomponent sep must be small
+                            # therefore terminate any tangles that contradict this
+                            notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
+                            comp = self.groundset - notTreeIDs
+                            self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                            for branch in self.prevBranches:
+                                try:
+                                    branch.smallSides.remove(notTreeIDs)
+                                    # is not necessary, as is subset of this larger side.
+                                except:
+                                    pass
+                            return True
+
+
         def addDefSmall(newcomp, newsize):
 
             toAdd = True
@@ -296,24 +357,21 @@ class EdgeTangleSet(btang.TangleSet):
         components = sorted(components, key=len)
 
         # size = len(partial.cutEdges)
-        size = int(partial.weight)
+        sep_k = int(partial.weight)
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
         # todo - what about if both sides def small?
-        if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
-            addDefSmall(components[0], size)
-            # self.definitelySmall[size].append(components[0])
+        if sideIsDefSmall(components[0], sep_k):
+            addDefSmall(convertLeaves(components[0]), sep_k)
             orientation = 1
-        elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
-            addDefSmall(components[1], size)
-            # self.definitelySmall[size].append(components[1])
+        elif sideIsDefSmall(components[1], sep_k):
+            addDefSmall(convertLeaves(components[1]), sep_k)
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
-            self.separations[size].append(components[0])
+            self.separations[sep_k].append(convertLeaves(components[0]))
             orientation = 3
-        # todo seems okay, but unsure what the issue mentioned on slack was.
 
         # need to do this because we need to check for superset-ness
         # self.cuts.add(partial.cutEdges)

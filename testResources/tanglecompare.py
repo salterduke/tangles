@@ -74,6 +74,9 @@ class comparerClass():
                                     break
 
 
+            if not all(colResults):
+                dummy=1
+
             tangResults.append(all(colResults))
             # colDF = pd.DataFrame({"seps": origList, "result": colResults})
             # print(colDF)
@@ -101,7 +104,7 @@ class comparerClass():
 print("---------------------------------------------")
 comparer = comparerClass()
 # comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "./orientFiles/YeastGSCompB_core-Orientations-smallCheck.csv", 37)
-comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "../outputDevYWS/YeastGSCompB_core-Orientations.csv", 37)
+comparer.compareTangles("./orientFiles/YeastGSCompB_core-Orientations-Original.csv", "../outputDevVY/YeastGSCompB_core-Orientations.csv", 37)
 # comparer.findDistSeps()
 print("---------------------------------------------")
 

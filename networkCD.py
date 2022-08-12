@@ -315,7 +315,7 @@ class graphCD():
         #     print("Found commQual: ", quality["commQual"])
         #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
-        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
+        # quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
 
         # todo - do somthing with the qual measures
         # todo also re-add the coverage ratio
