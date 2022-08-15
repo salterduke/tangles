@@ -18,7 +18,7 @@ if __name__ == '__main__':
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         print("Dev testing YWS")
         testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
-        configFile = "config2.txt"
+        configFile = "config.txt"
     elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
         print("Running YWS")
         testName = "TestYWS"

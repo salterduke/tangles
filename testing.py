@@ -6,38 +6,26 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import sys
 
-resDF = pd.DataFrame({"sep": origList, "res": colResults})
-resDF.loc[resDF.res==False,:]
+G = ig.Graph.Read_GML("../NetworkData/MediumSize/adjnoun.gml")
 
-ordMem = [m for i, m in enumerate(mm) if cpm[i] is not None]
-cpmMem = [m for i, m in enumerate(cpm) if cpm[i] is not None]
-df = pd.DataFrame(index = sorted(pd.unique(ordMem)), columns = sorted(pd.unique(cpmMem)) )
+visual_style = {}
+visual_style["vertex_color"] = "white"
+visual_style["vertex_label"] = G.vs.indices
+ig.plot(G, **visual_style)
 
-miSum = 0
-denom = len(ordMem)
-for r in df.index:
-    for c in df.columns:
-        pxy = df.loc[r, c] / denom
-        px = df.loc[r, :] / denom
-        py = df.loc[:, c] / denom
-        term = pxy * np.log2(pxy/(px*py)) if pxy != 0 else 0
-        miSum+=term
+G = G.simplify()
 
+G.write_ncol("../NetworkData/MediumSize/Copperfield.csv", names="label", weights=None)
 
 def longp(l):
     print("\n".join(map(str, l)))
 
-print("moocow")
 
-print(sys.argv[0])
-print(sys.argv[1])
-print(len(sys.argv))
+# print(sys.argv[0])
+# print(sys.argv[1])
+# print(len(sys.argv))
 
 
-visual_style = {}
-# visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] =
-ig.plot(t, **visual_style)
 
 
 # minDist = min({self.d[j] for j in j_in_W
