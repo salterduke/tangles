@@ -12,7 +12,7 @@ from matplotlib import cm
 import igraph as ig
 import itertools as iter
 import protChecker
-import cdChecker
+# import cdChecker
 import random
 
 
