@@ -12,7 +12,7 @@ from matplotlib import cm
 import igraph as ig
 import itertools as iter
 import protChecker
-# import cdChecker
+import cdChecker
 import random
 
 
@@ -117,10 +117,7 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-        #
-        quality = self.evaluateCommunities()
-        dummy = 1
-        #     # todo something with quality
+            quality = self.evaluateCommunities()
 
         self.doPrint = False
         if self.doPrint:
