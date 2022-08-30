@@ -623,4 +623,5 @@ class EdgeTangleSet(btang.TangleSet):
             orientation = 3
         # todo seems okay, but unsure what the issue mentioned on slack was.
 
-        printSepToFile(size, components, orientation)
+        if "constructed" not in self.sepFilename:
+            printSepToFile(size, components, orientation)

@@ -318,4 +318,5 @@ class EdgeTangleSet(btang.TangleSet):
         # need to do this because we need to check for superset-ness
         # self.cuts.add(partial.cutEdges)
         # todo consider if can remove cutEdges?
-        printSepToFile(components, partial.cutEdges, orientation)
+        if "constructed" not in self.sepFilename:
+            printSepToFile(components, partial.cutEdges, orientation)
