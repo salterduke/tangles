@@ -11,7 +11,7 @@ class cdChecker(bch.commChecker):
         bch.commChecker.__init__(self, G.vs["name"])
         self.G = G
 
-    def compareCDMethods(self, foundcover, methods = ["CPM","between", "fastgreedy", "infomap", "labelprop", "eigen", "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
+    def compareCDMethods(self, foundcover, methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen", "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
         mshipList = []
 
@@ -24,72 +24,51 @@ class cdChecker(bch.commChecker):
             # todo look at built in comparison methods
 
             for method in methods:
-                if method == "CPM":
-                    for cliqueSize in range(3,7):
-                        cpmCover = self.overlapCliquePercolation(cliqueSize)
-                        if cpmCover is not None:
-                            # print("CPM{}".format(cliqueSize))
-                            CD_mship = self.getMembershipFromCover(cpmCover)
-                        else:
-                            break
-
-                        mshipList.append({"method": "CPM{}".format(cliqueSize),
-                                          "mship": CD_mship
-                                          })
-
-                        for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
-                            value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
-                            # print(order, method, metric, value)
-                            resList.append({"order": order,
-                                            "method": "CPM{}".format(cliqueSize),
-                                            "metric": metric,
-                                            "value": value})
+                if method == "between":
+                    dendro = self.G.community_edge_betweenness(directed=False)
+                    CD_mship = self.getMembershipFromDendro(dendro)
+                elif method == "fastgreedy":
+                    dendro = self.G.community_fastgreedy()
+                    CD_mship = self.getMembershipFromDendro(dendro)
+                elif method == "infomap":
+                    cluster = self.G.community_infomap()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "labelprop":
+                    cluster = self.G.community_label_propagation()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "eigen":
+                    cluster = self.G.community_leading_eigenvector()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "leiden":
+                    cluster = self.G.community_leiden()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "multilevel":
+                    cluster = self.G.community_multilevel()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "modularity":
+                    cluster = self.G.community_optimal_modularity()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "spinglass":
+                    cluster = self.G.community_spinglass()
+                    CD_mship = self.getMembershipFromClustering(cluster)
+                elif method == "walktrap":
+                    dendro = self.G.community_walktrap()
+                    CD_mship = self.getMembershipFromDendro(dendro)
                 else:
-                    if method == "between":
-                        dendro = self.G.community_edge_betweenness(directed=False)
-                        CD_mship = self.getMembershipFromDendro(dendro)
-                    elif method == "fastgreedy":
-                        dendro = self.G.community_fastgreedy()
-                        CD_mship = self.getMembershipFromDendro(dendro)
-                    elif method == "infomap":
-                        cluster = self.G.community_infomap()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "labelprop":
-                        cluster = self.G.community_label_propagation()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "eigen":
-                        cluster = self.G.community_leading_eigenvector()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "leiden":
-                        cluster = self.G.community_leiden()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "multilevel":
-                        cluster = self.G.community_multilevel()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "modularity":
-                        cluster = self.G.community_optimal_modularity()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "spinglass":
-                        cluster = self.G.community_spinglass()
-                        CD_mship = self.getMembershipFromClustering(cluster)
-                    elif method == "walktrap":
-                        dendro = self.G.community_walktrap()
-                        CD_mship = self.getMembershipFromDendro(dendro)
-                    else:
-                        print("Unknown method: ", method)
+                    print("Unknown method: ", method)
 
-                    mshipList.append({"method": method,
-                                      "mship": CD_mship
-                    })
+                mshipList.append({"method": method,
+                                  "mship": CD_mship
+                })
 
-                    for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
-                        value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
+                for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
+                    value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
 
-                        # print(order, method, metric, value)
-                        resList.append({"order": order,
-                                        "method": method,
-                                        "metric": metric,
-                                        "value": value})
+                    # print(order, method, metric, value)
+                    resList.append({"order": order,
+                                    "method": method,
+                                    "metric": metric,
+                                    "value": value})
 
         resDF = pd.DataFrame(resList)
         mshipDF = pd.DataFrame(mshipList)
@@ -141,53 +120,11 @@ class cdChecker(bch.commChecker):
             members = np.where(membership == id)[0]
             cover.loc[self.G.vs[members.tolist()]["name"], id] = 1
 
-        # cpmCover = cpmCover.astype(np.int8)
         # this makes sure only those communities with at least 3 modes are included.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         # cover = cover.loc[:, (cover.sum(axis=0) >= 3)].astype(np.int8)
         cover = cover.astype(np.int8)
         return cover
 
-    def overlapCliquePercolation(self, cliqueSize):
-        # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
-
-        cliques = list(map(set, self.G.maximal_cliques(min=cliqueSize)))
-        # so, each clique is assigned an index in the list.
-
-        edgelist = []
-
-        # adding all the edges in each clique
-        for clique in cliques:
-            for i, j in iter.combinations(clique, 2):
-                edgelist.append((i, j))
-
-        # adding any edges between two cliques with sufficient overlap
-        for i, j in iter.combinations(range(len(cliques)), 2):
-            # iter.combinations(iterable, 2) returns every possible pair of values
-            # in the iterable (irrespective of order), but returns them ordered
-            if len(cliques[i].intersection(cliques[j])) >= cliqueSize-1:
-                edgelist.append((i, j))
-
-        cliqueLinks = ig.Graph(edgelist, directed=False)
-        cliqueComps = cliqueLinks.components()
-
-        numComps = len(cliqueComps)
-        if numComps == 0:
-            return None
-
-        cpmCover = pd.DataFrame(index = sorted(self.G.vs["name"]), columns=range(numComps), dtype=int)
-        for col in cpmCover.columns:
-            cpmCover[col].values[:] = 0
-
-        commIndex = 0
-        for id, comp in enumerate(cliqueComps):
-            # each component is a list of vertices
-            for v in comp:
-                cpmCover.loc[self.nodeNames[v], id] = 1
-            commIndex+=1
-
-        # cpmCover = cpmCover.astype(np.int8)
-        # this makes sure only those communities with at least 3 modes are included.
-        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
-        cpmCover = cpmCover.loc[:, (cpmCover.sum(axis=0) >= 3)].astype(np.int8)
-        return cpmCover
+    # CPM method removed, as error, and take too long to fix and validate.
+    # For code, see master branch (I think?) or commit previous to this
