@@ -15,6 +15,10 @@ class cdChecker(bch.commChecker):
         resList = [] # will be list of dicts, then convert to DF
         mshipList = []
 
+        # optimal modularity doesn't run for larger graphs, so remove
+        if self.G.vcount() > 100:
+            methods = [m for m in methods if m != "modularity"]
+
         # note, double [[]] in .loc gives df, [] gives series
         for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
             orderCover = foundcover.loc[:,foundcover.loc["order"]==order]

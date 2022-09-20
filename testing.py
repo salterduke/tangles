@@ -5,20 +5,121 @@ import matplotlib.pyplot as plt
 # import random
 from sklearn.linear_model import LinearRegression
 import sys
+from scipy.stats import entropy
 
-G = ig.Graph.Read_GML("../NetworkData/MediumSize/adjnoun.gml")
+def l2(x):
 
-visual_style = {}
-visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] = G.vs.indices
-ig.plot(G, **visual_style)
+    if x == 0:
+        return x
+    else:
+        return np.log2(x)
 
-G = G.simplify()
 
-G.write_ncol("../NetworkData/MediumSize/Copperfield.csv", names="label", weights=None)
+def le(x):
+    if x == 0:
+        return x
+    else:
+        return np.log(x)
 
-def longp(l):
-    print("\n".join(map(str, l)))
+def MI_e(P):
+    # todo note these have dims hard coded!!!
+    total = 0
+    for i in range(3):
+        for j in range(2):
+            # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
+            total+= P[i,j]*le(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
+    return total
+
+
+def MI(P):
+    # todo note these have dims hard coded!!!
+    total = 0
+    for i in range(3):
+        for j in range(2):
+            # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
+            total+= P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
+    return total
+
+
+def NMI(N):
+    top = 0
+    bleft = 0
+    bright = 0
+    for i in range(3):
+        bleft += N.sum(axis=1)[i]*l2(N.sum(axis=1)[i]/N.sum())
+        for j in range(2):
+            top += N[i,j]*l2(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
+
+    for j in range(2):
+        bright += N.sum(axis=0)[j] * l2(N.sum(axis=0)[j] / N.sum())
+
+    return(-2*top/(bleft+bright))
+
+NMI(N)
+
+
+def NMI_e(N):
+    top = 0
+    bleft = 0
+    bright = 0
+    for i in range(3):
+        bleft += N.sum(axis=1)[i]*le(N.sum(axis=1)[i]/N.sum())
+        for j in range(2):
+            top += N[i,j]*le(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
+
+    for j in range(2):
+        bright += N.sum(axis=0)[j] * le(N.sum(axis=0)[j] / N.sum())
+
+    return(-2*top/(bleft+bright))
+
+
+NMI(N1)
+NMI_e(N1)
+
+N = np.array([3,0,2,0,0,4]).reshape((3,2))
+P = N/9
+
+N1 = np.array([2,1,1,0,3,2]).reshape((3,2))
+P1 = N1/9
+
+
+I = MI(P)
+HC2 = entropy(P.sum(axis=0), base=2)
+HC1 = entropy(P.sum(axis=1), base=2)
+
+I_e = MI_e(P)
+HC2_e = entropy(P.sum(axis=0)) # base e
+HC1_e = entropy(P.sum(axis=1))
+
+myVI_e = HC1_e + HC2_e - 2*I_e
+
+myVI_e - VI
+
+m1 = [0, 0, 0, 1, 1, 2, 2, 2, 2]
+m2 = [0, 0, 0, 0, 0, 1, 1, 1, 1]
+
+VI = ig.compare_communities(m1, m2, method = "vi")
+NMI_ig = ig.compare_communities(m1, m2, method = "nmi")
+
+(HC1 + HC2 - VI)/2
+
+myVI = HC1 + HC2 - 2*I
+myVI/VI
+VI/myVI
+
+# G = ig.Graph.Read_GML("../NetworkData/MediumSize/adjnoun.gml")
+#
+# visual_style = {}
+# visual_style["vertex_color"] = "white"
+# visual_style["vertex_label"] = G.vs.indices
+# ig.plot(G, **visual_style)
+#
+# G = G.simplify()
+#
+# G.write_ncol("../NetworkData/MediumSize/Copperfield.csv", names="label", weights=None)
+#
+# def longp(l):
+#     print("\n".join(map(str, l)))
 
 
 # print(sys.argv[0])
