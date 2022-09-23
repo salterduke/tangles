@@ -5,15 +5,129 @@ import matplotlib.pyplot as plt
 # import random
 from sklearn.linear_model import LinearRegression
 import sys
+from scipy.stats import entropy
 
-def longp(l):
-    print("\n".join(map(str, l)))
+def l2(x):
 
-print("moocow")
+    if x == 0:
+        return x
+    else:
+        return np.log2(x)
 
-print(sys.argv[0])
-print(sys.argv[1])
-print(len(sys.argv))
+
+def le(x):
+    if x == 0:
+        return x
+    else:
+        return np.log(x)
+
+def MI_e(P):
+    total = 0
+    for i in range(P.shape[0]):
+        for j in range(P.shape[1]):
+            # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
+            total+= P[i,j]*le(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
+    return total
+
+
+def MI(P):
+    total = 0
+    for i in range(P.shape[0]):
+        for j in range(P.shape[1]):
+            # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
+            total+= P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
+    return total
+
+
+def NMI(N):
+    top = 0
+    bleft = 0
+    bright = 0
+    for i in range(N.shape[0]):
+        bleft += N.sum(axis=1)[i]*l2(N.sum(axis=1)[i]/N.sum())
+        for j in range(N.shape[1]):
+            top += N[i,j]*l2(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
+
+    for j in range(N.shape[1]):
+        bright += N.sum(axis=0)[j] * l2(N.sum(axis=0)[j] / N.sum())
+
+    return(-2*top/(bleft+bright))
+
+NMI(N)
+
+
+def NMI_e(N):
+    top = 0
+    bleft = 0
+    bright = 0
+    for i in range(N.shape[0]):
+        bleft += N.sum(axis=1)[i]*le(N.sum(axis=1)[i]/N.sum())
+        for j in range(N.shape[1]):
+            top += N[i,j]*le(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
+
+    for j in range(N.shape[1]):
+        bright += N.sum(axis=0)[j] * le(N.sum(axis=0)[j] / N.sum())
+
+    return(-2*top/(bleft+bright))
+
+
+NMI(N1)
+NMI_e(N1)
+
+N = np.array([3,0,2,0,0,4]).reshape((3,2))
+P = N/9
+
+N1 = np.array([2,1,1,0,3,2]).reshape((3,2))
+P1 = N1/9
+
+Ni = np.array([3,0,0,0,2,0,0,0,4]).reshape((3,3))
+Pi = Ni/9
+
+I = MI(P)
+HC2 = entropy(P.sum(axis=0), base=2)
+HC1 = entropy(P.sum(axis=1), base=2)
+
+I_e = MI_e(P)
+HC2_e = entropy(P.sum(axis=0)) # base e
+HC1_e = entropy(P.sum(axis=1))
+
+myVI_e = HC1_e + HC2_e - 2*I_e
+
+myVI_e - VI
+
+m1 = [0, 0, 0, 1, 1, 2, 2, 2, 2]
+m2 = [0, 0, 0, 0, 0, 1, 1, 1, 1]
+
+VI = ig.compare_communities(m1, m2, method = "vi")
+NMI_ig = ig.compare_communities(m1, m2, method = "nmi")
+
+(HC1 + HC2 - VI)/2
+
+myVI = HC1 + HC2 - 2*I
+myVI/VI
+VI/myVI
+
+# G = ig.Graph.Read_GML("../NetworkData/MediumSize/adjnoun.gml")
+#
+# visual_style = {}
+# visual_style["vertex_color"] = "white"
+# visual_style["vertex_label"] = G.vs.indices
+# ig.plot(G, **visual_style)
+#
+# G = G.simplify()
+#
+# G.write_ncol("../NetworkData/MediumSize/Copperfield.csv", names="label", weights=None)
+#
+# def longp(l):
+#     print("\n".join(map(str, l)))
+
+
+# print(sys.argv[0])
+# print(sys.argv[1])
+# print(len(sys.argv))
+
+
+
 
 # minDist = min({self.d[j] for j in j_in_W
 #                if (self.H.es[self.H.get_eid(i, j)]["weight"] - self.H.es[self.H.get_eid(i, j)]["flow"] + self.H.es[self.H.get_eid(j, i)]["flow"] ) > 0})
@@ -77,7 +191,7 @@ print(len(sys.argv))
 # # t = g.gomory_hu_tree()
 visual_style = {}
 # visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] = range(9)
+visual_style["vertex_label"] =
 ig.plot(t, **visual_style)
 #
 # ig.plot(t)
@@ -270,3 +384,5 @@ ig.plot(t, **visual_style)
 # # #     # cur2.execute(deleteString, (c[0],))
 # # #
 # # # # self.partcutConn.commit()
+
+
