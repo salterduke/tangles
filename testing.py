@@ -22,20 +22,18 @@ def le(x):
         return np.log(x)
 
 def MI_e(P):
-    # todo note these have dims hard coded!!!
     total = 0
-    for i in range(3):
-        for j in range(2):
+    for i in range(P.shape[0]):
+        for j in range(P.shape[1]):
             # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
             total+= P[i,j]*le(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
     return total
 
 
 def MI(P):
-    # todo note these have dims hard coded!!!
     total = 0
-    for i in range(3):
-        for j in range(2):
+    for i in range(P.shape[0]):
+        for j in range(P.shape[1]):
             # print(i,j,P[i,j],P.sum(axis=1)[i],P.sum(axis=0)[j],P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j])))
             total+= P[i,j]*l2(P[i,j] / (P.sum(axis=1)[i] * P.sum(axis=0)[j]))
     return total
@@ -45,12 +43,12 @@ def NMI(N):
     top = 0
     bleft = 0
     bright = 0
-    for i in range(3):
+    for i in range(N.shape[0]):
         bleft += N.sum(axis=1)[i]*l2(N.sum(axis=1)[i]/N.sum())
-        for j in range(2):
+        for j in range(N.shape[1]):
             top += N[i,j]*l2(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
 
-    for j in range(2):
+    for j in range(N.shape[1]):
         bright += N.sum(axis=0)[j] * l2(N.sum(axis=0)[j] / N.sum())
 
     return(-2*top/(bleft+bright))
@@ -62,12 +60,12 @@ def NMI_e(N):
     top = 0
     bleft = 0
     bright = 0
-    for i in range(3):
+    for i in range(N.shape[0]):
         bleft += N.sum(axis=1)[i]*le(N.sum(axis=1)[i]/N.sum())
-        for j in range(2):
+        for j in range(N.shape[1]):
             top += N[i,j]*le(N[i,j]*N.sum()/(N.sum(axis=1)[i]*N.sum(axis=0)[j]))
 
-    for j in range(2):
+    for j in range(N.shape[1]):
         bright += N.sum(axis=0)[j] * le(N.sum(axis=0)[j] / N.sum())
 
     return(-2*top/(bleft+bright))
@@ -82,6 +80,8 @@ P = N/9
 N1 = np.array([2,1,1,0,3,2]).reshape((3,2))
 P1 = N1/9
 
+Ni = np.array([3,0,0,0,2,0,0,0,4]).reshape((3,3))
+Pi = Ni/9
 
 I = MI(P)
 HC2 = entropy(P.sum(axis=0), base=2)
