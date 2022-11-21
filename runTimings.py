@@ -9,5 +9,5 @@ for i in range(5):
     os.system("cp const_200.txt const.txt")
     print("Before VY 200, run: {}".format(i))
     os.system("python main.py VY")
-    print("Before YWS 150, run: {}".format(i))
+    print("Before YWS 200, run: {}".format(i))
     os.system("python main.py VY")

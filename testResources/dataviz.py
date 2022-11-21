@@ -103,8 +103,11 @@ results = pd.concat(resDFs)
 
 for vs in (20,50,100):
     singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-    sns.relplot(x="NominalEs", y="time", row="order", hue="algorithm", data=singleVs)
-    plt.savefig("./Timings/Vertices_{}.png".format(vs))
+    sns.relplot(x="NominalEs", y="time", col="order", col_wrap=2, hue="algorithm", data=singleVs)
+    # plt.savefig("./Timings/Vertices_{}.png".format(vs))
+    plt.savefig("./Timings/Vertices_{}.pdf".format(vs))
+
+
 
 # shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
 # # shortres_noOutlier = shortres.loc[shortres.time < 1500]
