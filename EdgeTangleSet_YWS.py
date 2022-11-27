@@ -607,12 +607,7 @@ class EdgeTangleSet(btang.TangleSet):
         def sideIsDefSmall(side, sep_k):
             if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
                 return True
-            # else:
-            #     return False
-
-            # if 10 in side and 11 in side and 28 in side and 9 not in side:
-            #     print("moocow")
-
+ 
             if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
                 # ie, each of two v's makes the small side of some sep,
                 # and the union of two small sides is small if the k of each <= k of the union
