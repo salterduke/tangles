@@ -16,9 +16,9 @@ if __name__ == '__main__':
     configFile = "const.txt"
 
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
-        print("Dev testing")
+        print("Dev testing YWS")
         testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
-        configFile = "config2.txt"
+        configFile = "config.txt"
     elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
         print("Running YWS")
         testName = "TestYWS"
@@ -40,8 +40,6 @@ def runAnalysis(job):
 
     n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
     secs = log.tock(ticktoken)
-
-    # jobGraph.overLapCliquePercolation()
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 

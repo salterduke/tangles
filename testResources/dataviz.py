@@ -14,12 +14,19 @@ import seaborn as sns
 sns.set()
 
 VYfiles = [
-"./Timings/VY_results2022-07-06 22.59.30.385284.csv",
-"./Timings/VY_results2022-07-10 21.33.23.724766.csv"
+'../outputTestVY/results2022-07-14 20.38.05.058843.csv',
+'../outputTestVY/results2022-07-16 07.30.43.685643.csv',
+'../outputTestVY/results2022-07-17 04.04.03.003248.csv',
+'../outputTestVY/results2022-07-24 21.31.01.705614.csv',
+'../outputTestVY/results2022-07-25 21.26.21.847385.csv'
 ]
+
 YWSfiles = [
-"./Timings/YWS_results2022-07-12 05.28.58.377122.csv",
-"./Timings/YWS_results2022-07-12 21.24.05.949376.csv"
+'../outputTestYWS/results2022-07-14 03.14.23.538113.csv',
+'../outputTestYWS/results2022-07-15 07.42.25.115347.csv',
+'../outputTestYWS/results2022-07-17 21.17.23.678404.csv',
+'../outputTestYWS/results2022-07-20 02.30.23.855924.csv',
+'../outputTestYWS/results2022-07-26 21.18.09.023190.csv'
 ]
 
 
@@ -94,16 +101,21 @@ for id in (0,1):
 
 results = pd.concat(resDFs)
 
-shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
-# shortres_noOutlier = shortres.loc[shortres.time < 1500]
+for vs in (20,50,100):
+    singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
+    sns.relplot(x="NominalEs", y="time", row="order", hue="algorithm", data=singleVs)
+    plt.savefig("./Timings/Vertices_{}.png".format(vs))
 
-lowOrder = shortres.loc[shortres.order<=4].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-highOrder = shortres.loc[shortres.order>=5].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-
-sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=lowOrder)
-plt.savefig("./Timings/lowOrder.png")
-
-sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=highOrder)
-plt.savefig("./Timings/highOrder.png")
-
+# shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
+# # shortres_noOutlier = shortres.loc[shortres.time < 1500]
+#
+# lowOrder = shortres.loc[shortres.order<=4].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
+# highOrder = shortres.loc[shortres.order>=5].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
+#
+# sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=lowOrder)
+# plt.savefig("./Timings/lowOrder.png")
+#
+# sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=highOrder)
+# plt.savefig("./Timings/highOrder.png")
+#
 
