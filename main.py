@@ -1,4 +1,5 @@
 import networkCD as netCD
+import MNIST
 import numpy as np
 import datetime
 import pandas as pd
@@ -45,6 +46,23 @@ def runAnalysis(job):
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
+def runMNIST(job, MNISTdata, imageID):
+    job["outName"] = "MNIST_id{}".format(imageID)
+    log.log("Job: {}, image {}".format(job["outName"], imageID))
+    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
+    job["doMNIST"] = True
+    job["MNISTid"] = imageID
+    job["MNISTdata"] = MNISTdata
+
+    jobGraph = netCD.graphCD(job, log)
+
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 0, sepsOnly=False)
+    secs = log.tock(ticktoken)
+
+    # jobGraph.overLapCliquePercolation()
+
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+
 def runMadeupGraph(job, N, M):
     job["outName"] = "constructed_{}_{}".format(N,M)
     job["construct"] = True
@@ -82,6 +100,7 @@ if __name__ == '__main__':
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
     doConstructed = False
+    doMNIST = False
     if doConstructed:
         # timing tests:
         job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
@@ -91,6 +110,16 @@ if __name__ == '__main__':
             for m in range(n + 10, 3 * n+10, 20):
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
+    elif doMNIST:
+        job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
+        jobResults = []
+        MNISTdata = MNIST.MNIST()
+
+        ids = [0]
+        # todo add different ids here
+        for id in ids:
+            jobres = runMNIST(job, MNISTdata, id)
+            jobResults.append(jobres)
     else:
         jobResults = []
         for index, job in jobsToRun.iterrows():
