@@ -32,6 +32,8 @@ class graphCD():
             graph.write_ncol(fname)
             with open("const.txt", 'a') as the_file:
                 the_file.write("{};{}".format(fname, job["outName"]))
+        elif "doMNIST" in job and job["doMNIST"]:
+            graph = job["MNISTdata"].fetchSingleImage(job["MNISTid"])
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
