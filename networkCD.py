@@ -32,8 +32,8 @@ class graphCD():
             graph.write_ncol(fname)
             with open("const.txt", 'a') as the_file:
                 the_file.write("{};{}".format(fname, job["outName"]))
-        elif "doMNIST" in job and job["doMNIST"]:
-            graph = job["MNISTdata"].fetchSingleImage(job["MNISTid"])
+        elif "doImage" in job and job["doImage"]:
+            graph = job["imParser"].fetchSingleImage(type=job["imType"], id=job["MNISTid"])
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
@@ -105,6 +105,8 @@ class graphCD():
 
     def findTangleComms(self, dep = 4, sepsOnly = False):
 
+        # todo edit so can find first (dep+1) orders, not just any orders <= (min order + dep)
+
         #### dep is added to kmin to give *separation* order
         #### add 1 to get *tangle* order
         #### note, finds dep+1 total levels
@@ -119,7 +121,9 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-            quality = self.evaluateCommunities()
+            if not self.job["doImage"]:
+                quality = self.evaluateCommunities()
+            # todo add evaluation for images
 
         self.doPrint = False
         if self.doPrint:

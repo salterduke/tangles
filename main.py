@@ -1,5 +1,5 @@
 import networkCD as netCD
-import MNIST
+import ImageParser
 import numpy as np
 import datetime
 import pandas as pd
@@ -10,6 +10,7 @@ import sys
 import shutil
 import multiprocessing
 import platform
+import ImageParser
 
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
@@ -46,17 +47,18 @@ def runAnalysis(job):
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
-def runMNIST(job, MNISTdata, imageID):
-    job["outName"] = "MNIST_id{}".format(imageID)
-    log.log("Job: {}, image {}".format(job["outName"], imageID))
+def runImage(job, imParser, imType, imageID):
+    job["outName"] = "{}_id{}".format(imType, imageID)
+    log.log("Job: {}".format(job["outName"]))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
-    job["doMNIST"] = True
+    job["doImage"] = True
+    job["imType"] = imType
     job["MNISTid"] = imageID
-    job["MNISTdata"] = MNISTdata
+    job["imParser"] = imParser
 
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 0, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
@@ -100,7 +102,12 @@ if __name__ == '__main__':
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
     doConstructed = False
-    doMNIST = False
+    if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
+        doImage = True
+    else:
+        doImage = False
+    imageType = "ICON"
+
     if doConstructed:
         # timing tests:
         job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
@@ -110,15 +117,15 @@ if __name__ == '__main__':
             for m in range(n + 10, 3 * n+10, 20):
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
-    elif doMNIST:
+    elif doImage:
         job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
         jobResults = []
-        MNISTdata = MNIST.MNIST()
+        parser = ImageParser.ImageParser()
 
-        ids = [0]
+        ids = range(6)
         # todo add different ids here
         for id in ids:
-            jobres = runMNIST(job, MNISTdata, id)
+            jobres = runImage(job, parser, imageType, id)
             jobResults.append(jobres)
     else:
         jobResults = []

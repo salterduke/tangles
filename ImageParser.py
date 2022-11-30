@@ -2,17 +2,27 @@ import igraph as ig
 import numpy as np
 import random
 import matplotlib as mpl
+import PIL
+
 import matplotlib.pyplot as plt
 mpl.rc('axes', labelsize=14)
 mpl.rc('xtick', labelsize=12)
 mpl.rc('ytick', labelsize=12)
 
 
-class MNIST():
+class ImageParser():
     def __init__(self):
-        self.dim = 28 # change if type of image changes, ditto below
-        self.numColours = 256
+        self.numColours = 256   # change if type of image changes
+        self.iconList = ["headphones",
+                         "printer",
+                         "binderpage",
+                         "lightbulb",
+                         "flame",
+                         "folder"]
 
+        self.mnist = None
+
+    def initMNIST(self):
         try:
             from sklearn.datasets import fetch_openml
             self.mnist = fetch_openml('mnist_784', version=1, cache=True)
@@ -22,12 +32,53 @@ class MNIST():
             from sklearn.datasets import fetch_mldata
             self.mnist = fetch_mldata('MNIST original')
 
-    def fetchSingleImage(self, id = None):
+
+    def fetchMNISTasARRAY(self, id=None):
+        if self.mnist is None:
+            self.initMNIST()    # ie, only do this if actually doing MNIST, as it takes a little while
+
+        self.dim = 28 # change if type of image changes, ditto below
         if id is None:
             id = random.randrange(0, self.mnist.data.shape[0])
         # if id < 0 or id >= self.mnist.data.shape[0]:
             # some error
         imArray = self.mnist.data[id]
+
+        # MNIST stored as 0 = white, 255 = black. Convert to the other way round to match standard hex codes
+        imArray = np.array(list(map(lambda x: self.numColours - 1 - x, imArray)))
+
+        return imArray
+
+    def fetchICONasARRAY(self, id = None):
+        self.dim = 16 # change if type of image changes,
+
+        if id >= len(self.iconList) or id < 0:
+            exit("Invalid icon id code {}".format(id))
+
+        if id is None:
+            id = random.randrange(0, len(self.iconList))
+
+
+        iconLocs = "/home/saltermich1/PhDThesisGdrive/Code/NetworkData/MNIST"
+        # todo sort this properly later, ie machine indep, change image etc
+        filename = "{}/{}.ico".format(iconLocs, self.iconList[id])
+        img = PIL.Image.open(filename)
+
+        new_image = PIL.Image.new("RGBA", img.size, "WHITE")  # Create a white rgba background
+        new_image.paste(img, (0, 0), img)  # Paste the image on the background. Go to the links given below for details.
+
+        # colArray = np.asarray(img)
+        imArray = np.asarray(new_image.convert(mode="L")).reshape(-1)
+
+        return imArray
+
+    def fetchSingleImage(self, type="MNIST", id = None):
+        if type.upper() == "MNIST":
+            imArray = self.fetchMNISTasARRAY(id)
+        elif type.upper() == "ICON":
+            imArray = self.fetchICONasARRAY(id)
+        else:
+            exit("invalid image type {}. Must be MNIST or ICON.".format(type))
 
         # down-sample to three colours (white grey black)
         # just doing it a stupid way to start with
@@ -40,6 +91,8 @@ class MNIST():
 
 
         imArray = np.array(list(map(lambda x: round(x / self.numColours * self.maxColourCode), imArray)))
+
+
 
         graph = ig.Graph()
         graph.add_vertices(self.dim*self.dim)
@@ -65,22 +118,28 @@ class MNIST():
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
         dummy = 1
-        graph.delete_edges(weight_eq=0)
-        return graph
+#        graph.delete_edges(weight_eq=0)
+        # todo check if this is valid
 
         # visual_style = {}
-        # visual_style["vertex_label"] = imArray
-        # color_list = ["white","grey","black"]
+        # visual_style["vertex_label"] = range(len(imArray))
+        # color_list = ["black","grey","white"]
         # visual_style["edge_label"] = graph.es["weight"]
         # visual_style["bbox"] = (0, 0, 1000, 1000)
         #
         # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
         #
         # layout = graph.layout_grid()
-        # ig.plot(graph, layout=layout, **visual_style)
+        # output = ig.plot(graph, layout=layout, **visual_style)
+        # outfile = "{}.png".format(self.iconList[id])
+        # output.save(outfile)
+
+
+        return graph
+
 
 
 if __name__ == '__main__':
     print("running test on one image")
-    M = MNIST()
-    M.fetchSingleImage(0)
+    M = ImageParser()
+    M.fetchSingleImage(type="ICON", id = 0)
