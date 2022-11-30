@@ -121,7 +121,7 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-            if not self.job["doImage"]:
+            if "doImage" not in self.job or not self.job["doImage"]:
                 quality = self.evaluateCommunities()
             # todo add evaluation for images
 

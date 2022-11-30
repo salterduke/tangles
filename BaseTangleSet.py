@@ -33,6 +33,8 @@ class TangleSet():
     def findAllTangles(self, depth=4, sepsOnly = False):
         print("Finding All Tangles")
 
+        orderCount = 0
+
         timings = []
 
         ### so that the first tangle tree starts at the root.
@@ -41,6 +43,7 @@ class TangleSet():
         print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
         self.findNextOrderSeparations(None, depth)
+        orderCount+=1
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
@@ -60,12 +63,21 @@ class TangleSet():
                 self.log.tock()
 
         # # # ### find all tangles at each k
-        for k in range(self.kmin+1, self.kmax+1):
+        k = self.kmin
+        while orderCount < depth:
+        # for k in range(self.kmin+1, self.kmax+1):
             print("-------------------------------------------")
+            k+=1
             self.log.tick("kTangle{} Find seps".format(k))
             self.findNextOrderSeparations(k)
             timings.append(self.log.tock())
-            if not sepsOnly:
+            # check if found any separations
+            kSeps = len(self.separations[k]) + len(self.definitelySmall[k])
+            print("Found {} seps at order k = {}".format(kSeps, k))
+            if kSeps > 0:
+                orderCount+=1
+
+            if not sepsOnly and kSeps > 0:
                 self.log.tick("kTangle{} Build Tangle".format(k))
                 if not self.kTangle(k):
                     print("No tangles at k: {}".format(k))
