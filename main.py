@@ -123,7 +123,7 @@ if __name__ == '__main__':
         jobResults = []
         parser = ImageParser.ImageParser()
 
-        ids = range(6)
+        ids = [0]
         # todo add different ids here
         for id in ids:
             jobres = runImage(job, parser, imageType, id)
