@@ -97,7 +97,7 @@ class ImageParser():
         # plt.axis("off")
 
 
-        imArray = np.array(list(map(lambda x: round(x / self.numColours * self.maxColourCode), imArray)))
+        imArray = np.array(list(map(lambda x: np.round(x / self.numColours * self.maxColourCode), imArray)))
 
 
 
