@@ -58,7 +58,7 @@ def runImage(job, imParser, imType, imageID):
 
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 1, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
@@ -106,8 +106,8 @@ if __name__ == '__main__':
         doImage = True
     else:
         doImage = False
-    imageType = "ICON"
-    doImage = False
+    imageType = "MNIST"
+    # doImage = False
 
     if doConstructed:
         # timing tests:

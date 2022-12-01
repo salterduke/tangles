@@ -47,6 +47,13 @@ class ImageParser():
         # MNIST stored as 0 = white, 255 = black. Convert to the other way round to match standard hex codes
         imArray = np.array(list(map(lambda x: self.numColours - 1 - x, imArray)))
 
+        A = imArray.reshape((self.dim, self.dim))
+        newdim = 16
+        margin = int((self.dim - newdim) / 2)
+        # todo deal with odd numbers
+        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)]
+        self.dim = newdim
+
         return imArray
 
     def fetchICONasARRAY(self, id = None):
