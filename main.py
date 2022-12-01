@@ -107,6 +107,7 @@ if __name__ == '__main__':
     else:
         doImage = False
     imageType = "ICON"
+    doImage = False
 
     if doConstructed:
         # timing tests:
