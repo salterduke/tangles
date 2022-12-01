@@ -51,7 +51,7 @@ class ImageParser():
         newdim = 16
         margin = int((self.dim - newdim) / 2)
         # todo deal with odd numbers
-        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)]
+        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
         self.dim = newdim
 
         return imArray
@@ -114,7 +114,10 @@ class ImageParser():
                     targetID = (i+1) * self.dim + j
                     # so if adj vs have same/similar colour edge weight is *high*
                     # ie, small cuts between *different* colours
-                    edgeWeight = self.maxColourCode - np.abs(imArray[sourceID] - imArray[targetID])
+                    try:
+                        edgeWeight = self.maxColourCode - np.abs(imArray[sourceID] - imArray[targetID])
+                    except:
+                        print("moocow")
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
                 if j < self.dim - 1:
                     # new edge
