@@ -48,7 +48,7 @@ class ImageParser():
         imArray = np.array(list(map(lambda x: self.numColours - 1 - x, imArray)))
 
         A = imArray.reshape((self.dim, self.dim))
-        newdim = 20
+        newdim = 28
         margin = int((self.dim - newdim) / 2)
         # todo deal with odd numbers
         imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
