@@ -48,7 +48,7 @@ class ImageParser():
         imArray = np.array(list(map(lambda x: self.numColours - 1 - x, imArray)))
 
         A = imArray.reshape((self.dim, self.dim))
-        newdim = 16
+        newdim = 20
         margin = int((self.dim - newdim) / 2)
         # todo deal with odd numbers
         imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
@@ -97,7 +97,7 @@ class ImageParser():
         # plt.axis("off")
 
 
-        imArray = np.array(list(map(lambda x: np.round(x / self.numColours * self.maxColourCode), imArray)))
+        imArray = np.array(list(map(lambda x: int(np.round(x / self.numColours * self.maxColourCode)), imArray)))
 
 
 
@@ -137,8 +137,12 @@ class ImageParser():
         # visual_style["edge_label"] = graph.es["weight"]
         # visual_style["bbox"] = (0, 0, 1000, 1000)
         #
-        # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
+        # try:
+        #     visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
+        # except:
+        #     print("moocow")
         #
+        # graph.es["curved"] = 0
         # layout = graph.layout_grid()
         # output = ig.plot(graph, layout=layout, **visual_style)
         # outfile = "{}.png".format(self.iconList[id])

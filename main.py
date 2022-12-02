@@ -58,7 +58,7 @@ def runImage(job, imParser, imType, imageID):
 
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 1, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
