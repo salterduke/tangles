@@ -40,7 +40,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=True)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
@@ -109,6 +109,9 @@ if __name__ == '__main__':
     imageType = "MNIST"
     doImage = False
 
+    #
+    doImage = False
+
     if doConstructed:
         # timing tests:
         job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
@@ -123,7 +126,7 @@ if __name__ == '__main__':
         jobResults = []
         parser = ImageParser.ImageParser()
 
-        ids = [0]
+        ids = range(6)
         # todo add different ids here
         for id in ids:
             jobres = runImage(job, parser, imageType, id)
