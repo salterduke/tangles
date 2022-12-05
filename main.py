@@ -40,7 +40,7 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=True)
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
     secs = log.tock(ticktoken)
 
     # jobGraph.overLapCliquePercolation()
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     else:
         doImage = False
     imageType = "MNIST"
-    # doImage = False
+    doImage = False
 
     if doConstructed:
         # timing tests:
