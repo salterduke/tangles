@@ -12,7 +12,7 @@ mpl.rc('ytick', labelsize=12)
 
 class ImageParser():
     def __init__(self):
-        self.numColours = 256   # change if type of image changes
+        self.numColoursOrig = 256   # change if type of image changes
         self.iconList = ["headphones",
                          "printer",
                          "binderpage",
@@ -32,6 +32,16 @@ class ImageParser():
             from sklearn.datasets import fetch_mldata
             self.mnist = fetch_mldata('MNIST original')
 
+    def crop(self, longA, newdim):
+        A = longA.reshape((self.dim, self.dim))
+        # newdim = 28
+        margin = int((self.dim - newdim) / 2)
+        # todo deal with odd numbers
+        # todo also if new > old
+        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
+        self.dim = newdim
+        return imArray
+
 
     def fetchMNISTasARRAY(self, id=None):
         if self.mnist is None:
@@ -45,19 +55,14 @@ class ImageParser():
         imArray = self.mnist.data[id]
 
         # MNIST stored as 0 = white, 255 = black. Convert to the other way round to match standard hex codes
-        imArray = np.array(list(map(lambda x: self.numColours - 1 - x, imArray)))
+        imArray = np.array(list(map(lambda x: self.numColoursOrig - 1 - x, imArray)))
 
-        A = imArray.reshape((self.dim, self.dim))
-        newdim = 28
-        margin = int((self.dim - newdim) / 2)
-        # todo deal with odd numbers
-        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
-        self.dim = newdim
+        imArray = self.crop(imArray, 16)
 
         return imArray
 
     def fetchICONasARRAY(self, id = None):
-        self.dim = 16 # change if type of image changes,
+        # self.dim = 16 # change if type of image changes,
 
         if id >= len(self.iconList) or id < 0:
             exit("Invalid icon id code {}".format(id))
@@ -65,10 +70,10 @@ class ImageParser():
         if id is None:
             id = random.randrange(0, len(self.iconList))
 
-
-        iconLocs = "/home/saltermich1/PhDThesisGdrive/Code/NetworkData/MNIST"
+        iconLocs = "/home/saltermich1/PhDThesisGdrive/Code/NetworkData/MNIST/photos"
         # todo sort this properly later, ie machine indep, change image etc
-        filename = "{}/{}.ico".format(iconLocs, self.iconList[id])
+        # filename = "{}/{}.ico".format(iconLocs, self.iconList[id])
+        filename = "{}/monalisa{}.png".format(iconLocs, id)
         img = PIL.Image.open(filename)
 
         new_image = PIL.Image.new("RGBA", img.size, "WHITE")  # Create a white rgba background
@@ -76,20 +81,26 @@ class ImageParser():
 
         # colArray = np.asarray(img)
         imArray = np.asarray(new_image.convert(mode="L")).reshape(-1)
+        if new_image.size[0] != new_image.size[1]:
+            exit("crack the sads, image not square")
+        self.dim = new_image.size[0]
+
+        newdim = 16
+        imArray = self.crop(imArray, newdim)
 
         return imArray
 
-    def fetchSingleImage(self, type="MNIST", id = None):
-        if type.upper() == "MNIST":
+    def fetchSingleImage(self, imtype="MNIST", id = None):
+        if imtype.upper() == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
-        elif type.upper() == "ICON":
+        elif imtype.upper() == "ICON":
             imArray = self.fetchICONasARRAY(id)
         else:
-            exit("invalid image type {}. Must be MNIST or ICON.".format(type))
+            exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
 
         # down-sample to three colours (white grey black)
         # just doing it a stupid way to start with
-        self.maxColourCode = 2 # *should* be able to convert to more shades easily, this way
+        self.numColoursNew = 3 # *should* be able to convert to more shades easily, this way
         # todo make smarter
 
         # image = imArray.reshape(28, 28)
@@ -97,7 +108,7 @@ class ImageParser():
         # plt.axis("off")
 
 
-        imArray = np.array(list(map(lambda x: int(np.round(x / self.numColours * self.maxColourCode)), imArray)))
+        imArray = np.array(list(map(lambda x: int(np.round(x / self.numColoursOrig * (self.numColoursNew -1))), imArray)))
 
 
 
@@ -115,7 +126,8 @@ class ImageParser():
                     # so if adj vs have same/similar colour edge weight is *high*
                     # ie, small cuts between *different* colours
                     try:
-                        edgeWeight = self.maxColourCode - np.abs(imArray[sourceID] - imArray[targetID])
+                        # -1 is offset for 0 index
+                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
                     except:
                         print("moocow")
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
@@ -124,26 +136,30 @@ class ImageParser():
                     targetID = (i) * self.dim + (j+1)
                     # so if adj vs have same/similar colour edge weight is *high*
                     # ie, small cuts between *different* colours
-                    edgeWeight = self.maxColourCode - np.abs(imArray[sourceID] - imArray[targetID])
+                    # -1 is offset for 0 index
+                    edgeWeight = self.numColoursNew - 1 - np.abs(imArray[sourceID] - imArray[targetID])
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
         dummy = 1
 #        graph.delete_edges(weight_eq=0)
         # todo check if this is valid
 
-        # visual_style = {}
-        # visual_style["vertex_label"] = range(len(imArray))
+        visual_style = {}
+        visual_style["vertex_label"] = range(len(imArray))
         # color_list = ["black","grey","white"]
-        # visual_style["edge_label"] = graph.es["weight"]
-        # visual_style["bbox"] = (0, 0, 1000, 1000)
-        #
-        # try:
-        #     visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
-        # except:
-        #     print("moocow")
-        #
-        # graph.es["curved"] = 0
-        # layout = graph.layout_grid()
+        visual_style["edge_label"] = graph.es["weight"]
+        visual_style["bbox"] = (0, 0, self.dim*25, self.dim*25)
+
+        pal = ig.GradientPalette("black", "white", self.numColoursNew)
+
+        try:
+            visual_style["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
+            # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
+        except:
+            print("moocow")
+
+        graph.es["curved"] = 0
+        layout = graph.layout_grid()
         # output = ig.plot(graph, layout=layout, **visual_style)
         # outfile = "{}.png".format(self.iconList[id])
         # output.save(outfile)
@@ -156,4 +172,4 @@ class ImageParser():
 if __name__ == '__main__':
     print("running test on one image")
     M = ImageParser()
-    M.fetchSingleImage(type="ICON", id = 0)
+    M.fetchSingleImage(imtype="ICON", id = 0)

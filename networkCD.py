@@ -33,7 +33,7 @@ class graphCD():
             with open("const.txt", 'a') as the_file:
                 the_file.write("{};{}".format(fname, job["outName"]))
         elif "doImage" in job and job["doImage"]:
-            graph = job["imParser"].fetchSingleImage(type=job["imType"], id=job["MNISTid"])
+            graph = job["imParser"].fetchSingleImage(imtype=job["imType"], id=job["MNISTid"])
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
