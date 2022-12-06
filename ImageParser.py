@@ -61,8 +61,7 @@ class ImageParser():
 
         return imArray
 
-    def fetchICONasARRAY(self, id = None):
-        # self.dim = 16 # change if type of image changes,
+    def fetchICONasARRAY(self, id = None, newdim = 16):
 
         if id >= len(self.iconList) or id < 0:
             exit("Invalid icon id code {}".format(id))
@@ -85,32 +84,25 @@ class ImageParser():
             exit("crack the sads, image not square")
         self.dim = new_image.size[0]
 
-        newdim = 16
         imArray = self.crop(imArray, newdim)
 
         return imArray
 
-    def fetchSingleImage(self, imtype="MNIST", id = None):
+    def fetchSingleImage(self, imtype="MNIST", id = None, numColours = 256, cropsize = 16):
         if imtype.upper() == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
         elif imtype.upper() == "ICON":
-            imArray = self.fetchICONasARRAY(id)
+            imArray = self.fetchICONasARRAY(id, newdim=cropsize)
         else:
             exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
 
-        # down-sample to three colours (white grey black)
-        # just doing it a stupid way to start with
-        self.numColoursNew = 3 # *should* be able to convert to more shades easily, this way
-        # todo make smarter
+        self.numColoursNew = numColours
 
         # image = imArray.reshape(28, 28)
         # plt.imshow(image, cmap=mpl.cm.binary, interpolation="nearest")
         # plt.axis("off")
 
-
         imArray = np.array(list(map(lambda x: int(np.round(x / self.numColoursOrig * (self.numColoursNew -1))), imArray)))
-
-
 
         graph = ig.Graph()
         graph.add_vertices(self.dim*self.dim)
@@ -144,25 +136,26 @@ class ImageParser():
 #        graph.delete_edges(weight_eq=0)
         # todo check if this is valid
 
-        visual_style = {}
-        visual_style["vertex_label"] = range(len(imArray))
-        # color_list = ["black","grey","white"]
-        visual_style["edge_label"] = graph.es["weight"]
-        visual_style["bbox"] = (0, 0, self.dim*25, self.dim*25)
+        if __name__ == '__main__':
+            visual_style = {}
+            # visual_style["vertex_label"] = range(len(imArray))
+            # visual_style["edge_label"] = graph.es["weight"]
+            visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
 
-        pal = ig.GradientPalette("black", "white", self.numColoursNew)
+            pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
-        try:
-            visual_style["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
-            # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
-        except:
-            print("moocow")
+            try:
+                visual_style["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
+                # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
+            except:
+                print("moocow")
 
-        graph.es["curved"] = 0
-        layout = graph.layout_grid()
-        # output = ig.plot(graph, layout=layout, **visual_style)
-        # outfile = "{}.png".format(self.iconList[id])
-        # output.save(outfile)
+            graph.es["curved"] = 0
+            layout = graph.layout_grid()
+            output = ig.plot(graph, layout=layout, **visual_style)
+            outfile = "monalisa{}.png".format(id)
+            # todo make general
+            output.save(outfile)
 
 
         return graph
@@ -172,4 +165,4 @@ class ImageParser():
 if __name__ == '__main__':
     print("running test on one image")
     M = ImageParser()
-    M.fetchSingleImage(imtype="ICON", id = 0)
+    M.fetchSingleImage(imtype="ICON", id = 0, numColours = 3, cropsize = 40)

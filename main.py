@@ -48,7 +48,7 @@ def runAnalysis(job):
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
 def runImage(job, imParser, imType, imageID):
-    job["outName"] = "{}_id{}".format(imType, imageID)
+    job["outName"] = "{}_id{}_dim{}_cols{}".format(imType, imageID, job["cropsize"], job["numColours"])
     log.log("Job: {}".format(job["outName"]))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     job["doImage"] = True
@@ -121,15 +121,18 @@ if __name__ == '__main__':
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
     elif doImage:
-        job = {'outputFolder': "./output{}".format(testName), 'testName': testName}
+        job = {"outputFolder": "./output{}".format(testName), "testName": testName, "numColours":3, "cropsize": 16}
+
         jobResults = []
         parser = ImageParser.ImageParser()
 
         ids = range(1)
         # todo add different ids here
         for id in ids:
-            jobres = runImage(job, parser, imageType, id)
-            jobResults.append(jobres)
+            for size in [32, 36, 40]:
+                job["cropsize"] = size
+                jobres = runImage(job, parser, imageType, id)
+                jobResults.append(jobres)
     else:
         jobResults = []
         for index, job in jobsToRun.iterrows():
