@@ -15,6 +15,7 @@ import protChecker
 import cdChecker
 import random
 
+from tools import ifelse
 
 class graphCD():
     def __init__(self, job, log):
@@ -33,7 +34,8 @@ class graphCD():
             with open("const.txt", 'a') as the_file:
                 the_file.write("{};{}".format(fname, job["outName"]))
         elif "doImage" in job and job["doImage"]:
-            graph = job["imParser"].fetchSingleImage(imtype=job["imType"], id=job["MNISTid"], numColours = job["numColours"], cropsize = job["cropsize"])
+            graph = job["imParser"].fetchSingleImage(imtype=job["imType"], id=job["MNISTid"], numColours = job["numColours"], cropsize = job.get("cropsize"), rowoffset=job.get("rowoffset"), coloffset=job.get("coloffset"))
+            # todo should I just pass job?
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
@@ -195,7 +197,10 @@ class graphCD():
         # making copy to add row for orders without messing with anything else.
         cover_copy = self.foundcover.copy(deep = True)
         # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
-        cover_copy.loc[len(cover_copy)] = tangOrders
+        try:
+            cover_copy.loc[len(cover_copy)] = tangOrders
+        except:
+            print("moocow")
         cover_copy.index.values[len(cover_copy)-1] = "order"
         cover_copy.to_csv(outfile)
 

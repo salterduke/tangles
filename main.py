@@ -12,6 +12,8 @@ import multiprocessing
 import platform
 import ImageParser
 
+from tools import ifelse
+
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
@@ -121,7 +123,7 @@ if __name__ == '__main__':
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
     elif doImage:
-        job = {"outputFolder": "./output{}".format(testName), "testName": testName, "numColours":3, "cropsize": 16}
+        job = {"outputFolder": "./output{}".format(testName), "testName": testName}
 
         jobResults = []
         parser = ImageParser.ImageParser()
@@ -129,10 +131,12 @@ if __name__ == '__main__':
         ids = range(1)
         # todo add different ids here
         for id in ids:
-            for size in [32, 36, 40]:
-                job["cropsize"] = size
-                jobres = runImage(job, parser, imageType, id)
-                jobResults.append(jobres)
+            job["numColours"] = 3
+            job["cropsize"] = 16
+            job["rowoffset"] = 2  # get right hand side, not centre
+            job["coloffset"] = 12  # get right hand side, not centre
+            jobres = runImage(job, parser, imageType, id)
+            jobResults.append(jobres)
     else:
         jobResults = []
         for index, job in jobsToRun.iterrows():

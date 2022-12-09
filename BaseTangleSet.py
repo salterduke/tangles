@@ -76,6 +76,8 @@ class TangleSet():
             print("Found {} seps at order k = {}".format(kSeps, k))
             if kSeps > 0:
                 orderCount+=1
+            else:
+                print("moocow")
 
             if not sepsOnly and kSeps > 0:
                 self.log.tick("kTangle{} Build Tangle".format(k))
@@ -196,9 +198,16 @@ class TangleSet():
 
         numkdefSmall = len(self.definitelySmall[k])
         numkSeps = len(self.separations[k]) + numkdefSmall
-        # numkSeps = len(self.separations[k])
 
-        self.prevBranches = self.TangleLists[k-1]
+        # loop through and find the last order which had separations
+        lastfound = False
+        for lastorder in range(k-1, 0, -1):
+            if len(self.TangleLists[lastorder]) > 0:
+                self.prevBranches = self.TangleLists[lastorder]
+                lastfound = True
+                break
+        if not lastfound:
+            exit("crack the sads, no prev tangles found")
 
 
         # --------------------------------------------------------------------------

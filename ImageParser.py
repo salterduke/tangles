@@ -32,13 +32,24 @@ class ImageParser():
             from sklearn.datasets import fetch_mldata
             self.mnist = fetch_mldata('MNIST original')
 
-    def crop(self, longA, newdim):
+    def crop(self, longA, newdim, rowstart = None, colstart = None):
         A = longA.reshape((self.dim, self.dim))
-        # newdim = 28
-        margin = int((self.dim - newdim) / 2)
-        # todo deal with odd numbers
-        # todo also if new > old
-        imArray = A[margin:(self.dim - margin), margin:(self.dim - margin)].reshape(-1)
+
+        if rowstart is None:
+            rowstart = int((self.dim - newdim) / 2) # int truncates if odd, which is fine here
+        rowend = int(rowstart + newdim)
+
+        if rowstart < 0 or rowend > self.dim:
+            exit("crack the sads, row crop outside existing border: rowstart {}, rowend {}, current dim {} ".format(rowstart, rowend, self.dim))
+
+        if colstart is None:
+            colstart = int((self.dim - newdim) / 2)  # int truncates if odd, which is fine here
+        colend = int(colstart + newdim)
+
+        if colstart < 0 or colend > self.dim:
+            exit("crack the sads, col crop outside existing border: colstart {}, colend {}, current dim {} ".format(colstart, colend, self.dim))
+
+        imArray = A[rowstart:rowend, colstart:colend].reshape(-1)
         self.dim = newdim
         return imArray
 
@@ -57,17 +68,17 @@ class ImageParser():
         # MNIST stored as 0 = white, 255 = black. Convert to the other way round to match standard hex codes
         imArray = np.array(list(map(lambda x: self.numColoursOrig - 1 - x, imArray)))
 
-        imArray = self.crop(imArray, 16)
-
         return imArray
 
-    def fetchICONasARRAY(self, id = None, newdim = 16):
+    def fetchICONasARRAY(self, id = None):
+
+        if id is None:
+            # todo fix this for mona lisa
+            id = random.randrange(0, len(self.iconList))
 
         if id >= len(self.iconList) or id < 0:
             exit("Invalid icon id code {}".format(id))
 
-        if id is None:
-            id = random.randrange(0, len(self.iconList))
 
         iconLocs = "/home/saltermich1/PhDThesisGdrive/Code/NetworkData/MNIST/photos"
         # todo sort this properly later, ie machine indep, change image etc
@@ -84,17 +95,17 @@ class ImageParser():
             exit("crack the sads, image not square")
         self.dim = new_image.size[0]
 
-        imArray = self.crop(imArray, newdim)
-
         return imArray
 
-    def fetchSingleImage(self, imtype="MNIST", id = None, numColours = 256, cropsize = 16):
+    def fetchSingleImage(self, imtype="MNIST", id = None, numColours = 256, cropsize = 16, rowoffset = None, coloffset = None):
         if imtype.upper() == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
         elif imtype.upper() == "ICON":
-            imArray = self.fetchICONasARRAY(id, newdim=cropsize)
+            imArray = self.fetchICONasARRAY(id)
         else:
             exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
+
+        imArray = self.crop(imArray, cropsize, rowoffset, coloffset)
 
         self.numColoursNew = numColours
 
@@ -106,6 +117,11 @@ class ImageParser():
 
         graph = ig.Graph()
         graph.add_vertices(self.dim*self.dim)
+
+        # so if adj vs have same/similar colour edge weight is *high*
+        # ie, small cuts between *different* colours
+        weightExp = 2
+
         # iterate over *nodes*
         for i in range(self.dim): # rows
             for j in range(self.dim): # columns
@@ -113,24 +129,41 @@ class ImageParser():
                 graph.vs[sourceID]["name"] = "{}_{}".format(i,j)
                 # add only edges going "right" or "down" to avoid double count
                 if i < self.dim - 1:
-                    # new edge
+                    # add right edge
                     targetID = (i+1) * self.dim + j
-                    # so if adj vs have same/similar colour edge weight is *high*
-                    # ie, small cuts between *different* colours
-                    try:
-                        # -1 is offset for 0 index
-                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
-                    except:
-                        print("moocow")
+                    # -1 is offset for 0 index
+                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+
+                    edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
                 if j < self.dim - 1:
-                    # new edge
+                    # add down edge
                     targetID = (i) * self.dim + (j+1)
-                    # so if adj vs have same/similar colour edge weight is *high*
-                    # ie, small cuts between *different* colours
                     # -1 is offset for 0 index
                     edgeWeight = self.numColoursNew - 1 - np.abs(imArray[sourceID] - imArray[targetID])
+
+                    edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
+                # add diagonal edges
+                if i < self.dim - 1 and j < self.dim - 1:
+                    #add down right diagonal
+
+                    targetID = (i+1) * self.dim + (j+1)
+                    # -1 is offset for 0 index
+                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+
+                    edgeWeight = edgeWeight**weightExp
+                    graph.add_edge(sourceID, targetID, weight = edgeWeight)
+
+                if i > 0 and j < self.dim - 1:
+                    #add down left diagonal
+                    targetID = (i-1) * self.dim + (j+1)
+                    # -1 is offset for 0 index
+                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+
+                    edgeWeight = edgeWeight**weightExp
+                    graph.add_edge(sourceID, targetID, weight = edgeWeight)
+
 
         dummy = 1
 #        graph.delete_edges(weight_eq=0)
@@ -138,9 +171,10 @@ class ImageParser():
 
         if __name__ == '__main__':
             visual_style = {}
-            # visual_style["vertex_label"] = range(len(imArray))
-            # visual_style["edge_label"] = graph.es["weight"]
-            visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
+            # visual_style["vertex_label"] = graph.vs["name"]
+
+            visual_style["edge_label"] = graph.es["weight"]
+            # visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
 
             pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
@@ -165,4 +199,4 @@ class ImageParser():
 if __name__ == '__main__':
     print("running test on one image")
     M = ImageParser()
-    M.fetchSingleImage(imtype="ICON", id = 0, numColours = 3, cropsize = 40)
+    M.fetchSingleImage(imtype="ICON", id = 0, numColours = 3, cropsize = 16, rowoffset= 2, coloffset=12)
