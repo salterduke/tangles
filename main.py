@@ -17,12 +17,10 @@ from tools import ifelse
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
-    configFile = "const.txt"
-
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         print("Dev testing")
         testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
-        configFile = "config2.txt"
+        configFile = "configImage.txt"
     elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
         print("Running YWS")
         testName = "TestYWS"
@@ -45,27 +43,26 @@ def runAnalysis(job):
     n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=True)
     secs = log.tock(ticktoken)
 
-    # jobGraph.overLapCliquePercolation()
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
-def runImage(job, imParser, imType, imageID):
-    job["outName"] = "{}_id{}_dim{}_cols{}".format(imType, imageID, job["cropsize"], job["numColours"])
-    log.log("Job: {}".format(job["outName"]))
-    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
-    job["doImage"] = True
-    job["imType"] = imType
-    job["MNISTid"] = imageID
-    job["imParser"] = imParser
-
-    jobGraph = netCD.graphCD(job, log)
-
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
-    secs = log.tock(ticktoken)
-
-    # jobGraph.overLapCliquePercolation()
-
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+# def runImage(job, imParser, imType, imageID):
+#     job["outName"] = "{}_id{}_dim{}_cols{}".format(imType, imageID, job["cropsize"], job["numColours"])
+#     log.log("Job: {}".format(job["outName"]))
+#     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
+#     job["doImage"] = True
+#     job["imType"] = imType
+#     job["MNISTid"] = imageID
+#     job["imParser"] = imParser
+#
+#     jobGraph = netCD.graphCD(job, log)
+#
+#     n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
+#     secs = log.tock(ticktoken)
+#
+#     # jobGraph.overLapCliquePercolation()
+#
+#     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
 
 def runMadeupGraph(job, N, M):
     job["outName"] = "constructed_{}_{}".format(N,M)
@@ -104,14 +101,6 @@ if __name__ == '__main__':
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
     doConstructed = False
-    if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
-        doImage = True
-    else:
-        doImage = False
-    imageType = "ICON"
-
-    # #
-    # doImage = False
 
     if doConstructed:
         # timing tests:
@@ -122,28 +111,32 @@ if __name__ == '__main__':
             for m in range(n + 10, 3 * n+10, 20):
                 jobres = runMadeupGraph(job, n, m)
                 jobResults.append(jobres)
-    elif doImage:
-        job = {"outputFolder": "./output{}".format(testName), "testName": testName}
-
-        jobResults = []
-        parser = ImageParser.ImageParser()
-
-        ids = range(1)
-        # todo add different ids here
-        for id in ids:
-            job["numColours"] = 3
-            job["cropsize"] = 16
-            job["rowoffset"] = 2  # get right hand side, not centre
-            job["coloffset"] = 12  # get right hand side, not centre
-            jobres = runImage(job, parser, imageType, id)
-            jobResults.append(jobres)
     else:
         jobResults = []
+        # creating the parser here, so it's a single object, and thus MNIST data doesn't have to
+        # be recreated for each new job
+        parser = ImageParser.ImageParser()
         for index, job in jobsToRun.iterrows():
             job['outputFolder'] = "./output{}".format(testName)
             job['testName'] = testName
+            job["imParser"] = parser
             jobres = runAnalysis(job)
             jobResults.append(jobres)
+
+    # elif doImage:
+    #
+    #     jobResults = []
+    #     parser = ImageParser.ImageParser()
+    #
+    #     ids = range(1)
+    #     # todo add different ids here
+    #     for id in ids:
+    #         job["numColours"] = 3
+    #         job["cropsize"] = 16
+    #         job["rowoffset"] = 2  # get right hand side, not centre
+    #         job["coloffset"] = 12  # get right hand side, not centre
+    #         jobres = runImage(job, parser, imageType, id)
+    #         jobResults.append(jobres)
 
 
     if copyPics:

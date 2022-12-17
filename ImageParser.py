@@ -97,10 +97,18 @@ class ImageParser():
 
         return imArray
 
-    def fetchSingleImage(self, imtype="MNIST", id = None, numColours = 256, cropsize = 16, rowoffset = None, coloffset = None):
-        if imtype.upper() == "MNIST":
+    def fetchSingleImage(self, job):
+        # provide some defaults. Default default is None
+        imtype = job.get("imType", "ICON")
+        id = job.get("MNISTid")
+        numColours = job.get("numColours", 256)
+        cropsize = job.get("cropsize", 16)
+        rowoffset = job.get("rowoffset")
+        coloffset = job.get("coloffset")
+
+        if imtype == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
-        elif imtype.upper() == "ICON":
+        elif imtype == "ICON":
             imArray = self.fetchICONasARRAY(id)
         else:
             exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
@@ -199,4 +207,11 @@ class ImageParser():
 if __name__ == '__main__':
     print("running test on one image")
     M = ImageParser()
-    M.fetchSingleImage(imtype="ICON", id = 0, numColours = 3, cropsize = 16, rowoffset= 2, coloffset=12)
+    job = {"imType":"ICON",
+     "MNISTid":0,
+     "numColours":3,
+     "cropsize":16,
+     "rowoffset":2,
+     "coloffset":12}
+    M.fetchSingleImage(job)
+

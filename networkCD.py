@@ -26,6 +26,20 @@ class graphCD():
 
         self.log.log("{}".format(job['outName']))
 
+        # parse bonus arguments
+        for arg in job["args"].split(","):
+            argname, argval = arg.split("=")
+            job[argname] = argval
+
+        fileExt = job["inFile"].split(".")[-1]
+        if fileExt in ("png", "ico", "jpg", "jpeg", "bmp"):
+            job["doImage"] = True
+            job["imType"] = "ICON"
+        if "MNIST" in job["outName"].upper():
+            job["doImage"] = True
+            job["imType"] = "MNIST"
+            job["MNISTid"] = job["outName"].split(".")[-1]
+
 
         if "construct" in job and job["construct"]:
             graph = self.constructRandom(job)
@@ -34,7 +48,7 @@ class graphCD():
             with open("const.txt", 'a') as the_file:
                 the_file.write("{};{}".format(fname, job["outName"]))
         elif "doImage" in job and job["doImage"]:
-            graph = job["imParser"].fetchSingleImage(imtype=job["imType"], id=job["MNISTid"], numColours = job["numColours"], cropsize = job.get("cropsize"), rowoffset=job.get("rowoffset"), coloffset=job.get("coloffset"))
+            graph = job["imParser"].fetchSingleImage(job)
             # todo should I just pass job?
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
