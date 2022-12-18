@@ -1,6 +1,6 @@
 import os
 
-for i in range(2):
+for i in range(3):
     os.system("cp const_150.txt const.txt")
     print("Before VY 150, run: {}".format(i))
     os.system("python main.py VY")

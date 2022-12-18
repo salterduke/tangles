@@ -17,8 +17,15 @@ from tools import ifelse
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
+    # default
+    configFile = "const.txt"
+
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         print("Dev testing")
+        testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
+        configFile = "config2.txt"
+    elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
+        print("Dev Image testing")
         testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
         configFile = "configImage.txt"
     elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
@@ -40,7 +47,8 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 3, sepsOnly=True)
+    # modified so dep is total number of orders, not total after the first one
+    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
     secs = log.tock(ticktoken)
 
 

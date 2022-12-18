@@ -13,22 +13,55 @@ import random
 import seaborn as sns
 sns.set()
 
+# VYfiles = [
+# '../outputTestVY/results2022-07-14 20.38.05.058843.csv',
+# '../outputTestVY/results2022-07-16 07.30.43.685643.csv',
+# '../outputTestVY/results2022-07-17 04.04.03.003248.csv',
+# '../outputTestVY/results2022-07-24 21.31.01.705614.csv',
+# '../outputTestVY/results2022-07-25 21.26.21.847385.csv'
+# ]
+
 VYfiles = [
-'../outputTestVY/results2022-07-14 20.38.05.058843.csv',
-'../outputTestVY/results2022-07-16 07.30.43.685643.csv',
-'../outputTestVY/results2022-07-17 04.04.03.003248.csv',
-'../outputTestVY/results2022-07-24 21.31.01.705614.csv',
-'../outputTestVY/results2022-07-25 21.26.21.847385.csv'
+"../outputTestVY/results2022-11-23 20.49.11.331334.csv",
+"../outputTestVY/results2022-11-25 00.56.39.342710.csv",
+"../outputTestVY/results2022-11-25 13.58.17.443580.csv",
+"../outputTestVY/results2022-11-26 22.46.30.592230.csv",
+"../outputTestVY/results2022-12-10 09.10.23.870668.csv",
+"../outputTestVY/results2022-12-10 12.38.50.019390.csv",
+"../outputTestVY/results2022-12-11 10.43.25.282799.csv",
+"../outputTestVY/results2022-12-11 14.12.00.441343.csv",
+"../outputTestVY/results2022-12-12 02.14.09.467554.csv",
+"../outputTestVY/results2022-12-12 06.07.45.566873.csv",
+"../outputTestVY/results2022-12-12 12.19.58.915419.csv",
+"../outputTestVY/results2022-12-12 15.48.30.065434.csv",
+"../outputTestVY/results2022-12-13 15.02.59.722227.csv",
+"../outputTestVY/results2022-12-13 19.05.02.100191.csv"
 ]
+
+# YWSfiles = [
+# '../outputTestYWS/results2022-07-14 03.14.23.538113.csv',
+# '../outputTestYWS/results2022-07-15 07.42.25.115347.csv',
+# '../outputTestYWS/results2022-07-17 21.17.23.678404.csv',
+# '../outputTestYWS/results2022-07-20 02.30.23.855924.csv',
+# '../outputTestYWS/results2022-07-26 21.18.09.023190.csv'
+# ]
 
 YWSfiles = [
-'../outputTestYWS/results2022-07-14 03.14.23.538113.csv',
-'../outputTestYWS/results2022-07-15 07.42.25.115347.csv',
-'../outputTestYWS/results2022-07-17 21.17.23.678404.csv',
-'../outputTestYWS/results2022-07-20 02.30.23.855924.csv',
-'../outputTestYWS/results2022-07-26 21.18.09.023190.csv'
+"../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
+"../outputTestYWS/results2022-11-25 09.06.28.692849.csv",
+"../outputTestYWS/results2022-11-28 17.05.09.511741.csv",
+"../outputTestYWS/results2022-11-29 19.19.01.456783.csv",
+"../outputTestYWS/results2022-12-10 09.17.26.935472.csv",
+"../outputTestYWS/results2022-12-10 13.08.02.281325.csv",
+"../outputTestYWS/results2022-12-11 10.50.25.246702.csv",
+"../outputTestYWS/results2022-12-11 14.41.15.343567.csv",
+"../outputTestYWS/results2022-12-12 02.21.42.212079.csv",
+"../outputTestYWS/results2022-12-12 06.38.50.450858.csv",
+"../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
+"../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
+"../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
+"../outputTestYWS/results2022-12-13 19.37.09.424597.csv"
 ]
-
 
 def readAlgData(timingFiles, algName):
 

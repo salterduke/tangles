@@ -27,9 +27,15 @@ class graphCD():
         self.log.log("{}".format(job['outName']))
 
         # parse bonus arguments
-        for arg in job["args"].split(","):
-            argname, argval = arg.split("=")
-            job[argname] = argval
+        for arg in job.get("args", "").split(","):
+            if len(arg) > 0:
+                if "=" in arg:
+                    argname, argval = arg.split("=")
+                    job[argname] = argval
+                else:
+                    print("Args not properly specified. Need to be arg1=val1,arg2=val2 etc")
+                    print(arg)
+                    exit()
 
         fileExt = job["inFile"].split(".")[-1]
         if fileExt in ("png", "ico", "jpg", "jpeg", "bmp"):
@@ -321,8 +327,4 @@ class graphCD():
         quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
 
         # todo - do somthing with the qual measures
-        # todo also re-add the coverage ratio
-        return(quality)
-
-
-
+        # todo 
