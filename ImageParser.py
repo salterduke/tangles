@@ -13,14 +13,8 @@ mpl.rc('ytick', labelsize=12)
 class ImageParser():
     def __init__(self):
         self.numColoursOrig = 256   # change if type of image changes
-        self.iconList = ["headphones",
-                         "printer",
-                         "binderpage",
-                         "lightbulb",
-                         "flame",
-                         "folder"]
-
         self.mnist = None
+        self.dim = 40
 
     def initMNIST(self):
         try:
@@ -70,20 +64,8 @@ class ImageParser():
 
         return imArray
 
-    def fetchICONasARRAY(self, id = None):
+    def fetchICONasARRAY(self, filename):
 
-        if id is None:
-            # todo fix this for mona lisa
-            id = random.randrange(0, len(self.iconList))
-
-        if id >= len(self.iconList) or id < 0:
-            exit("Invalid icon id code {}".format(id))
-
-
-        iconLocs = "/home/saltermich1/PhDThesisGdrive/Code/NetworkData/MNIST/photos"
-        # todo sort this properly later, ie machine indep, change image etc
-        # filename = "{}/{}.ico".format(iconLocs, self.iconList[id])
-        filename = "{}/monalisa{}.png".format(iconLocs, id)
         img = PIL.Image.open(filename)
 
         new_image = PIL.Image.new("RGBA", img.size, "WHITE")  # Create a white rgba background
@@ -109,7 +91,7 @@ class ImageParser():
         if imtype == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
         elif imtype == "ICON":
-            imArray = self.fetchICONasARRAY(id)
+            imArray = self.fetchICONasARRAY(job.get("inFile"))
         else:
             exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
 
@@ -202,16 +184,22 @@ class ImageParser():
 
         return graph
 
+    def createRandomBackground(self, propBlack):
 
+        randBits = np.random.choice((0,1), p=(propBlack, 1-propBlack), size=self.dim**2)
+        dummy = 1
 
 if __name__ == '__main__':
     print("running test on one image")
     M = ImageParser()
-    job = {"imType":"ICON",
-     "MNISTid":0,
-     "numColours":3,
-     "cropsize":16,
-     "rowoffset":2,
-     "coloffset":12}
-    M.fetchSingleImage(job)
+
+    M.createRandomBackground(0.5)
+
+    # job = {"imType":"ICON",
+    #  "MNISTid":0,
+    #  "numColours":3,
+    #  "cropsize":16,
+    #  "rowoffset":2,
+    #  "coloffset":12}
+    # M.fetchSingleImage(job)
 

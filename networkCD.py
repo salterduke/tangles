@@ -31,7 +31,10 @@ class graphCD():
             if len(arg) > 0:
                 if "=" in arg:
                     argname, argval = arg.split("=")
-                    job[argname] = argval
+                    if argval.isnumeric():
+                        job[argname] = int(argval)
+                    else:
+                        job[argname] = argval
                 else:
                     print("Args not properly specified. Need to be arg1=val1,arg2=val2 etc")
                     print(arg)
@@ -55,7 +58,6 @@ class graphCD():
                 the_file.write("{};{}".format(fname, job["outName"]))
         elif "doImage" in job and job["doImage"]:
             graph = job["imParser"].fetchSingleImage(job)
-            # todo should I just pass job?
         else:
             graph = ig.Graph.Read_Ncol(job['inFile'], names=True, directed=False)
 
