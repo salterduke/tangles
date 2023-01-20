@@ -13,14 +13,6 @@ import random
 import seaborn as sns
 sns.set()
 
-# VYfiles = [
-# '../outputTestVY/results2022-07-14 20.38.05.058843.csv',
-# '../outputTestVY/results2022-07-16 07.30.43.685643.csv',
-# '../outputTestVY/results2022-07-17 04.04.03.003248.csv',
-# '../outputTestVY/results2022-07-24 21.31.01.705614.csv',
-# '../outputTestVY/results2022-07-25 21.26.21.847385.csv'
-# ]
-
 VYfiles = [
 "../outputTestVY/results2022-11-23 20.49.11.331334.csv",
 "../outputTestVY/results2022-11-25 00.56.39.342710.csv",
@@ -35,16 +27,15 @@ VYfiles = [
 "../outputTestVY/results2022-12-12 12.19.58.915419.csv",
 "../outputTestVY/results2022-12-12 15.48.30.065434.csv",
 "../outputTestVY/results2022-12-13 15.02.59.722227.csv",
-"../outputTestVY/results2022-12-13 19.05.02.100191.csv"
-]
+"../outputTestVY/results2022-12-13 19.05.02.100191.csv",
+"../outputTestVY/results2023-01-04 18.50.10.710700.csv",
+"../outputTestVY/results2023-01-03 17.54.11.479864.csv",
+"../outputTestVY/results2022-12-27 18.20.50.612801.csv",
+"../outputTestVY/results2022-12-26 23.03.21.097428.csv",
+"../outputTestVY/results2022-12-19 16.52.11.097076.csv",
+"../outputTestVY/results2022-12-18 22.15.15.806828.csv"
 
-# YWSfiles = [
-# '../outputTestYWS/results2022-07-14 03.14.23.538113.csv',
-# '../outputTestYWS/results2022-07-15 07.42.25.115347.csv',
-# '../outputTestYWS/results2022-07-17 21.17.23.678404.csv',
-# '../outputTestYWS/results2022-07-20 02.30.23.855924.csv',
-# '../outputTestYWS/results2022-07-26 21.18.09.023190.csv'
-# ]
+]
 
 YWSfiles = [
 "../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
@@ -60,7 +51,13 @@ YWSfiles = [
 "../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
 "../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
 "../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
-"../outputTestYWS/results2022-12-13 19.37.09.424597.csv"
+"../outputTestYWS/results2022-12-13 19.37.09.424597.csv",
+"../outputTestYWS/results2023-01-08 20.27.45.931906.csv",
+"../outputTestYWS/results2023-01-04 01.38.36.360110.csv",
+"../outputTestYWS/results2022-12-30 10.29.12.984751.csv",
+"../outputTestYWS/results2022-12-27 06.33.52.986415.csv",
+"../outputTestYWS/results2022-12-22 12.04.04.355848.csv",
+"../outputTestYWS/results2022-12-19 05.22.53.195299.csv"
 ]
 
 def readAlgData(timingFiles, algName):
@@ -86,9 +83,13 @@ def readAlgData(timingFiles, algName):
     df1 = results_wide['network'].str.split('_', expand=True).add_prefix('Nominal').fillna('')
     results_wide = pd.concat([results_wide, df1], axis = 1)
 
+    reswide_before = results_wide.copy(deep = True)
 
-    for col in [col for col in results_wide.columns if "Order" in str(col)]:
-        results_wide[col] = results_wide.apply(lambda x: x[col][1], axis=1)
+    try:
+        for col in [col for col in results_wide.columns if "Order" in str(col)]:
+            results_wide[col] = results_wide.apply(lambda x: x[col][1], axis=1)
+    except:
+        print("moocow")
 
     for i in range(1,10):
         results_wide["k{}".format(i)] = np.nan
@@ -97,8 +98,6 @@ def readAlgData(timingFiles, algName):
     times = [col for col in results_wide.columns if "Time" in col]
     nOrders = len(orders)
 
-
-
     for rid, row in results_wide.iterrows():
         for i in range(nOrders):
             # row["k{}".format(row["Order{}".format(i)])] = row["Time{}".format(i)]
@@ -106,16 +105,11 @@ def readAlgData(timingFiles, algName):
 
     results_wide = results_wide.drop(columns=["tangCounts", "timings", "Nominal0"] + orders + times)
     results_wide = results_wide.dropna(how='all', axis='columns')
-
     results_wide = results_wide.rename(columns = {"Nominal1": "NominalVs", "Nominal2": "NominalEs"})
 
-
     results = pd.wide_to_long(results_wide, ["k"], i=["fileID", "network"], j="order")
-
     results = results.rename(columns = {"k": "time"})
     results = results.reset_index()
-
-
     results.time = pd.to_numeric(results.time)
     results.Vs = pd.to_numeric(results.Vs)
     results.Es = pd.to_numeric(results.Es)
@@ -126,7 +120,6 @@ def readAlgData(timingFiles, algName):
 
 fileLists = [VYfiles, YWSfiles]
 algNames = ["VY", "YWS"]
-
 resDFs = []
 
 for id in (0,1):
