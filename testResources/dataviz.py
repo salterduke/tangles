@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 # import igraph as ig
 # import itertools as iter
 # import sklearn.metrics as skl
+from sklearn.linear_model import LinearRegression
 # import os
 # import socket
 import random
 import seaborn as sns
+
 sns.set()
 
 VYfiles = [
@@ -65,7 +67,7 @@ def readAlgData(timingFiles, algName):
     dfList = []
 
     for id, file in enumerate(timingFiles):
-        print("Reading ", file)
+        # print("Reading ", file)
         df = pd.read_csv(file, delimiter=',', header=0, comment="#")
         df["fileID"] = id
         df["algorithm"] = algName
@@ -83,7 +85,8 @@ def readAlgData(timingFiles, algName):
     df1 = results_wide['network'].str.split('_', expand=True).add_prefix('Nominal').fillna('')
     results_wide = pd.concat([results_wide, df1], axis = 1)
 
-    reswide_before = results_wide.copy(deep = True)
+    # reswide_before = results_wide.copy(deep = True)
+    results_wide.drop('Order4', axis=1, inplace=True)
 
     try:
         for col in [col for col in results_wide.columns if "Order" in str(col)]:
@@ -118,6 +121,44 @@ def readAlgData(timingFiles, algName):
 
     return results
 
+# ------------------------------------------------------------
+def plotResults(results):
+    results["nm"] = results["Vs"] * results["Es"]
+
+    doLog = "log"
+    # doLog = "linear"
+
+    # # for vs in (20,50,100):
+    for vs in (150, 200):
+        singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
+            "time"].mean().reset_index()
+        # singleVs = singleVs[singleVs["order"] < 5]
+        sns.relplot(x="NominalEs", y="time", col="order", col_wrap=2, hue="algorithm", data=singleVs)
+        plt.yscale(doLog)
+        plt.savefig("./Timings/Vertices_{}_{}.png".format(doLog, vs))
+        # plt.savefig("./Timings/Vertices_{}.pdf".format(vs))
+
+    for ord in (range(2, 6)):
+        singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
+            "time"].mean().reset_index()
+        sns.relplot(x="NominalEs", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
+        plt.yscale(doLog)
+        plt.savefig("./Timings/Order_{}_{}.png".format(doLog, ord))
+
+    for ord in (range(2, 6)):
+        singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "nm", "order", "algorithm"])[
+            "time"].mean().reset_index()
+        sns.relplot(x="nm", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
+        plt.yscale(doLog)
+        plt.savefig("./Timings/Order_{}_nm_{}.png".format(doLog, ord))
+
+# ------------------------------------------------------------
+def regressResults(results):
+    pass
+
+# ------------------------------------------------------------
+
+
 fileLists = [VYfiles, YWSfiles]
 algNames = ["VY", "YWS"]
 resDFs = []
@@ -127,13 +168,15 @@ for id in (0,1):
 
 results = pd.concat(resDFs)
 
-for vs in (20,50,100):
-    singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-    sns.relplot(x="NominalEs", y="time", col="order", col_wrap=2, hue="algorithm", data=singleVs)
-    # plt.savefig("./Timings/Vertices_{}.png".format(vs))
-    plt.savefig("./Timings/Vertices_{}.pdf".format(vs))
+# plotResults(results)
+regressResults(results)
 
-
+# nomDiffs = results.groupby(["network"]).agg({
+#     "NominalVs":"mean",
+#     "Vs":"mean",
+#     "NominalEs":"mean",
+#     "Es":"mean"
+# })
 
 # shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
 # # shortres_noOutlier = shortres.loc[shortres.time < 1500]
