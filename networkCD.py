@@ -128,12 +128,7 @@ class graphCD():
 
 
     def findTangleComms(self, dep = 4, sepsOnly = False):
-
-        # todo edit so can find first (dep+1) orders, not just any orders <= (min order + dep)
-
-        #### dep is added to kmin to give *separation* order
-        #### add 1 to get *tangle* order
-        #### note, finds dep+1 total levels
+        # edited to find dep total levels
 
         self.groundset = set(self.giantComp.vs["name"])
         if "YWS" in self.job["testName"]:
@@ -141,7 +136,7 @@ class graphCD():
         else:
             self.TangleSet = EdgeTangleSet_VY.EdgeTangleSet(self.giantComp, self.job, self.log)
 
-        timings = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
+        timings, sepCounts = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
 
         if not sepsOnly:
             self.assignCommunities()
@@ -153,7 +148,7 @@ class graphCD():
         if self.doPrint:
             self.igPrint()
 
-        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts(), timings)
+        return(self.giantComp.vcount(), self.giantComp.ecount(), self.TangleSet.getTangleCounts(), timings, sepCounts)
 
     # also note currently only does *once* at end for all k levels -
     # could change to do each level?
@@ -295,7 +290,7 @@ class graphCD():
             self.TangleSet.TangleTree.render(outfile, tree_style=ts)
         except Exception as rendError:
             print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
-            print(rendError)
+            # print(rendError)
 
 
     def igPrint(self):
@@ -329,4 +324,4 @@ class graphCD():
         quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
 
         # todo - do somthing with the qual measures
-        # todo 
+        # todo do I need to return() here?

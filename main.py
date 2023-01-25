@@ -22,7 +22,8 @@ if __name__ == '__main__':
 
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         print("Dev testing")
-        testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
+        # testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
+        testName = "DevVY" # note leaving YWS in name so alg is correctly selected later
         configFile = "config2.txt"
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
@@ -48,11 +49,11 @@ def runAnalysis(job):
     jobGraph = netCD.graphCD(job, log)
 
     # modified so dep is total number of orders, not total after the first one
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=True)
     secs = log.tock(ticktoken)
 
 
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
 
 # def runImage(job, imParser, imType, imageID):
 #     job["outName"] = "{}_id{}_dim{}_cols{}".format(imType, imageID, job["cropsize"], job["numColours"])
@@ -81,10 +82,10 @@ def runMadeupGraph(job, N, M):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
     secs = log.tock(ticktoken)
 
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
+    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
 
 
 def copyPicsToLatex():
@@ -150,7 +151,7 @@ if __name__ == '__main__':
     if copyPics:
         copyPicsToLatex()
 
-    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings'])
+    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings', 'sepCounts'])
 
     resultsDF.to_csv("./output{}/results{}.csv".format(testName, log.timeString))
 

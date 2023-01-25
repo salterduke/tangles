@@ -4,6 +4,8 @@ import itertools as it
 import ete3
 import numpy as np
 
+
+
 class TangleSet():
     def __init__(self, job, log):
         self.separations = coll.defaultdict(list)
@@ -19,7 +21,7 @@ class TangleSet():
 
     def getTangleCounts(self):
         countList = list()
-        for k in range(self.kmin, self.kmax+1):
+        for k in range(self.kmin, self.kmax):
             # note k is SEP order, so +1 for tang order
             tangNumbers = (k+1, len(self.TangleLists[k]))
             countList.append(tangNumbers)
@@ -36,19 +38,21 @@ class TangleSet():
         orderCount = 0
 
         timings = []
+        sepCounts = []
 
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
 
         print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
-        self.findNextOrderSeparations(None, depth)
+        numSeps = self.findNextOrderSeparations(None, depth)
         orderCount+=1
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
         timings.append(self.log.tock())
-        self.kmax = self.kmin + depth
+        sepCounts.append(numSeps)
+        # self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
 
@@ -58,7 +62,7 @@ class TangleSet():
             if not self.kTangle(self.kmin):
                 print("No tangles exist")
                 self.log.tock()
-                return(timings)
+                return(timings, sepCounts)
             else:
                 self.log.tock()
 
@@ -69,9 +73,13 @@ class TangleSet():
             print("-------------------------------------------")
             k+=1
             self.log.tick("kTangle{} Find seps".format(k))
-            self.findNextOrderSeparations(k)
+            numSeps = self.findNextOrderSeparations(k)
             timings.append(self.log.tock())
-            # check if found any separations
+            sepCounts.append(numSeps)
+            # note that this is the total seps found, which could be different to the number of seps stored,
+            # as not all seps are necessary
+
+            # check if found AND STORED any separations
             kSeps = len(self.separations[k]) + len(self.definitelySmall[k])
             print("Found {} seps at order k = {}".format(kSeps, k))
             if kSeps > 0:
@@ -86,10 +94,10 @@ class TangleSet():
                     self.kmax = k-1  # todo: make sure not off-by-one
                     self.log.tock()
                     self.log.end()
-                    return(timings)
+                    return(timings, sepCounts)
                 self.log.tock()
         self.log.end()
-        return(timings)
+        return(timings, sepCounts)
 
 
     def checkTangleAxioms(self, newSep):
@@ -201,7 +209,7 @@ class TangleSet():
 
         # loop through and find the last order which had separations
         lastfound = False
-        for lastorder in range(k-1, 0, -1):
+        for lastorder in range(k-1, -1, -1):
             if len(self.TangleLists[lastorder]) > 0:
                 self.prevBranches = self.TangleLists[lastorder]
                 lastfound = True
@@ -363,7 +371,8 @@ class TangleSet():
         try:
             self.TangleTree.render(outfile, tree_style=ts)
         except Exception as rendError:
-            print(rendError)
+            print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
+            # print(rendError)
 
         tidyTree = self.TangleTree.copy()
         # print(tidyTree.get_ascii(show_internal=True))
@@ -383,6 +392,7 @@ class TangleSet():
         try:
             tidyTree.render(tidyOutfile, tree_style=ts)
         except Exception as rendError:
-            print(rendError)
+            print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
+            # print(rendError)
 
 

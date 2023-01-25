@@ -57,12 +57,8 @@ def externalExtractMinPart(partcut, Gdir, kmax):
             pcutlen = uid + len(SuT) + 1
             newPartial = partialCut(Gdir, Gdircopy, mincut, newpcut, pcutlen)  # todo again, do I need a + 1?
 
-            if True:
-            # todo - this is the check that speeds it up lots, but doesn't seem valid.
-            # todo - are there alternate checks that are valid?
-            # if not extCutIsSuperset(currCuts, newPartial.cutEdges):
-                newHeapCuts.append(newPartial)
-                # note that partialCut takes care of the vids re the adjusted graph
+            newHeapCuts.append(newPartial)
+            # note that partialCut takes care of the vids re the adjusted graph
     return newHeapCuts
 
 
@@ -156,15 +152,11 @@ class EdgeTangleSet(btang.TangleSet):
                 mapvector[i] = min(vids_inG)
                 # probably a oneliner way of doing this, but eh.
 
-        functools.partial(externalBasicPartitionBranch, tangset=self)
-
         G.contract_vertices(mapvector, combine_attrs=dict(name=functools.partial(mergeVnames,sep=";")))
         G.simplify(combine_edges="sum")
         G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
 
-        # todo change ends here
         self.G = G
-
 
         self.groundset = set(self.G.vs.indices)
         self.groundsetSize = self.G.vcount()
@@ -200,6 +192,8 @@ class EdgeTangleSet(btang.TangleSet):
                                          range(len(self.U))) if partcut.weight <= self.kmax]
             heapq.heapify(self.partcutHeap)
 
+        self.numkSeps = 0
+
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
@@ -229,22 +223,11 @@ class EdgeTangleSet(btang.TangleSet):
                     partcutList.append(newpartcut)
                     self.addToSepList(newpartcut)
 
-                # externalExtractMinPart(partialCut(
-                #     S=np.array([1,0,0,0,0,0,0,0,0], dtype=bool),
-                #     T=np.array([0,1,0,0,0,0,0,0,0], dtype=bool),
-                #     Tstar=np.array([0,1,1,1,1,1,1,1,1], dtype=bool),
-                #     weight=2
-                # ),
-                # Gdir=self.Gdirected, kmax=self.kmax)
-                # dummy=1
-                # exit()
-
-
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
 
-            # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
+        return self.numkSeps
 
     def addToSepList(self, partial):
         def addDefSmall(newcomp, newsize):
@@ -291,6 +274,7 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
+        self.numkSeps+=1 # note, adding this here, as not all seps are added to defSmall so can't just get list len after
 
         components = extractComponents(partial.mcut, self.Gdirected.vcount())
         components = sorted(components, key=len)

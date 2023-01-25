@@ -513,6 +513,7 @@ class EdgeTangleSet(btang.TangleSet):
             self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
 
+        self.numkSeps = 0
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
@@ -531,7 +532,6 @@ class EdgeTangleSet(btang.TangleSet):
             #                weight=1.0),
             #     self.Gdirected, self.kmax
             # )
-            # dummy = 1
             # exit()
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
@@ -550,16 +550,14 @@ class EdgeTangleSet(btang.TangleSet):
                 #     weight=2
                 # ),
                 # Gdir=self.Gdirected, kmax=self.kmax)
-                # dummy=1
                 # exit()
 
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-                dummy=1
-            # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
-        dummy = 1
+
+        return self.numkSeps
 
 
     def addToSepList(self, partcut):
@@ -592,6 +590,8 @@ class EdgeTangleSet(btang.TangleSet):
             #                               if not newcomp.issuperset(comp)]
             # self.definitelySmall[newsize].append(newcomp)
 
+
+
         def printSepToFile(cutweight, components, orientation):
             sideNodes = sorted([self.names[node] for node in components[0]])
             complementNodes = sorted([self.names[node] for node in components[1]])
@@ -600,6 +600,8 @@ class EdgeTangleSet(btang.TangleSet):
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
+
+        self.numkSeps+=1 # note, adding this here, as not all seps are added to defSmall so can't just get list len after
 
         components = partcut.components()
         components = sorted(components, key=len)
