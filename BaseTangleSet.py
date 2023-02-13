@@ -4,6 +4,8 @@ import itertools as it
 import ete3
 import numpy as np
 
+
+
 class TangleSet():
     def __init__(self, job, log):
         self.separations = coll.defaultdict(list)
@@ -19,7 +21,7 @@ class TangleSet():
 
     def getTangleCounts(self):
         countList = list()
-        for k in range(self.kmin, self.kmax+1):
+        for k in range(self.kmin, self.kmax):
             # note k is SEP order, so +1 for tang order
             tangNumbers = (k+1, len(self.TangleLists[k]))
             countList.append(tangNumbers)
@@ -33,22 +35,26 @@ class TangleSet():
     def findAllTangles(self, depth=4, sepsOnly = False):
         print("Finding All Tangles")
 
+        orderCount = 0
+
         timings = []
+        sepCounts = []
 
         ### so that the first tangle tree starts at the root.
         self.TangleTree.add_feature("smallSides", [])
 
         print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
-        self.findNextOrderSeparations(None, depth)
+        numSeps = self.findNextOrderSeparations(None, depth)
+        orderCount+=1
         if self.kmin is None:
             print("Crack the shits, kmin not set")
             exit()
         timings.append(self.log.tock())
-        self.kmax = self.kmin + depth
+        sepCounts.append(numSeps)
+        # self.kmax = self.kmin + depth
 
         self.TangleLists[self.kmin - 1] = [self.TangleTree]
-        self.prevBranches = [self.TangleTree]
 
         if not sepsOnly:
             # ### see Evrendilek for heuristic?
@@ -56,27 +62,42 @@ class TangleSet():
             if not self.kTangle(self.kmin):
                 print("No tangles exist")
                 self.log.tock()
-                return(timings)
+                return(timings, sepCounts)
             else:
                 self.log.tock()
 
         # # # ### find all tangles at each k
-        for k in range(self.kmin+1, self.kmax+1):
+        k = self.kmin
+        while orderCount < depth:
+        # for k in range(self.kmin+1, self.kmax+1):
             print("-------------------------------------------")
+            k+=1
             self.log.tick("kTangle{} Find seps".format(k))
-            self.findNextOrderSeparations(k)
+            numSeps = self.findNextOrderSeparations(k)
             timings.append(self.log.tock())
-            if not sepsOnly:
+            sepCounts.append(numSeps)
+            # note that this is the total seps found, which could be different to the number of seps stored,
+            # as not all seps are necessary
+
+            # check if found AND STORED any separations
+            kSeps = len(self.separations[k]) + len(self.definitelySmall[k])
+            print("Found {} seps at order k = {}".format(kSeps, k))
+            if kSeps > 0:
+                orderCount+=1
+            else:
+                print("moocow")
+
+            if not sepsOnly and kSeps > 0:
                 self.log.tick("kTangle{} Build Tangle".format(k))
                 if not self.kTangle(k):
                     print("No tangles at k: {}".format(k))
                     self.kmax = k-1  # todo: make sure not off-by-one
                     self.log.tock()
                     self.log.end()
-                    return(timings)
+                    return(timings, sepCounts)
                 self.log.tock()
         self.log.end()
-        return(timings)
+        return(timings, sepCounts)
 
 
     def checkTangleAxioms(self, newSep):
@@ -96,7 +117,7 @@ class TangleSet():
                 side1 = sepsSoFar[0]
                 if newSep.issubset(side1):
                     # ie, it's okay, but don't need it
-                    return True, False
+                    return True, False  # todo Really not sure about this!!!
                 elif newSep.issuperset(side1):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
@@ -117,8 +138,10 @@ class TangleSet():
                     if len(double1) >= self.groundsetSize:
                         return False, False
 
+                    # todo problem is enumerate starts id2 at 0!!!!!!!!
                     for id2 in range(id1 + 1, len(sepsSoFar)):
                         side2 = sepsSoFar[id2]
+                    # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
                         if not checkedSubsets:
                             if newSep.issubset(side2):
                                 return True, False
@@ -183,18 +206,37 @@ class TangleSet():
 
         numkdefSmall = len(self.definitelySmall[k])
         numkSeps = len(self.separations[k]) + numkdefSmall
-        # numkSeps = len(self.separations[k])
+
+        # loop through and find the last order which had separations
+        lastfound = False
+        for lastorder in range(k-1, -1, -1):
+            if len(self.TangleLists[lastorder]) > 0:
+                self.prevBranches = self.TangleLists[lastorder]
+                lastfound = True
+                break
+        if not lastfound:
+            exit("crack the sads, no prev tangles found")
 
 
-        # self.prevBranches = self.TangleLists[k-1]
-        print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
-        # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
+        # --------------------------------------------------------------------------
+        # now does not add the def small seps to the tangle tree. Includes them in the axiom check.
+        # todo - get this working.
+        # does not work correctly if all seps def small
+        # for sepNum in range(numkSeps):
+        #     currentBranches = prevBranches
+        #     prevBranches = []
+        #     for truncTangle in currentBranches:
+        #         self.smallSidesStack = truncTangle.smallSides   ###### *****
+        #         side = self.separations[k][sepNum]
+        #         addSideAsSep(side, truncTangle, sepNum)
+        #         complement = self.groundset - side
+        #         addSideAsSep(complement, truncTangle, sepNum)
+        # --------------------------------------------------------------------------
+
+        self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
         # Do the most uneven separations first, as they're likely to break first
         # note that since this list only contains the smallest side of each separation
         # the smallest small side means the most uneven separation
-
-        for truncTangle in self.prevBranches:
-            truncTangle.smallSides = sorted(truncTangle.smallSides, key=len, reverse=True)
 
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches
@@ -219,10 +261,6 @@ class TangleSet():
                     if not precludesComp:
                         complement = self.groundset - side
                         addSideAsSep(complement, truncTangle, sepNum)
-
-        self.prevBranches = self.TangleLists[k]
-        print("After building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
-
 
         if self.foundTangle:
             self.finaliseAndPrint(k)
@@ -333,7 +371,8 @@ class TangleSet():
         try:
             self.TangleTree.render(outfile, tree_style=ts)
         except Exception as rendError:
-            print(rendError)
+            print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
+            # print(rendError)
 
         tidyTree = self.TangleTree.copy()
         # print(tidyTree.get_ascii(show_internal=True))
@@ -353,6 +392,7 @@ class TangleSet():
         try:
             tidyTree.render(tidyOutfile, tree_style=ts)
         except Exception as rendError:
-            print(rendError)
+            print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
+            # print(rendError)
 
 
