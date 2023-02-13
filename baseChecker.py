@@ -24,26 +24,75 @@ class commChecker():
         #### Crack shits if haven't run simMatrix first
         return self.compareCover
 
+    def calculateNMI_alt(self, mshipX, mshipY):
+        keepIDs = [i for i in range(len(mshipX)) if mshipX[i] is not None and mshipY[i] is not None]
+        mshipX = [mshipX[i] for i in keepIDs]
+        mshipY = [mshipY[i] for i in keepIDs]
+        df = pd.DataFrame(index=sorted(pd.unique(mshipX)), columns=sorted(pd.unique(mshipY)))
 
-    def calculateNMI(self, coverY):
-        coverX = self.compareCover
+        denom = len(mshipX)
+        for r in df.index:
+            for c in df.columns:
+                df.loc[r, c] = sum(1 for i in range(denom) if mshipX[i] == r and mshipY[i] == c)
 
-        coverIntersection = coverX.transpose() @ coverY
+        miSum = 0
+        HXsum = 0
+        HYsum = 0
+        for r in df.index:
+            for c in df.columns:
+                pxy = df.loc[r, c] / denom
+                px = sum(df.loc[r, :]) / denom
+                py = sum(df.loc[:, c]) / denom
+                if pxy != 0:
+                    term = pxy * np.log2(pxy / (px * py))
+                else:
+                    term = 0
+                miSum += term
 
-        HXgivenY = self.conditionalEntropy(coverX, coverY, coverIntersection)
+        for r in df.index:
+            px = sum(df.loc[r, :]) / denom
+            if px != 0:
+                HXsum+=px*np.log2(px)
+            else:
+                HXsum+=0
+
+        for c in df.columns:
+            py = sum(df.loc[:, c]) / denom
+            if py != 0:
+                HYsum+=py*np.log2(py)
+            else:
+                HYsum+=0
+
+        NMI = 2*miSum / (-HXsum - HYsum)
+
+        return NMI
+
+    def calculateNMI(self, coverX, coverY = None, remove_none=False):
+        if coverY is None:
+            coverY = self.compareCover
+
+        if remove_none:
+            # remove any vertices not assigned to any comm, to match ig.compare_communities()
+            coverY = coverY.loc[(coverY.sum(axis=1) != 0) & (coverX.sum(axis=1)!=0), :]
+            coverX = coverX.loc[(coverY.sum(axis=1) != 0) & (coverX.sum(axis=1)!=0), :]
+
+        HXgivenY = self.conditionalEntropy(coverX, coverY)
         print("HXgivenY: {}".format(HXgivenY))
-        HYgivenX = self.conditionalEntropy(coverY, coverX, coverIntersection.transpose())
+        HYgivenX = self.conditionalEntropy(coverY, coverX)
         print("HYgivenX: {}".format(HYgivenX))
         NMI = 1 - 0.5*(HXgivenY + HYgivenX)
         return(NMI)
 
-    def conditionalEntropy(self, coverX, coverY, coverIntersection):
+    def conditionalEntropy(self, coverX, coverY):
         def h(p):
             # print("p: {}".format(p))
             if p == 0:
                 return(0)
             else:
                 return(-p*np.log2(p))   ###  ***** Check if correct base????
+
+        coverIntersection = coverX.transpose() @ coverY
+
 
         N = coverX.shape[0] # num of vertices
         coverXsizes = coverX.sum(axis = 0).tolist()
@@ -69,6 +118,7 @@ class commChecker():
                 if h(PX1Y1) + h(PX0Y0) > h(PX1Y0) + h(PX0Y1):
                     HXkYl = h(PX1Y1) + h(PX0Y0) + h(PX1Y0) + h(PX0Y1) - \
                             h(PY1) - h(PY0)
+                    # H(X,Y) - H(Y)
                     HXkYlList.append(HXkYl)
             if len(HXkYlList) == 0:
                 HXkbigY = h(PX1) + h(PX0) # H(Xk)
@@ -78,7 +128,10 @@ class commChecker():
             HXkbigYNorm = HXkbigY / (h(PX1) + h(PX0)) # H(Xk)
             HXkbigYNormSum += HXkbigYNorm
 
-        HbigXbigYNorm = HXkbigYNormSum / coverX.shape[1]
+        try:
+            HbigXbigYNorm = HXkbigYNormSum / coverX.shape[1]
+        except:
+            dummy = 1
         return(HbigXbigYNorm)
 
 

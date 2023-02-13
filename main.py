@@ -110,7 +110,6 @@ if __name__ == '__main__':
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
 
     doConstructed = False
-
     if doConstructed:
         # timing tests:
         job = {'outputFolder': "./output{}".format(testName), 'testName': testName}

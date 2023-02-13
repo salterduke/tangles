@@ -249,7 +249,6 @@ class graphCD():
         for node in self.giantComp.vs:
             node["color"] = "#ffffff"
 
-
         # This bit is working with the tangle tree to assign colours to the comms.
         # note that traverse default is BFS, which is what we want - deeper comms will
         # overwrite colours for parent comms.
@@ -343,4 +342,8 @@ class graphCD():
         quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
 
         # todo - do somthing with the qual measures
-        # todo do I need to return() here?
+        # todo also re-add the coverage ratio
+        return(quality)
+
+
+

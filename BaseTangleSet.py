@@ -4,8 +4,6 @@ import itertools as it
 import ete3
 import numpy as np
 
-
-
 class TangleSet():
     def __init__(self, job, log):
         self.separations = coll.defaultdict(list)
@@ -117,12 +115,22 @@ class TangleSet():
                 side1 = sepsSoFar[0]
                 if newSep.issubset(side1):
                     # ie, it's okay, but don't need it
-                    return True, False  # todo Really not sure about this!!!
+                    return True, False
                 elif newSep.issuperset(side1):
                     self.keepSeps[0] = 0
                 double1 = side1 | newSep
-                if len(double1) >= self.groundsetSize:
+                # if len(double1) > self.groundsetSize or (-1 not in double1 and len(double1) == self.groundsetSize):
+                #     return False, False
+                leafCount=0
+                for l in range(-1, self.leafExtent-1,-1):
+                    leafCount+=sum(1 for sep in (side1, newSep) if l in sep)
+                leftOut = self.groundset - double1
+                if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                     return False, False
+                # leafCount = max(0, leafCount-1) # working out how many to disregard, but need to count one -1 if present
+                # todo put this back in if not working
+                # if len(double1) + leafCount >= self.groundsetSize:
+                #     return False, False
             else:
                 checkedSubsets = False
                 # using a list so easier to double iterate
@@ -135,21 +143,39 @@ class TangleSet():
                             self.keepSeps[id1] = 0
 
                     double1 = side1 | newSep
-                    if len(double1) >= self.groundsetSize:
+                    # if len(double1) > self.groundsetSize or (-1 not in double1 and len(double1) == self.groundsetSize):
+                    #     return False, False
+                    leafCount = 0
+                    for l in range(-1, self.leafExtent - 1, -1):
+                        leafCount += sum(1 for sep in (side1, newSep) if l in sep)
+                    leftOut = self.groundset - double1
+                    if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                         return False, False
+                    # leafCount = max(0,leafCount - 1)  # working out how many to disregard, but need to count one -1 if present
+                    # todo put back in if not working
+                    # if len(double1) + leafCount >= self.groundsetSize:
+                    #     return False, False
 
-                    # todo problem is enumerate starts id2 at 0!!!!!!!!
                     for id2 in range(id1 + 1, len(sepsSoFar)):
                         side2 = sepsSoFar[id2]
-                    # for id2, side2 in enumerate(sepsSoFar[id1 + 1:]):
                         if not checkedSubsets:
                             if newSep.issubset(side2):
                                 return True, False
                             elif newSep.issuperset(side2):
                                 self.keepSeps[id2] = 0
                         triple = side2 | double1
-                        if len(triple) >= self.groundsetSize:
+                        # if len(triple) > self.groundsetSize or (-1 not in triple and len(triple) == self.groundsetSize):
+                        #     return False, False
+                        leafCount = 0
+                        for l in range(-1, self.leafExtent - 1, -1):
+                            leafCount += sum(1 for sep in (side1, side2, newSep) if l in sep)
+                        leftOut = self.groundset - triple
+                        if len(leftOut) == 0 or (len(leftOut) <= leafCount and leftOut.issubset(self.leaves)):
                             return False, False
+                        # leafCount = max(0, leafCount - 1)  # working out how many to disregard, but need to count one -1 if present
+                        # todo put back in if not working
+                        # if len(triple) + leafCount >= self.groundsetSize:
+                        #     return False, False
                     checkedSubsets = True
 
         # return first True because we got to this point without hitting a false
@@ -218,25 +244,13 @@ class TangleSet():
             exit("crack the sads, no prev tangles found")
 
 
-        # --------------------------------------------------------------------------
-        # now does not add the def small seps to the tangle tree. Includes them in the axiom check.
-        # todo - get this working.
-        # does not work correctly if all seps def small
-        # for sepNum in range(numkSeps):
-        #     currentBranches = prevBranches
-        #     prevBranches = []
-        #     for truncTangle in currentBranches:
-        #         self.smallSidesStack = truncTangle.smallSides   ###### *****
-        #         side = self.separations[k][sepNum]
-        #         addSideAsSep(side, truncTangle, sepNum)
-        #         complement = self.groundset - side
-        #         addSideAsSep(complement, truncTangle, sepNum)
-        # --------------------------------------------------------------------------
-
-        self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
+        # self.prevBranches = self.TangleLists[k-1]
+        print("Before building {}: Len of prevBranches: {}".format(k, len(self.prevBranches)))
+        # self.separations[k] = sorted(self.separations[k], key=len, reverse=True)
         # Do the most uneven separations first, as they're likely to break first
         # note that since this list only contains the smallest side of each separation
         # the smallest small side means the most uneven separation
+
 
         for sepNum in range(numkSeps):
             currentBranches = self.prevBranches
