@@ -513,7 +513,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.partcutHeap = HO.partcutList
             heapq.heapify(self.partcutHeap)
 
-        self.numkSeps = 0
 
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
@@ -532,6 +531,7 @@ class EdgeTangleSet(btang.TangleSet):
             #                weight=1.0),
             #     self.Gdirected, self.kmax
             # )
+            # dummy = 1
             # exit()
 
             while len(self.partcutHeap) > 0 and self.partcutHeap[0].weight <= k:
@@ -550,14 +550,16 @@ class EdgeTangleSet(btang.TangleSet):
                 #     weight=2
                 # ),
                 # Gdir=self.Gdirected, kmax=self.kmax)
+                # dummy=1
                 # exit()
 
 
                 results = pool.map(functools.partial(externalExtractMinPart, Gdir=self.Gdirected, kmax=self.kmax), partcutList)
                 for partcut in [item for subresults in results for item in subresults]:  # todo make sure returns work okay
                     heapq.heappush(self.partcutHeap, partcut)
-
-        return self.numkSeps
+                dummy=1
+            # do the singletons that are in the middle of the graph, so that the cut removing them is actually a composition of cuts.
+        dummy = 1
 
 
     def addToSepList(self, partcut):
@@ -581,15 +583,65 @@ class EdgeTangleSet(btang.TangleSet):
                 self.definitelySmall[newsize].append(newcomp)
             # todo, note that all seps are written to file, even if not tested.
 
-            # todo I think this needs to not happen. Might be okay to do just for the same size?
-            # for size in range(self.kmin, newsize+1):
-            #     self.definitelySmall[size] = [comp for comp in self.definitelySmall[size]\
-            #                                   if not newcomp.issuperset(comp)]
-            # todo: possible version?
-            # self.definitelySmall[newsize] = [comp for comp in self.definitelySmall[newsize]\
-            #                               if not newcomp.issuperset(comp)]
-            # self.definitelySmall[newsize].append(newcomp)
 
+        def sideIsDefSmall(side, sep_k):
+            if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
+                return True
+            # else:
+            #     return False
+
+            # if 10 in side and 11 in side and 28 in side and 9 not in side:
+            #     print("moocow")
+
+            if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
+                # ie, each of two v's makes the small side of some sep,
+                # and the union of two small sides is small if the k of each <= k of the union
+                return True
+
+            # todo this might be extendable to maxdeg <= sep_k?
+            if (self.G.maxdegree(side) <= sep_k) and (sep_k >= 3):
+                subG = self.G.induced_subgraph(side)
+                comps = subG.clusters()
+                if len(comps) == 1 and comps.subgraph(0).is_tree(mode="all"):
+                    return True
+                elif len(comps) > 1:
+                    isTree = [1 if comp.is_tree(mode = "all") else 0 for comp in comps.subgraphs() ]
+                    if all(isTree):
+                        return True
+                    elif sum(isTree) == len(comps) - 1:
+                        notTree = comps.subgraph(isTree.index(0))
+                        notTreeNames = notTree.vs["name"]
+                        notTree.delete_vertices(notTree.vs.select(_degree_eq=1))
+                        if notTree.maxdegree() <= 2:
+                            # if this higher order sep is small this way, the subcomponent sep must be small
+                            # therefore terminate any tangles that contradict this
+                            comp = self.groundset - set(self.G.vs.select(name_in=notTreeNames).indices)
+                            self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                            return True
+
+
+
+
+            # if sep_k >= 3 and subG.maxdegree() <= 2:
+            #     # ie, it's a circuit, so carving width <=2, therefore small
+            #     # print("Excluded under maxdeg <= 2")
+            #     # print(side)
+            #     return True
+
+            # if size >= 3 and subG.maxdegree() <= 3:
+            # if size >= 3 and subG.maxdegree() <= size:
+            #     subG.delete_vertices(subG.vs.select(_degree_eq=1))
+            #     # delete any leaves, and if we're left with a circuit, it's still small
+            #     # as even though a deg 3 v gives cw >= 3, if it's *just* these deg3 vs with hannging leaf,
+            #     # giving cw 3, still okay as these singleton seps are always small
+            #     # todo I think?
+            #     if subG.maxdegree() <= 2:
+            #         # print("Excluded under maxdeg {} <= size {}".format(subG.maxdegree(), size))
+            #         # print(side)
+            #         return True
+
+            # if we get to here
+            return False
 
 
         def printSepToFile(cutweight, components, orientation):
@@ -601,29 +653,26 @@ class EdgeTangleSet(btang.TangleSet):
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
 
-        self.numkSeps+=1 # note, adding this here, as not all seps are added to defSmall so can't just get list len after
-
         components = partcut.components()
         components = sorted(components, key=len)
 
-        size = int(partcut.weight)
+        sep_k = int(partcut.weight)
+
+
 
         ######## ******* do other checks for "easy" seps (do shit here)
         ### smart:  initial check for def small - add more checks here?
+        # todo See Belmonte et al. 2013
         # todo - what about if both sides def small?
-        if (len(components[0])==1) or (max(self.G.degree(components[0])) <= 2 and size >= 2) or (max(self.G.degree(components[0])) <= 1):
-            addDefSmall(components[0], size)
-            # self.definitelySmall[size].append(components[0])
+        if sideIsDefSmall(components[0], sep_k):
+            addDefSmall(components[0], sep_k)
             orientation = 1
-        elif (len(components[1])==1) or (max(self.G.degree(components[1])) <= 2 and size >= 2) or (max(self.G.degree(components[1])) <= 1):
-            addDefSmall(components[1], size)
-            # self.definitelySmall[size].append(components[1])
+        elif sideIsDefSmall(components[1], sep_k):
+            addDefSmall(components[1], sep_k)
             orientation = 2
         else:
             # Note: edited so only adding the shortest side.
-            self.separations[size].append(components[0])
+            self.separations[sep_k].append(components[0])
             orientation = 3
-        # todo seems okay, but unsure what the issue mentioned on slack was.
 
-        if "constructed" not in self.sepFilename:
-            printSepToFile(size, components, orientation)
+        printSepToFile(sep_k, components, orientation)
