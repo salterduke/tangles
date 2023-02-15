@@ -189,10 +189,10 @@ VI/myVI
 #
 #
 # # t = g.gomory_hu_tree()
-visual_style = {}
-# visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] =
-ig.plot(t, **visual_style)
+# visual_style = {}
+# # visual_style["vertex_color"] = "white"
+# visual_style["vertex_label"] =
+# ig.plot(t, **visual_style)
 #
 # ig.plot(t)
 
@@ -386,3 +386,9 @@ ig.plot(t, **visual_style)
 # # # # self.partcutConn.commit()
 
 
+import igraph as ig
+
+G = ig.Graph([(0,1), (0,2), (1,3), (1,2)])
+
+G.modularity([0,1,2,3])
+G.modularity([0,0,1,2]) * 64
