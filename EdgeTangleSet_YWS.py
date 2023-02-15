@@ -522,11 +522,11 @@ class EdgeTangleSet(btang.TangleSet):
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
                 self.kmin = int(self.Gdirected.mincut(capacity = "weight").value)
                 k = self.kmin
-                self.kmax = k + maxdepth
+                self.kmax = k + maxdepth - 1
                 basicPartition()  # not done with pool (at least at this stage)
                 # self.TangleTree.add_feature("cutsets", [])
 
-            # todo remove when done debugging
+            # todo remove when done debugging - done to avoid pooling
             # externalExtractMinPart(
             #     partialCut(S=np.array([1, 1, 1, 1, 1, 0, 0, 0, 0], dtype=bool),
             #                T=np.array([0, 0, 0, 0, 0, 0, 1, 0, 0], dtype=bool),
@@ -628,7 +628,16 @@ class EdgeTangleSet(btang.TangleSet):
                             # therefore terminate any tangles that contradict this
                             notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
                             comp = self.groundset - notTreeIDs
-                            self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                            try:
+                                self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                                for branch in self.prevBranches:
+                                    branch.smallSides.remove(notTreeIDs)
+                                    # is not necessary, as is subset of this larger side.
+                            except:
+                                # if sepsOnly, prevBranches is not defined, so error.
+                                # but the above is only necessary when building tangles,
+                                # so can ignore
+                                pass
                             return True
 
 

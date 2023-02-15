@@ -201,7 +201,7 @@ class EdgeTangleSet(btang.TangleSet):
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
                 self.kmin = int(self.Gdirected.mincut().value)
                 k = self.kmin
-                self.kmax = k + maxdepth
+                self.kmax = k + maxdepth - 1
                 basicPartition(pool)
                 # self.TangleTree.add_feature("cutsets", [])
 
@@ -254,9 +254,6 @@ class EdgeTangleSet(btang.TangleSet):
             # else:
             #     return False
 
-            # if 10 in side and 11 in side and 28 in side and 9 not in side:
-            #     print("moocow")
-
             if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
                 # ie, each of two v's makes the small side of some sep,
                 # and the union of two small sides is small if the k of each <= k of the union
@@ -281,13 +278,16 @@ class EdgeTangleSet(btang.TangleSet):
                             # therefore terminate any tangles that contradict this
                             notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
                             comp = self.groundset - notTreeIDs
-                            self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
-                            for branch in self.prevBranches:
-                                try:
+                            try:
+                                self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                                for branch in self.prevBranches:
                                     branch.smallSides.remove(notTreeIDs)
                                     # is not necessary, as is subset of this larger side.
-                                except:
-                                    pass
+                            except:
+                                # if sepsOnly, prevBranches is not defined, so error.
+                                # but the above is only necessary when building tangles,
+                                # so can ignore
+                                pass
                             return True
 
 

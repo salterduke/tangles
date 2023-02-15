@@ -30,10 +30,11 @@ class TangleSet():
         raise NotImplementedError
 
     #### delete depth later, when we're sure this works. ******
-    def findAllTangles(self, depth=4, sepsOnly = False):
+    def findAllTangles(self, depth=4, maxEmptyOrders=4, sepsOnly = False):
         print("Finding All Tangles")
 
         orderCount = 0
+        emptyCount = 0
 
         timings = []
         sepCounts = []
@@ -43,7 +44,8 @@ class TangleSet():
 
         print("-------------------------------------------")
         self.log.tick("kTangle min Find seps")
-        numSeps = self.findNextOrderSeparations(None, depth)
+        maxdepth = depth + maxEmptyOrders
+        numSeps = self.findNextOrderSeparations(None, maxdepth)
         orderCount+=1
         if self.kmin is None:
             print("Crack the shits, kmin not set")
@@ -66,12 +68,12 @@ class TangleSet():
 
         # # # ### find all tangles at each k
         k = self.kmin
-        while orderCount < depth:
+        while orderCount < depth and emptyCount < maxEmptyOrders:
         # for k in range(self.kmin+1, self.kmax+1):
             print("-------------------------------------------")
             k+=1
             self.log.tick("kTangle{} Find seps".format(k))
-            numSeps = self.findNextOrderSeparations(k)
+            numSeps = self.findNextOrderSeparations(k, maxdepth)
             timings.append(self.log.tock())
             sepCounts.append(numSeps)
             # note that this is the total seps found, which could be different to the number of seps stored,
@@ -83,7 +85,7 @@ class TangleSet():
             if kSeps > 0:
                 orderCount+=1
             else:
-                print("moocow")
+                emptyCount+=1
 
             if not sepsOnly and kSeps > 0:
                 self.log.tick("kTangle{} Build Tangle".format(k))
@@ -238,6 +240,7 @@ class TangleSet():
         for lastorder in range(k-1, -1, -1):
             if len(self.TangleLists[lastorder]) > 0:
                 self.prevBranches = self.TangleLists[lastorder]
+                # print("Lastorder: {}".format(lastorder))
                 lastfound = True
                 break
         if not lastfound:

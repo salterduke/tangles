@@ -127,8 +127,11 @@ class graphCD():
                 split("0x")[1].zfill(2),colCode[0:3]))))
 
 
-    def findTangleComms(self, dep = 4, sepsOnly = False):
+    def findTangleComms(self, dep = 4, maxEmptyOrders = 4, sepsOnly = False):
         # edited to find dep total levels
+        # added maxEmptyOrders, so can still limit number of partial seps that must be added to heap
+        # (looser limit though)
+        # but need to keep eye out for if this is an issue.
 
         self.groundset = set(self.giantComp.vs["name"])
         if "YWS" in self.job["testName"]:
@@ -136,7 +139,7 @@ class graphCD():
         else:
             self.TangleSet = EdgeTangleSet_VY.EdgeTangleSet(self.giantComp, self.job, self.log)
 
-        timings, sepCounts = self.TangleSet.findAllTangles(depth=dep, sepsOnly=sepsOnly)
+        timings, sepCounts = self.TangleSet.findAllTangles(depth=dep, maxEmptyOrders=maxEmptyOrders, sepsOnly=sepsOnly)
 
         if not sepsOnly:
             self.assignCommunities()
@@ -231,18 +234,32 @@ class graphCD():
         outfile = "{}/{}-TangNodes.csv". \
             format(self.job['outputFolder'], self.job['outName'])
         # making copy to add row for orders without messing with anything else.
-        cover_copy = self.foundcover.copy(deep = True)
         # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        # not sure why the above was removed, but eh.
+        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
+        self.foundcover = self.foundcover.astype(np.int8)
         try:
-            cover_copy.loc[len(cover_copy)] = tangOrders
+            self.foundcover.loc[len(self.foundcover)] = tangOrders
         except:
             print("moocow")
-        cover_copy.index.values[len(cover_copy)-1] = "order"
-        cover_copy.to_csv(outfile)
+        self.foundcover.index.values[len(self.foundcover)-1] = "order"
+        #
+        self.foundcover.to_csv(outfile)
+        # I *think* we can keep the "order" row in and it won't bugger anything up,
+        # except yeast?
 
-        self.foundcover = self.foundcover.astype(np.int8)
-        # this makes sure only those communities with at least 3 modes are included.
-        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
+        # # making copy to add row for orders without messing with anything else.
+        # cover_copy = self.foundcover.copy(deep = True)
+        # # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        # try:
+        #     cover_copy.loc[len(cover_copy)] = tangOrders
+        # except:
+        #     print("moocow")
+        # cover_copy.index.values[len(cover_copy)-1] = "order"
+        # cover_copy.to_csv(outfile)
+
+        # this makes sure only those communities with at least 3 modes are included
+        # in subsequent comparison. But still printed to file
         self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
         # todo add check for duplicate comms
 
@@ -267,7 +284,8 @@ class graphCD():
                 commIndex = int(treenode.name.replace("T", ""))
                 treedep = treenode.get_distance(self.TangleSet.TangleTree)
                 for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
-                    self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
+                    if nodeName != "order":
+                        self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
         self.printCommTree()
 
     def printCommTree(self):
@@ -330,6 +348,7 @@ class graphCD():
         if self.cdChecker is None:
             self.cdChecker = cdChecker.cdChecker(self.giantComp)
 
+        # todo if re-adding Yeast check, do I need to remove "order" row from foundcover?
         # if "Yeast" in self.job["outName"]:
         #     if self.protChecker is None:
         #         self.protChecker = protChecker.protChecker(self.giantComp.vs['name'])
