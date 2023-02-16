@@ -143,7 +143,7 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-            if "doImage" not in self.job or not self.job["doImage"]:
+            if not self.job.get("doImage"):
                 quality = self.evaluateCommunities()
             # todo add evaluation for images
 
@@ -365,7 +365,7 @@ class graphCD():
         #     print("Found commQual: ", quality["commQual"])
         #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
-        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover)
+        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover, methods=["CPM3", "CPM4"])
 
         # todo - do somthing with the qual measures
         # todo also re-add the coverage ratio

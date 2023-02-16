@@ -11,7 +11,16 @@ import Modules.CliquePercolationMethod as cpm
 gname = "../NetworkData/SmallNWs/TinyEdges.csv"
 G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
 
-res = cpm.clique_percolation_method(G, 4, verbose=True)
+commList = cpm.clique_percolation_method(G, 4, verbose=True)
+
+noneID = len(commList)
+membership = [noneID]*G.vcount() # todo add self.
+for commID, comm in enumerate(commList):
+    for vid in comm:
+        if membership[vid] == noneID:
+            membership[vid] = commID
+        else:
+            print("What the hell, vid already assigned!")
 
 exit()
 

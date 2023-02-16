@@ -5,13 +5,16 @@ import numpy as np
 import baseChecker as bch
 import itertools as iter
 import igraph as ig
+import Modules.CliquePercolationMethod as cpm
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
         bch.commChecker.__init__(self, G.vs["name"])
         self.G = G
 
-    def compareCDMethods(self, foundcover, methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen", "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
+    def compareCDMethods(self, foundcover,
+                         methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
+                                    "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
         mshipList = []
 
@@ -58,10 +61,14 @@ class cdChecker(bch.commChecker):
                 elif method == "walktrap":
                     dendro = self.G.community_walktrap()
                     CD_mship = self.getMembershipFromDendro(dendro)
-                elif method == "CPM":
-                    pass
+                elif "CPM" in method:
+                    # method should be CPM3, CPM4, etc, so just get last char
+                    # todo add error checking
+                    cliqueSize = int(method[3])
+                    commList = cpm.clique_percolation_method(self.G, k=cliqueSize)
+                    CD_mship = self.getMembershipFromCommList(commList)
                 else:
-                    print("Unknown method: ", method)
+                    print("Unknown method: {}".format(method))
 
                 mshipList.append({"method": method,
                                   "mship": CD_mship
@@ -94,6 +101,17 @@ class cdChecker(bch.commChecker):
                 membership[vid] = \
                     cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
 
+        return membership
+
+    def getMembershipFromCommList(self, commList):
+        noneID = len(commList)
+        membership = [noneID] * self.G.vcount()
+        for commID, comm in enumerate(commList):
+            for vid in comm:
+                if membership[vid] == noneID:
+                    membership[vid] = commID
+                else:
+                    print("What the hell, vid already assigned!")
         return membership
 
     def getMembershipFromModTuple(self, modTuple):
