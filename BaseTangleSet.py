@@ -95,6 +95,8 @@ class TangleSet():
                     self.log.tock()
                     self.log.end()
                     return(timings, sepCounts)
+                else:
+                    print("Moocow")
                 self.log.tock()
         self.log.end()
         return(timings, sepCounts)
@@ -303,6 +305,11 @@ class TangleSet():
             # todo !!!!! change to enum over set
             # for i in range(numSeps):
             for smallSide in tangle.smallSides:
+                if smallSide == {6,7,8}:
+                    global debugBreak
+                    debugBreak = True
+                    print("Found trouble sep in printSingleTangle")
+
                 complement = self.groundset - smallSide
 
                 if verbose:
@@ -336,6 +343,7 @@ class TangleSet():
                 printSingleTangle(tangle, tangleCounter, i+1, verbose=False)
                 tangleCounter+=1
 
+        # I think this file gets overwritten at each order. Not ideal...
         OrientsOutfile = "{}/{}-Orientations.csv".\
         format(self.job['outputFolder'], self.job['outName'])
         orientArray.to_csv(OrientsOutfile)

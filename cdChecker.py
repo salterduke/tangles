@@ -58,6 +58,8 @@ class cdChecker(bch.commChecker):
                 elif method == "walktrap":
                     dendro = self.G.community_walktrap()
                     CD_mship = self.getMembershipFromDendro(dendro)
+                elif method == "CPM":
+                    pass
                 else:
                     print("Unknown method: ", method)
 

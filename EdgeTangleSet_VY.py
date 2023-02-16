@@ -278,16 +278,17 @@ class EdgeTangleSet(btang.TangleSet):
                             # therefore terminate any tangles that contradict this
                             notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
                             comp = self.groundset - notTreeIDs
-                            try:
-                                self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
-                                for branch in self.prevBranches:
-                                    branch.smallSides.remove(notTreeIDs)
-                                    # is not necessary, as is subset of this larger side.
-                            except:
-                                # if sepsOnly, prevBranches is not defined, so error.
-                                # but the above is only necessary when building tangles,
-                                # so can ignore
-                                pass
+                            # todo removed this as seems to be error?
+                            # try:
+                            #     self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
+                            #     for branch in self.prevBranches:
+                            #         branch.smallSides.remove(notTreeIDs)
+                            #         # is not necessary, as is subset of this larger side.
+                            # except:
+                            #     # if sepsOnly, prevBranches is not defined, so error.
+                            #     # but the above is only necessary when building tangles,
+                            #     # so can ignore
+                            #     pass
                             return True
 
 

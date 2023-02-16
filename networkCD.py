@@ -161,19 +161,24 @@ class graphCD():
         # I don't think we can mark them off as they're added, as we might be adding prematurely
         self.distinguishingSeps = set()
 
-        tangOrders = []
+        sepOrders = []
 
         nonDistSeps = []
         distSepsOneSided = []
         # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
+            print("Order: -------------------- {}".format(order))
             for side in self.TangleSet.separations[order]:
+                print("Side: {}".format(side))
+                if side == {6,7,8}:
+                    print("Found trouble sep")
+                    print("moocow")
                 sideIn = False
                 compIn = False
                 comp = set(self.giantComp.vs.indices) - side
                 for tang in self.TangleSet.TangleLists[order]:
-                    # print(tang.smallSides)
+                    print(tang.smallSides)
                     # if side in tang.smallSides:
                     if any(side.issubset(smallside) for smallside in tang.smallSides):
                         sideIn = True
@@ -191,6 +196,7 @@ class graphCD():
                         else:
                             continue
                 if sideIn and compIn:
+                    print("Adding dist sep")
                     # add both for easier checking
                     self.distinguishingSeps.add(frozenset(side))
                     self.distinguishingSeps.add(frozenset(comp))
@@ -205,7 +211,7 @@ class graphCD():
 
             for tang in self.TangleSet.TangleLists[order]:
 
-                tangOrders.append(order)
+                sepOrders.append(order)
                 distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
                 # note that if a dist sep is not in smallSides, it must be a subset of another dist sep
 
@@ -234,12 +240,13 @@ class graphCD():
         outfile = "{}/{}-TangNodes.csv". \
             format(self.job['outputFolder'], self.job['outName'])
         # making copy to add row for orders without messing with anything else.
-        # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        # cover_copy = cover_copy.append(pd.Series(sepOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
         # not sure why the above was removed, but eh.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.astype(np.int8)
         try:
-            self.foundcover.loc[len(self.foundcover)] = tangOrders
+            self.foundcover.loc[len(self.foundcover)] = [ord+1 for ord in sepOrders]
+            # as tangle orders are +1 to the highest order seps in them
         except:
             print("moocow")
         self.foundcover.index.values[len(self.foundcover)-1] = "order"
@@ -250,9 +257,9 @@ class graphCD():
 
         # # making copy to add row for orders without messing with anything else.
         # cover_copy = self.foundcover.copy(deep = True)
-        # # cover_copy = cover_copy.append(pd.Series(tangOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
+        # # cover_copy = cover_copy.append(pd.Series(sepOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
         # try:
-        #     cover_copy.loc[len(cover_copy)] = tangOrders
+        #     cover_copy.loc[len(cover_copy)] = sepOrders
         # except:
         #     print("moocow")
         # cover_copy.index.values[len(cover_copy)-1] = "order"

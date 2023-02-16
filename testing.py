@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import sys
 from scipy.stats import entropy
+import Modules.CliquePercolationMethod as cpm
+
+gname = "../NetworkData/SmallNWs/TinyEdges.csv"
+G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
+
+res = cpm.clique_percolation_method(G, 4, verbose=True)
+
+exit()
+
 
 def l2(x):
 
@@ -189,10 +198,10 @@ VI/myVI
 #
 #
 # # t = g.gomory_hu_tree()
-visual_style = {}
-# visual_style["vertex_color"] = "white"
-visual_style["vertex_label"] =
-ig.plot(t, **visual_style)
+# visual_style = {}
+# # visual_style["vertex_color"] = "white"
+# visual_style["vertex_label"] =
+# ig.plot(t, **visual_style)
 #
 # ig.plot(t)
 
