@@ -12,7 +12,7 @@ class cdChecker(bch.commChecker):
         bch.commChecker.__init__(self, G.vs["name"])
         self.G = G
 
-    def compareCDMethods(self, foundcover,
+    def compareCDMethods(self, foundcover, othercover = None,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
                                     "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
@@ -24,14 +24,25 @@ class cdChecker(bch.commChecker):
 
         # note, double [[]] in .loc gives df, [] gives series
         for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
+            print("--------------------------------------------")
+            print(order)
             orderCover = foundcover.loc[:,foundcover.loc["order"]==order]
             orderCover = orderCover.drop(index="order")
-
+            print(orderCover)
+            print("moocow")
             Tangle_mship = self.getMembershipFromCover(orderCover)
-            # todo look at built in comparison methods
+            print(Tangle_mship)
 
+            if othercover is not None:
+                methods = methods + ["otherCover"]
+
+            print(methods)
             for method in methods:
-                if method == "between":
+                if method == "otherCover":
+                    orderOther = othercover.loc[:, othercover.loc["order"] == order]
+                    orderOther = orderOther.drop(index="order")
+                    CD_mship = self.getMembershipFromCover(orderOther)
+                elif method == "between":
                     dendro = self.G.community_edge_betweenness(directed=False)
                     CD_mship = self.getMembershipFromDendro(dendro)
                 elif method == "fastgreedy":
@@ -65,8 +76,13 @@ class cdChecker(bch.commChecker):
                     # method should be CPM3, CPM4, etc, so just get last char
                     # todo add error checking
                     cliqueSize = int(method[3])
+                    CD_cover = self.overlapCliquePercolation(cliqueSize)
+                    CD_mship1 = self.getMembershipFromCover(CD_cover)
+                    # testing
                     commList = cpm.clique_percolation_method(self.G, k=cliqueSize)
                     CD_mship = self.getMembershipFromCommList(commList)
+                    # mni = ig.compare_communities(CD_mship1, CD_mship, method="nmi", remove_none=False)
+                    # dummy = 1
                 else:
                     print("Unknown method: {}".format(method))
 
@@ -97,9 +113,12 @@ class cdChecker(bch.commChecker):
         membership = [noneID]*self.G.vcount()
 
         for vid in self.G.vs.indices:
-            if any(cover.loc[self.G.vs[vid]["name"], :]==1):
-                membership[vid] = \
-                    cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
+            try:
+                if any(cover.loc[self.G.vs[vid]["name"], :]==1):
+                    membership[vid] = \
+                        cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
+            except:
+                print(vid)
 
         return membership
 
@@ -150,5 +169,77 @@ class cdChecker(bch.commChecker):
         cover = cover.astype(np.int8)
         return cover
 
-    # CPM method removed, as error, and take too long to fix and validate.
-    # For code, see master branch (I think?) or commit previous to this
+    def overlapCliquePercolation(self, cliqueSize):
+        # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
+
+        # todo remove later if using this method
+        cliqueSize = 3
+
+        cliques = list(map(set, self.G.maximal_cliques(min=cliqueSize)))
+        # so, each clique is assigned an index in the list.
+
+        edgelist = []
+
+        # This bit is flat-out wrong. Was an attempt to fix error with comms with a single clique being ignored,
+        # but I got confused between edges in G and edges in the clique graph
+        # replaced with ***** below
+        # adding all the edges in each clique
+        # for clique in cliques:
+        #     for i, j in iter.combinations(clique, 2):
+        #         edgelist.append((i, j))
+
+
+        # adding any edges between two cliques with sufficient overlap
+        for i, j in iter.combinations(range(len(cliques)), 2):
+            # iter.combinations(iterable, 2) returns every possible pair of values
+            # in the iterable (irrespective of order), but returns them ordered
+            if len(cliques[i].intersection(cliques[j])) >= cliqueSize - 1:
+                edgelist.append((i, j))
+
+        # *****
+        cliqueLinks = ig.Graph()
+        cliqueLinks.add_vertices(list(range(0, len(cliques))))
+        cliqueLinks.add_edges(edgelist)
+        # the above, instead of the below line
+        # cliqueLinks = ig.Graph(edgelist, directed=False)
+
+        cliqueComps = cliqueLinks.components()
+
+        numComps = len(cliqueComps)
+        if numComps == 0:
+            return None
+
+        cpmCover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(numComps), dtype=int)
+        for col in cpmCover.columns:
+            cpmCover[col].values[:] = 0
+
+        for id, comp in enumerate(cliqueComps):
+            # print(comp)
+            # each component is a list of vertices
+            for cid in comp:
+                print(cliques[cid])
+                for vid in cliques[cid]:
+                    print(self.nodeNames[vid])
+                    cpmCover.loc[self.nodeNames[vid], id] = 1
+
+        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
+        cpmCover = cpmCover.astype(np.int8)
+        return cpmCover
+
+
+if __name__ == '__main__':
+    graphfile = "../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
+    G = ig.Graph.Read_Ncol(graphfile, names=True, directed=False)
+
+    checker = cdChecker(G)
+    coverFile = "outputdevYWS/YeastGSCompB_core-TangNodes.csv"
+    foundcover = pd.read_csv(coverFile, index_col=0)
+    otherCoverFiles = [
+        "outputDevYWS/YeastGSCompB_core-TangNodes-testYWS.csv"
+    ]
+
+    for otherFile in otherCoverFiles:
+        othercover = pd.read_csv(otherFile, index_col=0)
+        checkresults = checker.compareCDMethods(foundcover, othercover, methods=[])
+        dummy = 1
+        # todo make tidier, better labelled, print to file?

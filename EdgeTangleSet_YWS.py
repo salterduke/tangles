@@ -683,4 +683,4 @@ class EdgeTangleSet(btang.TangleSet):
             orientation = 3
 
         if "constructed" not in self.sepFilename:
-            printSepToFile(size, components, orientation)
+            printSepToFile(sep_k, components, orientation)

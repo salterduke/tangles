@@ -22,7 +22,14 @@ for commID, comm in enumerate(commList):
         else:
             print("What the hell, vid already assigned!")
 
+commList =
+
 exit()
+
+
+
+
+
 
 
 def l2(x):
@@ -127,10 +134,19 @@ VI/myVI
 
 # G = ig.Graph.Read_GML("../NetworkData/MediumSize/adjnoun.gml")
 #
-# visual_style = {}
-# visual_style["vertex_color"] = "white"
-# visual_style["vertex_label"] = G.vs.indices
-# ig.plot(G, **visual_style)
+G = self.G
+visual_style = {}
+visual_style["vertex_color"] = "white"
+visual_style["vertex_label"] = G.vs.indices
+ig.plot(G, **visual_style)
+
+import igraph as ig
+g = ig.Graph.Famous("petersen")
+ig.plot(g)
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 #
 # G = G.simplify()
 #

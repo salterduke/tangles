@@ -40,15 +40,17 @@ class graphCD():
                     print(arg)
                     exit()
 
-        fileExt = job["inFile"].split(".")[-1]
-        if fileExt in ("png", "ico", "jpg", "jpeg", "bmp"):
-            job["doImage"] = True
-            job["imType"] = "ICON"
-        if "MNIST" in job["outName"].upper():
-            job["doImage"] = True
-            job["imType"] = "MNIST"
-            job["MNISTid"] = job["outName"].split(".")[-1]
-
+        try:
+            fileExt = job["inFile"].split(".")[-1]
+            if fileExt in ("png", "ico", "jpg", "jpeg", "bmp"):
+                job["doImage"] = True
+                job["imType"] = "ICON"
+            if "MNIST" in job["outName"].upper():
+                job["doImage"] = True
+                job["imType"] = "MNIST"
+                job["MNISTid"] = job["outName"].split(".")[-1]
+        except:
+            print("moocow")
 
         if "construct" in job and job["construct"]:
             graph = self.constructRandom(job)
@@ -168,12 +170,12 @@ class graphCD():
         # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
-            print("Order: -------------------- {}".format(order))
+            # print("Order: -------------------- {}".format(order))
             for side in self.TangleSet.separations[order]:
-                print("Side: {}".format(side))
-                if side == {6,7,8}:
-                    print("Found trouble sep")
-                    print("moocow")
+                # print("Side: {}".format(side))
+                # if side == {6,7,8}:
+                #     print("Found trouble sep")
+                #     print("moocow")
                 sideIn = False
                 compIn = False
                 comp = set(self.giantComp.vs.indices) - side
@@ -218,7 +220,9 @@ class graphCD():
                 if len(distSmallSides) > 0:
                     onAllBig = set(self.giantComp.vs.indices) - set.union(*distSmallSides)
                 else:
-                    onAllBig = set()
+                    onAllBig = set(self.giantComp.vs.indices)
+                    dummy = 1
+                    # onAllBig = set()
                     # todo decide on proper handling
 
                 for v in range(self.TangleSet.groundsetSize):
