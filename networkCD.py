@@ -11,11 +11,9 @@ import collections as coll
 from matplotlib import cm
 import igraph as ig
 import itertools as iter
-import protChecker
+import Modules.protChecker as protChecker
 import cdChecker
 import random
-
-from tools import ifelse
 
 class graphCD():
     def __init__(self, job, log):
@@ -180,7 +178,7 @@ class graphCD():
                 compIn = False
                 comp = set(self.giantComp.vs.indices) - side
                 for tang in self.TangleSet.TangleLists[order]:
-                    print(tang.smallSides)
+                    # print(tang.smallSides)
                     # if side in tang.smallSides:
                     if any(side.issubset(smallside) for smallside in tang.smallSides):
                         sideIn = True
@@ -198,7 +196,7 @@ class graphCD():
                         else:
                             continue
                 if sideIn and compIn:
-                    print("Adding dist sep")
+                    # print("Adding dist sep")
                     # add both for easier checking
                     self.distinguishingSeps.add(frozenset(side))
                     self.distinguishingSeps.add(frozenset(comp))
@@ -221,9 +219,6 @@ class graphCD():
                     onAllBig = set(self.giantComp.vs.indices) - set.union(*distSmallSides)
                 else:
                     onAllBig = set(self.giantComp.vs.indices)
-                    dummy = 1
-                    # onAllBig = set()
-                    # todo decide on proper handling
 
                 for v in range(self.TangleSet.groundsetSize):
                     self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
@@ -369,7 +364,7 @@ class graphCD():
         #     print("Found commQual: ", quality["commQual"])
         #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
-        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover, methods=["CPM3", "CPM4"])
+        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover, methods=["between"])
 
         # todo - do somthing with the qual measures
         # todo also re-add the coverage ratio

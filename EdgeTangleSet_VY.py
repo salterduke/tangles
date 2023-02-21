@@ -7,6 +7,8 @@ import igraph as ig
 import collections as coll
 import itertools as iter
 import BaseTangleSet as btang
+import Modules.tools as tools
+from Modules.tools import mergeVnames
 
 def extractComponents(mcut, vcount):
     # probably there's a quicker way of doing this, but just get it working for now.
@@ -16,9 +18,6 @@ def extractComponents(mcut, vcount):
         comps[int(mcutList[i])].add(i)
     return (comps)
 
-
-def mergeVnames(names, sep=","):
-    return sep.join(names)
 
 
 def extCutIsSuperset(currCuts, newCut):
@@ -109,7 +108,7 @@ class partialCut(object):
                     try:
                         newVids.update(v.index for v in map(Gdir.vs.find, Gdircopy.vs[vid]["name"].split(",")))
                     except BaseException as err:
-                        print("error here. ")
+                        print("error here in unmergeVnames. ")
 
             return newVids
 
@@ -138,25 +137,10 @@ class EdgeTangleSet(btang.TangleSet):
 
         print("Initialising VY Edge Tangle Set")
 
-        # todo check this change
         # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
         # since a twig is always "small", don't need to deal with all parts of the twig.
-        outershell = G.induced_subgraph(np.where(np.array(G.coreness()) == 1)[0])
-        twigs = outershell.clusters()
+        self.G = tools.pruneToStubs(G)
 
-        mapvector = G.vs.indices
-        for twig in twigs:
-            vnames = outershell.vs[twig]["name"]
-            vids_inG = G.vs.select(name_in=vnames).indices
-            for i in vids_inG:
-                mapvector[i] = min(vids_inG)
-                # probably a oneliner way of doing this, but eh.
-
-        G.contract_vertices(mapvector, combine_attrs=dict(name=functools.partial(mergeVnames,sep=";")))
-        G.simplify(combine_edges="sum")
-        G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
-
-        self.G = G
         self.leafExtent = 0
         self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
 

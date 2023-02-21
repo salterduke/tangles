@@ -8,6 +8,40 @@ import sys
 from scipy.stats import entropy
 import Modules.CliquePercolationMethod as cpm
 
+
+
+
+df1 = pd.DataFrame()
+df1[0] = list(range(0,5))
+df1[1] = list(range(10,15))
+df1[3] = list(range(30,35))
+
+df2 = pd.DataFrame()
+df2[0] = list(range(10,15))
+df2[1] = list(range(0,5))
+
+df3 = pd.DataFrame()
+df3[0] = list(range(0,5))
+df3[1] = list(range(20,25))
+df3[2] = list(range(10,15))
+df3[3] = [2,3,4,0,1]
+
+[any([df1[j].equals( df3[i])  for i in df3.columns ]) for j in df1.columns]
+
+# returns a list with dim the num of cols in df1, recording whether that col exists in df2
+def matchCols(df1, df2):
+    return [any([df1[j].equals(df2[i]) for i in df2.columns]) for j in df1.columns]
+
+matchCols(df1, df2)
+matchCols(df3, df2)
+
+df1[0].isin( df2[1] )
+df3.isin(df1)
+# answer is dim of first df
+
+df1.index = ["a", "e", "b", "c", "d"]
+df1.sort_index(axis="index")
+
 gname = "../NetworkData/SmallNWs/TinyEdges.csv"
 G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
 

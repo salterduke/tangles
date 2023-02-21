@@ -7,10 +7,9 @@ import igraph as ig
 import collections as coll
 import itertools as iter
 import BaseTangleSet as btang
+import Modules.tools as tools
+from Modules.tools import mergeVnames
 
-
-def mergeVnames(names):
-    return ",".join(names)
 
 def externalExtractMinPart(partcut, Gdir, kmax):
     # new partcut is pcut, mcut, weight, mask
@@ -457,26 +456,10 @@ class EdgeTangleSet(btang.TangleSet):
     def __init__(self, G, job, log):
 
         print("Initialising YWS Edge Tangle Set")
-        # todo check this change
+
         # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
         # since a twig is always "small", don't need to deal with all parts of the twig.
-        outershell = G.induced_subgraph(np.where(np.array(G.coreness()) == 1)[0])
-        twigs = outershell.clusters()
-
-        mapvector = G.vs.indices
-        for twig in twigs:
-            vnames = outershell.vs[twig]["name"]
-            vids_inG = G.vs.select(name_in=vnames).indices
-            for i in vids_inG:
-                mapvector[i] = min(vids_inG)
-                # probably a oneliner way of doing this, but eh.
-
-        G.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
-        G.simplify(combine_edges="sum")
-        G.delete_vertices([v.index for v in G.vs if v["name"] == ''] )
-
-        # todo change ends here
-        self.G = G
+        self.G = tools.pruneToStubs(G)
 
         self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
         self.leafExtent = 0

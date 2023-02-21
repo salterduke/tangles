@@ -4,15 +4,13 @@ import numpy as np
 import datetime
 import pandas as pd
 import igraph as ig
-import logger
+import Modules.logger as logger
 import os
 import sys
 import shutil
 import multiprocessing
 import platform
 import ImageParser
-
-from tools import ifelse
 
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
@@ -49,7 +47,7 @@ def runAnalysis(job):
     jobGraph = netCD.graphCD(job, log)
 
     # modified so dep is total number of orders, not total after the first one
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 2, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
     secs = log.tock(ticktoken)
 
 

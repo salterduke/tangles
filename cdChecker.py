@@ -6,11 +6,12 @@ import baseChecker as bch
 import itertools as iter
 import igraph as ig
 import Modules.CliquePercolationMethod as cpm
+import Modules.tools as tools
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
         bch.commChecker.__init__(self, G.vs["name"])
-        self.G = G
+        self.G = tools.pruneToStubs(G)
 
     def compareCDMethods(self, foundcover, othercover = None,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
@@ -22,26 +23,22 @@ class cdChecker(bch.commChecker):
         if self.G.vcount() > 100:
             methods = [m for m in methods if m != "modularity"]
 
+        if othercover is not None:
+            methods = methods + ["otherCover"]
+
+
         # note, double [[]] in .loc gives df, [] gives series
         for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
-            print("--------------------------------------------")
-            print(order)
             orderCover = foundcover.loc[:,foundcover.loc["order"]==order]
             orderCover = orderCover.drop(index="order")
-            print(orderCover)
-            print("moocow")
             Tangle_mship = self.getMembershipFromCover(orderCover)
-            print(Tangle_mship)
 
-            if othercover is not None:
-                methods = methods + ["otherCover"]
-
-            print(methods)
             for method in methods:
                 if method == "otherCover":
                     orderOther = othercover.loc[:, othercover.loc["order"] == order]
                     orderOther = orderOther.drop(index="order")
                     CD_mship = self.getMembershipFromCover(orderOther)
+
                 elif method == "between":
                     dendro = self.G.community_edge_betweenness(directed=False)
                     CD_mship = self.getMembershipFromDendro(dendro)
@@ -91,7 +88,10 @@ class cdChecker(bch.commChecker):
                 })
 
                 for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
-                    value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
+                    try:
+                        value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
+                    except:
+                        print("moocow")
 
                     # print(order, method, metric, value)
                     resList.append({"order": order,
@@ -217,9 +217,9 @@ class cdChecker(bch.commChecker):
             # print(comp)
             # each component is a list of vertices
             for cid in comp:
-                print(cliques[cid])
+                # print(cliques[cid])
                 for vid in cliques[cid]:
-                    print(self.nodeNames[vid])
+                    # print(self.nodeNames[vid])
                     cpmCover.loc[self.nodeNames[vid], id] = 1
 
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
@@ -232,14 +232,26 @@ if __name__ == '__main__':
     G = ig.Graph.Read_Ncol(graphfile, names=True, directed=False)
 
     checker = cdChecker(G)
-    coverFile = "outputdevYWS/YeastGSCompB_core-TangNodes.csv"
-    foundcover = pd.read_csv(coverFile, index_col=0)
+
+    colTypes = defaultdict(lambda:int, {0:str})
+    coverFile = "outputDevYWS/YeastGSCompB_core-TangNodes-original.csv"
+
+    foundcover = pd.read_csv(coverFile, index_col=0, dtype=colTypes)
+    foundcover.columns = foundcover.columns.astype(int)
+
     otherCoverFiles = [
-        "outputDevYWS/YeastGSCompB_core-TangNodes-testYWS.csv"
+        "outputDevYWS/YeastGSCompB_core-TangNodes.csv",
+        "outputDevVY/YeastGSCompB_core-TangNodes.csv"
     ]
 
     for otherFile in otherCoverFiles:
-        othercover = pd.read_csv(otherFile, index_col=0)
-        checkresults = checker.compareCDMethods(foundcover, othercover, methods=[])
+        othercover = pd.read_csv(otherFile, index_col=0, dtype=colTypes)
+        othercover.columns = othercover.columns.astype(int)
+
+        print(otherFile)
+        print(tools.matchCols(foundcover, othercover))
+        print(tools.matchCols(othercover, foundcover))
+
+        checkresults, mships = checker.compareCDMethods(foundcover, othercover, methods=[])
         dummy = 1
         # todo make tidier, better labelled, print to file?
