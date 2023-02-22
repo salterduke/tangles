@@ -159,7 +159,7 @@ class graphCD():
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
         # we are going to work out which seps are distinguishing
         # I don't think we can mark them off as they're added, as we might be adding prematurely
-        self.distinguishingSeps = set()
+        self.distinguishingSeps = []
 
         sepOrders = []
 
@@ -198,12 +198,12 @@ class graphCD():
                 if sideIn and compIn:
                     # print("Adding dist sep")
                     # add both for easier checking
-                    self.distinguishingSeps.add(frozenset(side))
-                    self.distinguishingSeps.add(frozenset(comp))
+                    self.distinguishingSeps.append(side)
+                    self.distinguishingSeps.append(comp)
                     distSepsOneSided.append([self.giantComp.vs[v]["name"] for v in side])
                 elif sideIn and not compIn:
                     nonDistSeps.append([self.giantComp.vs[v]["name"] for v in side])
-                elif not sideIn  and compIn:
+                elif not sideIn and compIn:
                     nonDistSeps.append([self.giantComp.vs[v]["name"] for v in comp])
                 else:
                     print("What the hell - neither side in there")
@@ -211,9 +211,19 @@ class graphCD():
 
             for tang in self.TangleSet.TangleLists[order]:
 
+                # kludgy as hell, but eh
                 sepOrders.append(order)
-                distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
-                # note that if a dist sep is not in smallSides, it must be a subset of another dist sep
+
+                # distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
+
+                distSmallSides = []
+                for sep in tang.smallSides:
+                    for distSep in self.distinguishingSeps:
+                        # if sep supset of distsep, then we know which way distsep has to be pointing
+                        # note that if a dist sep is not in smallSides, it must be a subset of another sep -
+                        if sep.issuperset(distSep):
+                            distSmallSides.append(distSep)
+                            break
 
                 if len(distSmallSides) > 0:
                     onAllBig = set(self.giantComp.vs.indices) - set.union(*distSmallSides)

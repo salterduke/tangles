@@ -152,14 +152,13 @@ class EdgeTangleSet(btang.TangleSet):
 
         self.names = self.G.vs['name']
 
-        # ig.plot(self.G)
+        # this just takes up way too much disc for large networks.
+        # self.sepFilename = "{}/{}-SepList-CF.tsv". \
+        #     format(job['outputFolder'], job['outName'])
         #
-        self.sepFilename = "{}/{}-SepList-CF.tsv". \
-            format(job['outputFolder'], job['outName'])
-
-        text = "order\tcut\tside1\tside2\torientation\n"
-        with open(self.sepFilename, 'w+') as the_file:
-            the_file.write(text)
+        # text = "order\tcut\tside1\tside2\torientation\n"
+        # with open(self.sepFilename, 'w+') as the_file:
+        #     the_file.write(text)
 
     # todo whack a numba thingy on this guy? - probably a wrapper
     # todo https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
@@ -342,8 +341,6 @@ class EdgeTangleSet(btang.TangleSet):
             self.separations[sep_k].append(convertLeaves(components[0]))
             orientation = 3
 
-        # need to do this because we need to check for superset-ness
-        # self.cuts.add(partial.cutEdges)
-        # todo consider if can remove cutEdges?
-        if "constructed" not in self.sepFilename:
-            printSepToFile(components, partial.cutEdges, orientation)
+        # takes up way too much disc
+        # if "constructed" not in self.sepFilename:
+        #     printSepToFile(components, partial.cutEdges, orientation)

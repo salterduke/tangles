@@ -7,40 +7,54 @@ from sklearn.linear_model import LinearRegression
 import sys
 from scipy.stats import entropy
 import Modules.CliquePercolationMethod as cpm
+import Modules.tools as tools
+
+# ../NetworkData/DirectedNetworks/EmailEUCore/email-Eu-core.txt;EmailEUCore
+# ../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt;BSubtilis-htb
+
+graphsFiles = [
+    # "../NetworkData/Celegans/NeuronConnect.csv",
+    # "../NetworkData/MediumSize/Copperfield.csv",
+    # "../NetworkData/MediumSize/Football.csv",
+    "../NetworkData/MediumSize/Jazz.csv"
+]
+
+for gname in graphsFiles:
+    print(gname)
+    G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
+    G.simplify(combine_edges="sum")
+    G = tools.pruneToStubs(G)
+
+    layout_opts = [
+        # "davidson_harel",
+        # "fruchterman_reingold",
+        # "kamada_kawai",
+        # "graphopt",
+        # "lgl",
+        # "mds",
+        "auto"
+    ]
+
+    visual_style = {}
+    visual_style["vertex_color"] = "white"
+    visual_style["vertex_label"] = G.vs.indices
+    visual_style["vertex_size"] = 0
+    visual_style["edge_width"] = 1
+
+    # for jazz only
+    interesting = [152, 157, 6, 30, 34]
+    visual_style["vertex_label"] = [name if int(name) in interesting else "" for name in G.vs["name"]]
+
+    # ig.plot(G)
+
+    for layout in layout_opts:
+        fig, ax = plt.subplots()
+        visual_style["layout"] = layout
+        ig.plot(G, target=ax, **visual_style)
+        plt.show()
 
 
-
-
-df1 = pd.DataFrame()
-df1[0] = list(range(0,5))
-df1[1] = list(range(10,15))
-df1[3] = list(range(30,35))
-
-df2 = pd.DataFrame()
-df2[0] = list(range(10,15))
-df2[1] = list(range(0,5))
-
-df3 = pd.DataFrame()
-df3[0] = list(range(0,5))
-df3[1] = list(range(20,25))
-df3[2] = list(range(10,15))
-df3[3] = [2,3,4,0,1]
-
-[any([df1[j].equals( df3[i])  for i in df3.columns ]) for j in df1.columns]
-
-# returns a list with dim the num of cols in df1, recording whether that col exists in df2
-def matchCols(df1, df2):
-    return [any([df1[j].equals(df2[i]) for i in df2.columns]) for j in df1.columns]
-
-matchCols(df1, df2)
-matchCols(df3, df2)
-
-df1[0].isin( df2[1] )
-df3.isin(df1)
-# answer is dim of first df
-
-df1.index = ["a", "e", "b", "c", "d"]
-df1.sort_index(axis="index")
+exit()
 
 gname = "../NetworkData/SmallNWs/TinyEdges.csv"
 G = ig.Graph.Read_Ncol(gname, names=True, directed=False)
@@ -55,10 +69,6 @@ for commID, comm in enumerate(commList):
             membership[vid] = commID
         else:
             print("What the hell, vid already assigned!")
-
-commList =
-
-exit()
 
 
 
@@ -177,6 +187,7 @@ ig.plot(G, **visual_style)
 import igraph as ig
 g = ig.Graph.Famous("petersen")
 ig.plot(g)
+plt.show()
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
