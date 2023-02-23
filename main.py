@@ -22,7 +22,7 @@ if __name__ == '__main__':
         # testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
         testName = sys.argv[1]
         print("Dev testing, name {}".format(testName))
-        configFile = "config2.txt"
+        configFile = "config.txt"
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
         testName = "DevVY" # note leaving VY in name so alg is correctly selected later
@@ -47,7 +47,7 @@ def runAnalysis(job):
     jobGraph = netCD.graphCD(job, log)
 
     # modified so dep is total number of orders, not total after the first one
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 8, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
     secs = log.tock(ticktoken)
 
 

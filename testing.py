@@ -16,7 +16,8 @@ graphsFiles = [
     # "../NetworkData/Celegans/NeuronConnect.csv",
     # "../NetworkData/MediumSize/Copperfield.csv",
     # "../NetworkData/MediumSize/Football.csv",
-    "../NetworkData/MediumSize/Jazz.csv"
+    # "../NetworkData/MediumSize/Jazz.csv",
+    "../NetworkData/Celegans/NeuronConnect.csv"
 ]
 
 for gname in graphsFiles:
@@ -37,13 +38,15 @@ for gname in graphsFiles:
 
     visual_style = {}
     visual_style["vertex_color"] = "white"
-    visual_style["vertex_label"] = G.vs.indices
+    # visual_style["vertex_label"] = G.vs.indices
     visual_style["vertex_size"] = 0
     visual_style["edge_width"] = 1
 
+    # df = pd.DataFrame({"name": self.G.vs["name"], "index": self.G.vs.indices, "degree":self.G.degree()})
+
     # for jazz only
-    interesting = [152, 157, 6, 30, 34]
-    visual_style["vertex_label"] = [name if int(name) in interesting else "" for name in G.vs["name"]]
+    # interesting = [152, 157, 6, 30, 34]
+    # visual_style["vertex_label"] = [name if int(name) in interesting else "" for name in G.vs["name"]]
 
     # ig.plot(G)
 
@@ -52,6 +55,7 @@ for gname in graphsFiles:
         visual_style["layout"] = layout
         ig.plot(G, target=ax, **visual_style)
         plt.show()
+        dummy = 1
 
 
 exit()

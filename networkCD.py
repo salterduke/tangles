@@ -211,10 +211,7 @@ class graphCD():
 
             for tang in self.TangleSet.TangleLists[order]:
 
-                # kludgy as hell, but eh
                 sepOrders.append(order)
-
-                # distSmallSides = [sep for sep in tang.smallSides if sep in self.distinguishingSeps]
 
                 distSmallSides = []
                 for sep in tang.smallSides:
@@ -223,7 +220,6 @@ class graphCD():
                         # note that if a dist sep is not in smallSides, it must be a subset of another sep -
                         if sep.issuperset(distSep):
                             distSmallSides.append(distSep)
-                            break
 
                 if len(distSmallSides) > 0:
                     onAllBig = set(self.giantComp.vs.indices) - set.union(*distSmallSides)

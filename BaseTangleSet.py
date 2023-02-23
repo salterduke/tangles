@@ -302,8 +302,6 @@ class TangleSet():
             if tangle.smallSides is None:
                 tangle.smallSides = []
             ##########################
-            # todo !!!!! change to enum over set
-            # for i in range(numSeps):
             for smallSide in tangle.smallSides:
                 if smallSide == {6,7,8}:
                     global debugBreak
@@ -322,10 +320,14 @@ class TangleSet():
 
                 if len(smallSide) <= len(complement):
                     tangOrients.append("{} / G\\*".format(sorted(set(smallSide))))
-                    tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, smallSide)))))
+                    nameList = [self.names[id] if id >= 0 else str(id) for id in smallSide]
+                    tangOrientsNamed.append("{} / G\\*".format(sorted(nameList)))
+                    # tangOrientsNamed.append("{} / G\\*".format(sorted(list(map(self.names.__getitem__, smallSide)))))
                 else:
                     tangOrients.append("G\\* / {}".format(sorted(complement)))
-                    tangOrientsNamed.append("G\\* / {}".format(sorted(list(map(self.names.__getitem__, complement)))))
+                    nameList = [self.names[id] if id >= 0 else str(id) for id in complement]
+                    tangOrientsNamed.append("{} / G\\*".format(sorted(nameList)))
+                    # tangOrientsNamed.append("G\\* / {}".format(sorted(list(map(self.names.__getitem__, complement)))))
 
             tangHeader = "{}: ord={}".format(tangID, tangOrder)
             temparray = pd.DataFrame()
