@@ -26,66 +26,67 @@ class cdChecker(bch.commChecker):
         if othercover is not None:
             methods = methods + ["otherCover"]
 
+        for method in methods:
+            if method == "otherCover":
+                orderOther = othercover.loc[:, othercover.loc["order"] == order]
+                orderOther = orderOther.drop(index="order")
+                CD_mship = self.getMembershipFromCover(orderOther)
+            elif method == "between":
+                dendro = self.G.community_edge_betweenness(directed=False)
+                CD_mship = self.getMembershipFromDendro(dendro)
+            elif method == "fastgreedy":
+                dendro = self.G.community_fastgreedy()
+                CD_mship = self.getMembershipFromDendro(dendro)
+            elif method == "infomap":
+                cluster = self.G.community_infomap()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "labelprop":
+                cluster = self.G.community_label_propagation()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "eigen":
+                cluster = self.G.community_leading_eigenvector()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "leiden":
+                cluster = self.G.community_leiden()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "multilevel":
+                cluster = self.G.community_multilevel()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "modularity":
+                cluster = self.G.community_optimal_modularity()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "spinglass":
+                cluster = self.G.community_spinglass()
+                CD_mship = self.getMembershipFromClustering(cluster)
+            elif method == "walktrap":
+                dendro = self.G.community_walktrap()
+                CD_mship = self.getMembershipFromDendro(dendro)
+            elif "CPM" in method:
+                # method should be CPM3, CPM4, etc, so just get last char
+                # todo add error checking
+                cliqueSize = int(method[3])
+                CD_cover = self.overlapCliquePercolation(cliqueSize)
+                CD_mship1 = self.getMembershipFromCover(CD_cover)
+                # testing
+                commList = cpm.clique_percolation_method(self.G, k=cliqueSize)
+                CD_mship = self.getMembershipFromCommList(commList)
 
-        # note, double [[]] in .loc gives df, [] gives series
-        for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
-            orderCover = foundcover.loc[:,foundcover.loc["order"]==order]
-            orderCover = orderCover.drop(index="order")
-            Tangle_mship = self.getMembershipFromCover(orderCover)
+                CD_cover_his = self.getCoverFromCommList(commList)
 
-            for method in methods:
-                if method == "otherCover":
-                    orderOther = othercover.loc[:, othercover.loc["order"] == order]
-                    orderOther = orderOther.drop(index="order")
-                    CD_mship = self.getMembershipFromCover(orderOther)
+                # mni = ig.compare_communities(CD_mship1, CD_mship, method="nmi", remove_none=False)
+                dummy = 1
+            else:
+                print("Unknown method: {}".format(method))
 
-                elif method == "between":
-                    dendro = self.G.community_edge_betweenness(directed=False)
-                    CD_mship = self.getMembershipFromDendro(dendro)
-                elif method == "fastgreedy":
-                    dendro = self.G.community_fastgreedy()
-                    CD_mship = self.getMembershipFromDendro(dendro)
-                elif method == "infomap":
-                    cluster = self.G.community_infomap()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "labelprop":
-                    cluster = self.G.community_label_propagation()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "eigen":
-                    cluster = self.G.community_leading_eigenvector()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "leiden":
-                    cluster = self.G.community_leiden()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "multilevel":
-                    cluster = self.G.community_multilevel()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "modularity":
-                    cluster = self.G.community_optimal_modularity()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "spinglass":
-                    cluster = self.G.community_spinglass()
-                    CD_mship = self.getMembershipFromClustering(cluster)
-                elif method == "walktrap":
-                    dendro = self.G.community_walktrap()
-                    CD_mship = self.getMembershipFromDendro(dendro)
-                elif "CPM" in method:
-                    # method should be CPM3, CPM4, etc, so just get last char
-                    # todo add error checking
-                    cliqueSize = int(method[3])
-                    CD_cover = self.overlapCliquePercolation(cliqueSize)
-                    CD_mship1 = self.getMembershipFromCover(CD_cover)
-                    # testing
-                    commList = cpm.clique_percolation_method(self.G, k=cliqueSize)
-                    CD_mship = self.getMembershipFromCommList(commList)
-                    # mni = ig.compare_communities(CD_mship1, CD_mship, method="nmi", remove_none=False)
-                    # dummy = 1
-                else:
-                    print("Unknown method: {}".format(method))
+            mshipList.append({"method": method,
+                              "mship": CD_mship
+            })
 
-                mshipList.append({"method": method,
-                                  "mship": CD_mship
-                })
+            # note, double [[]] in .loc gives df, [] gives series
+            for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
+                orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
+                orderCover = orderCover.drop(index="order")
+                Tangle_mship = self.getMembershipFromCover(orderCover)
 
                 for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
                     try:
@@ -151,6 +152,21 @@ class cdChecker(bch.commChecker):
         noneID = max(membership) + 1
         membership = [noneID if v is None else v for v in membership]
         return membership
+
+    def getCoverFromCommList(self, commList):
+        cover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(len(commList)), dtype=int)
+
+        for col in cover.columns:
+            cover[col].values[:] = 0
+
+        try:
+            for comm in commList:
+                cover.loc[self.G.vs[list(comm)]["name"], id] = 1
+        except:
+            dummy = 1
+
+        return cover
+
 
     def getCoverFromDendro(self, dendro):
         membership = np.array(dendro.as_clustering().membership)

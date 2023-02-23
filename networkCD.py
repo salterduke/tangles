@@ -355,7 +355,7 @@ class graphCD():
     def evaluateCommunities(self):
         # see analyseOverlapComms (currently commented out)
 
-        quality = coll.defaultdict(float)
+        # quality = coll.defaultdict(float)
 
         if self.cdChecker is None:
             self.cdChecker = cdChecker.cdChecker(self.giantComp)
@@ -370,10 +370,11 @@ class graphCD():
         #     print("Found commQual: ", quality["commQual"])
         #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
-        quality["CD"] = self.cdChecker.compareCDMethods(self.foundcover, methods=["between"])
+        quality, mships = self.cdChecker.compareCDMethods(self.foundcover, methods=["CPM3", "CPM4"])
+
 
         # todo - do somthing with the qual measures
-        # todo also re-add the coverage ratio
+        # todo also re-add the coverage ratio?
         return(quality)
 
 

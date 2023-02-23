@@ -47,7 +47,7 @@ def runAnalysis(job):
     jobGraph = netCD.graphCD(job, log)
 
     # modified so dep is total number of orders, not total after the first one
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 1, sepsOnly=False)
     secs = log.tock(ticktoken)
 
 
