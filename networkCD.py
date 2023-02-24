@@ -143,8 +143,8 @@ class graphCD():
 
         if not sepsOnly:
             self.assignCommunities()
-            if not self.job.get("doImage"):
-                quality = self.evaluateCommunities()
+            # if not self.job.get("doImage"):
+            #     quality = self.evaluateCommunities()
             # todo add evaluation for images
 
         self.doPrint = False

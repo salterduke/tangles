@@ -10,8 +10,28 @@ import Modules.tools as tools
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
-        bch.commChecker.__init__(self, G.vs["name"])
         self.G = tools.pruneToStubs(G)
+        bch.commChecker.__init__(self, self.G.vs["name"])
+
+    def compareCovers(self, cov1, cov2):
+        # print(otherFile)
+        fvo = tools.matchCols(cov1, cov2)
+        # print(fvo)
+        if all(fvo):
+            print("All comms from first cover found in second cover")
+        else:
+            unfound = np.where(np.logical_not(fvo))[0]
+            print("Column ids {} from first cover missing from second cover".format(unfound))
+            # print("Column names {} from first cover missing from second cover".format(list(cov1.columns[unfound])))
+        ovf = tools.matchCols(cov2, cov1)
+        # print(ovf)
+        if all(ovf):
+            print("All comms from second cover found in first cover")
+        else:
+            unfound = np.where(np.logical_not(ovf))[0]
+            print("Column ids {} from second cover missing from first cover".format(unfound))
+            # print("Column names {} from second cover missing from first cover".format(list(cov1.columns[unfound])))
+
 
     def compareCDMethods(self, foundcover, othercover = None,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
@@ -73,7 +93,9 @@ class cdChecker(bch.commChecker):
 
                 CD_cover_his = self.getCoverFromCommList(commList)
 
-                # mni = ig.compare_communities(CD_mship1, CD_mship, method="nmi", remove_none=False)
+                print("Mine is first, his is second, method {}".format(method))
+                self.compareCovers(CD_cover, CD_cover_his)
+
                 dummy = 1
             else:
                 print("Unknown method: {}".format(method))
@@ -154,13 +176,13 @@ class cdChecker(bch.commChecker):
         return membership
 
     def getCoverFromCommList(self, commList):
-        cover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(len(commList)), dtype=int)
+        cover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(len(commList)), dtype='Int64').fillna(0)
 
-        for col in cover.columns:
-            cover[col].values[:] = 0
+        # for col in cover.columns:
+        #     cover[col].values[:] = 0
 
         try:
-            for comm in commList:
+            for id, comm in enumerate(commList):
                 cover.loc[self.G.vs[list(comm)]["name"], id] = 1
         except:
             dummy = 1
@@ -187,9 +209,6 @@ class cdChecker(bch.commChecker):
 
     def overlapCliquePercolation(self, cliqueSize):
         # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
-
-        # todo remove later if using this method
-        cliqueSize = 3
 
         cliques = list(map(set, self.G.maximal_cliques(min=cliqueSize)))
         # so, each clique is assigned an index in the list.
@@ -225,9 +244,7 @@ class cdChecker(bch.commChecker):
         if numComps == 0:
             return None
 
-        cpmCover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(numComps), dtype=int)
-        for col in cpmCover.columns:
-            cpmCover[col].values[:] = 0
+        cpmCover = pd.DataFrame(index=self.G.vs["name"], columns=range(numComps), dtype='Int64').fillna(0)
 
         for id, comp in enumerate(cliqueComps):
             # print(comp)
@@ -239,35 +256,68 @@ class cdChecker(bch.commChecker):
                     cpmCover.loc[self.nodeNames[vid], id] = 1
 
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
-        cpmCover = cpmCover.astype(np.int8)
+        # try:
+        #     cpmCover = cpmCover.astype(np.int8)
+        # except:
+        #     dummy = 1
         return cpmCover
 
 
 if __name__ == '__main__':
-    graphfile = "../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
-    G = ig.Graph.Read_Ncol(graphfile, names=True, directed=False)
 
-    checker = cdChecker(G)
+    dataSets = {
+        # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
+        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
+        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv")
+        # COMMA !!!!!!!!!!
+        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
+        # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
+    }
+    coverFolder = "./outputdevResults_VY/"
 
-    colTypes = defaultdict(lambda:int, {0:str})
-    coverFile = "outputDevYWS/YeastGSCompB_core-TangNodes-original.csv"
+    # "Karate-TangNodes.csv",
+    # "YeastGSCompB_core-TangNodes.csv",
+    # "YeastGSCompA-TangNodes.csv",
+    # "Celegans-TangNodes.csv",
+    # "Jazz-TangNodes.csv",
+    # "Copperfield-TangNodes.csv",
+    # "Football-TangNodes.csv",
+    # "BSubtilis-htb-TangNodes.csv"
 
-    foundcover = pd.read_csv(coverFile, index_col=0, dtype=colTypes)
-    foundcover.columns = foundcover.columns.astype(int)
+    allComparisons = []
 
-    otherCoverFiles = [
-        "outputDevYWS/YeastGSCompB_core-TangNodes.csv",
-        "outputDevVY/YeastGSCompB_core-TangNodes.csv"
-    ]
+    for dataName, dataFiles in dataSets.items():
+        graphFile = dataFiles[0]
+        G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+        checker = cdChecker(G)
 
-    for otherFile in otherCoverFiles:
-        othercover = pd.read_csv(otherFile, index_col=0, dtype=colTypes)
-        othercover.columns = othercover.columns.astype(int)
+        colTypes = defaultdict(lambda:int, {0:str})
+        fullFilename = coverFolder + dataFiles[1]
+        foundcover = pd.read_csv(fullFilename, index_col=0, dtype=colTypes)
+        foundcover.columns = foundcover.columns.astype(int)
 
-        print(otherFile)
-        print(tools.matchCols(foundcover, othercover))
-        print(tools.matchCols(othercover, foundcover))
-
-        checkresults, mships = checker.compareCDMethods(foundcover, othercover, methods=[])
+        checkresults, mships = checker.compareCDMethods(foundcover)
+        checkresults["dataName"] = dataName
+        allComparisons.append(checkresults)
         dummy = 1
-        # todo make tidier, better labelled, print to file?
+
+    comparisonsDF = pd.concat(allComparisons)
+    comparisonsDF.to_csv("{}ComparisonValues.csv".format(coverFolder))
+
+
+        # This stuff is for comparing two covers to ensure they're the same.
+        # Not what we want to do to get CD comparison results
+        # otherCoverFiles = [
+        #     "outputDevYWS/YeastGSCompB_core-TangNodes.csv",
+        #     "outputDevVY/YeastGSCompB_core-TangNodes.csv"
+        # ]
+        #
+        # for otherFile in otherCoverFiles:
+        #     othercover = pd.read_csv(otherFile, index_col=0, dtype=colTypes)
+        #     othercover.columns = othercover.columns.astype(int)
+        #
+        #     # checkresults, mships = checker.compareCDMethods(foundcover, othercover, methods=["CPM3", "CPM4"])
+        #     checkresults, mships = checker.compareCDMethods(foundcover, methods=["CPM3", "CPM4"])

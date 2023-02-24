@@ -12,17 +12,21 @@ import multiprocessing
 import platform
 import ImageParser
 
+# print("{}: Outside EVERYTHING ___________________________".format(__name__))
+
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
 
     # default
     configFile = "const.txt"
+    runDepth = 4
 
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         # testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
         testName = sys.argv[1]
         print("Dev testing, name {}".format(testName))
-        configFile = "config.txt"
+        configFile = "config2.txt"
+        runDepth = 3
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
         testName = "DevVY" # note leaving VY in name so alg is correctly selected later
@@ -40,14 +44,14 @@ if __name__ == '__main__':
     copyPics = False
 # ------------------------------------------------------------------------------
 
-def runAnalysis(job):
+def runAnalysis(job, dep=4):
 
     log.log("Job: {}".format(job['outName']))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
     # modified so dep is total number of orders, not total after the first one
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 1, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, sepsOnly=False)
     secs = log.tock(ticktoken)
 
 
@@ -77,7 +81,7 @@ def runMadeupGraph(job, N, M):
     job["N"] = N
     job["M"] = M
     log.log("Job: {}".format(job['outName']))
-    ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
+    ticktoken = log.tick("{} RunMadeUpGraph".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
     n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
@@ -106,6 +110,9 @@ if __name__ == '__main__':
         multiprocessing.set_start_method('forkserver')
 
     jobsToRun = pd.read_csv(configFile, delimiter=';', header=0, comment="#")
+    print("-----------------------------------------")
+    print(jobsToRun)
+    print("-----------------------------------------")
 
     doConstructed = False
     if doConstructed:
@@ -126,7 +133,7 @@ if __name__ == '__main__':
             job['outputFolder'] = "./output{}".format(testName)
             job['testName'] = testName
             job["imParser"] = parser
-            jobres = runAnalysis(job)
+            jobres = runAnalysis(job, dep = runDepth)
             jobResults.append(jobres)
 
     # elif doImage:
