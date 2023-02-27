@@ -7,6 +7,7 @@ import itertools as iter
 import igraph as ig
 import Modules.CliquePercolationMethod as cpm
 import Modules.tools as tools
+import cdlib
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
@@ -32,10 +33,15 @@ class cdChecker(bch.commChecker):
             print("Column ids {} from second cover missing from first cover".format(unfound))
             # print("Column names {} from second cover missing from first cover".format(list(cov1.columns[unfound])))
 
+        if all(fvo) and all(ovf):
+            return True
+        else:
+            return False
 
     def compareCDMethods(self, foundcover, othercover = None,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
-                                    "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
+                                    "leiden", "multilevel", "modularity", "spinglass", "walktrap",
+                                    "CPM3"]):
         resList = [] # will be list of dicts, then convert to DF
         mshipList = []
 
@@ -46,7 +52,9 @@ class cdChecker(bch.commChecker):
         if othercover is not None:
             methods = methods + ["otherCover"]
 
+        # for method in [method in methods if "CPM" not in method]:
         for method in methods:
+            print("Running method {}".format(method))
             if method == "otherCover":
                 orderOther = othercover.loc[:, othercover.loc["order"] == order]
                 orderOther = orderOther.drop(index="order")
@@ -82,49 +90,89 @@ class cdChecker(bch.commChecker):
                 dendro = self.G.community_walktrap()
                 CD_mship = self.getMembershipFromDendro(dendro)
             elif "CPM" in method:
-                # method should be CPM3, CPM4, etc, so just get last char
-                # todo add error checking
-                cliqueSize = int(method[3])
-                CD_cover = self.overlapCliquePercolation(cliqueSize)
-                CD_mship1 = self.getMembershipFromCover(CD_cover)
-                # testing
-                commList = cpm.clique_percolation_method(self.G, k=cliqueSize)
-                CD_mship = self.getMembershipFromCommList(commList)
-
-                CD_cover_his = self.getCoverFromCommList(commList)
-
-                print("Mine is first, his is second, method {}".format(method))
-                self.compareCovers(CD_cover, CD_cover_his)
-
-                dummy = 1
+                pass  # will handle separately, but don't want to crack the sads
             else:
                 print("Unknown method: {}".format(method))
 
-            mshipList.append({"method": method,
-                              "mship": CD_mship
-            })
+            # mshipList.append({"method": method,
+            #                   "mship": CD_mship
+            # })
 
-            # note, double [[]] in .loc gives df, [] gives series
             for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
                 orderCover = orderCover.drop(index="order")
                 Tangle_mship = self.getMembershipFromCover(orderCover)
+                Tangle_commList = self.getCommListFromMship(Tangle_mship)
 
-                for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
-                    try:
-                        value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
-                    except:
-                        print("moocow")
+                if "CPM" in method:
+                    # method should be CPM3, CPM4, etc, so just get last char
+                    # todo add error checking
+                    cliqueSize = int(method[3])
+                    # CD_cover_mine, commList_mine = self.overlapCliquePercolation(cliqueSize)
+                    # mine currently cracking the sads, probably with how it handles when no cliques.
+                    commList_his = cpm.clique_percolation_method(self.G, k=cliqueSize)
+                    # CD_cover_his = self.getCoverFromCommList(commList_his)
 
-                    # print(order, method, metric, value)
-                    resList.append({"order": order,
-                                    "method": method,
-                                    "metric": metric,
-                                    "value": value})
+                    # print("Mine is first, his is second, method {}".format(method))
+                    # matches = self.compareCovers(CD_cover_mine, CD_cover_his)
+                    # if not matches:
+                    #     input("Well stink, my CPM and his CPM don't match. Press any key to continue.")
+                    # else:
+                    for metric in ("omega", "LFK", "MGH"):
+                        value = self.compareOverlapping(commList_his, Tangle_commList, metric)
+                        resList.append({"order": order,
+                                        "method": method,
+                                        "metric": metric,
+                                        "value": value})
+                else:  # CD method other than CPM
+                    for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
+                        try:
+                            value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
+                        except:
+                            print("moocow")
+
+                        # print(order, method, metric, value)
+                        resList.append({"order": order,
+                                        "method": method,
+                                        "metric": metric,
+                                        "value": value})
 
         resDF = pd.DataFrame(resList)
-        mshipDF = pd.DataFrame(mshipList)
-        return resDF, mshipDF
+        # mshipDF = pd.DataFrame(mshipList)
+        return resDF  #, mshipDF
+
+    def compareOverlapping(self, commList1, commList2, metric):
+
+        # need to create new community for unassigned nodes
+        for commList in (commList1, commList2):
+            assignedNodes = {j for i in commList for j in i}
+            newComm = [vid for vid in self.G.vs.indices if vid not in assignedNodes]
+            commList.append(newComm)
+
+        commList1 = [comm for comm in commList1 if len(comm) > 0] # probably a neater way of doing this, but eh.
+        commList2 = [comm for comm in commList2 if len(comm) > 0] # and probably a way of doing it in the loop, but...
+
+        # convert to NodeClustering
+        clustering1 = cdlib.NodeClustering(commList1, self.G, overlap=True)
+        clustering2 = cdlib.NodeClustering(commList2, self.G, overlap=True)
+
+        if metric == "omega":
+            value = cdlib.evaluation.omega(clustering1, clustering2)
+        elif metric == "LFK":
+            value = cdlib.evaluation.overlapping_normalized_mutual_information_LFK(clustering1, clustering2)
+        elif metric == "MGH":
+            value = cdlib.evaluation.overlapping_normalized_mutual_information_MGH(clustering1, clustering2)
+        else:
+            input("invalid metric specified {}".format(metric))
+
+        return value.score
+
+    def getCommListFromMship(self, mship):
+        nComms = max(mship)+1
+        commList = [ [] for _ in range(nComms) ]    # create list of empty lists
+        for vid, commID in enumerate(mship):
+            commList[commID].append(vid)
+        return commList
 
     def getMembershipFromCover(self, cover):
         if any(cover.sum(axis="columns") > 1):
@@ -136,12 +184,9 @@ class cdChecker(bch.commChecker):
         membership = [noneID]*self.G.vcount()
 
         for vid in self.G.vs.indices:
-            try:
-                if any(cover.loc[self.G.vs[vid]["name"], :]==1):
-                    membership[vid] = \
-                        cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
-            except:
-                print(vid)
+            if any(cover.loc[self.G.vs[vid]["name"], :]==1):
+                membership[vid] = \
+                    cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
 
         return membership
 
@@ -169,7 +214,6 @@ class cdChecker(bch.commChecker):
         return membership
 
     def getMembershipFromDendro(self, dendro):
-        # not sure about data types.  If it works, probably not important.
         membership = np.array(dendro.as_clustering().membership)
         noneID = max(membership) + 1
         membership = [noneID if v is None else v for v in membership]
@@ -177,16 +221,8 @@ class cdChecker(bch.commChecker):
 
     def getCoverFromCommList(self, commList):
         cover = pd.DataFrame(index=sorted(self.G.vs["name"]), columns=range(len(commList)), dtype='Int64').fillna(0)
-
-        # for col in cover.columns:
-        #     cover[col].values[:] = 0
-
-        try:
-            for id, comm in enumerate(commList):
-                cover.loc[self.G.vs[list(comm)]["name"], id] = 1
-        except:
-            dummy = 1
-
+        for id, comm in enumerate(commList):
+            cover.loc[self.G.vs[list(comm)]["name"], id] = 1
         return cover
 
 
@@ -207,6 +243,7 @@ class cdChecker(bch.commChecker):
         cover = cover.astype(np.int8)
         return cover
 
+    # todo NOTE currently has error in commList - DO NOT USE!
     def overlapCliquePercolation(self, cliqueSize):
         # https://stackoverflow.com/questions/20063927/overlapping-community-detection-with-igraph-or-other-libaries
 
@@ -246,21 +283,18 @@ class cdChecker(bch.commChecker):
 
         cpmCover = pd.DataFrame(index=self.G.vs["name"], columns=range(numComps), dtype='Int64').fillna(0)
 
-        for id, comp in enumerate(cliqueComps):
-            # print(comp)
-            # each component is a list of vertices
-            for cid in comp:
-                # print(cliques[cid])
-                for vid in cliques[cid]:
-                    # print(self.nodeNames[vid])
-                    cpmCover.loc[self.nodeNames[vid], id] = 1
+        commList = []
 
-        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
-        # try:
-        #     cpmCover = cpmCover.astype(np.int8)
-        # except:
-        #     dummy = 1
-        return cpmCover
+        for id, comp in enumerate(cliqueComps):
+            # each component is a list of vertices in the new clique graph, NOT original graph
+            singleComm = set()
+            for cid in comp:
+                singleComm.update(cliques[cid])
+                for vid in cliques[cid]:
+                    cpmCover.loc[self.nodeNames[vid], id] = 1
+            commList.append(singleComm)
+
+        return cpmCover, commList
 
 
 if __name__ == '__main__':
@@ -270,26 +304,17 @@ if __name__ == '__main__':
         "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
         "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv")
-        # COMMA !!!!!!!!!!
-        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
-        # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
+        "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
-
-    # "Karate-TangNodes.csv",
-    # "YeastGSCompB_core-TangNodes.csv",
-    # "YeastGSCompA-TangNodes.csv",
-    # "Celegans-TangNodes.csv",
-    # "Jazz-TangNodes.csv",
-    # "Copperfield-TangNodes.csv",
-    # "Football-TangNodes.csv",
-    # "BSubtilis-htb-TangNodes.csv"
 
     allComparisons = []
 
     for dataName, dataFiles in dataSets.items():
+        print("Running data {}".format(dataName))
         graphFile = dataFiles[0]
         G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
         checker = cdChecker(G)
@@ -299,10 +324,11 @@ if __name__ == '__main__':
         foundcover = pd.read_csv(fullFilename, index_col=0, dtype=colTypes)
         foundcover.columns = foundcover.columns.astype(int)
 
-        checkresults, mships = checker.compareCDMethods(foundcover)
+        # removed higher CPM orders. May do separately.
+        # , "CPM4", "CPM5", "CPM6"
+        checkresults = checker.compareCDMethods(foundcover)
         checkresults["dataName"] = dataName
         allComparisons.append(checkresults)
-        dummy = 1
 
     comparisonsDF = pd.concat(allComparisons)
     comparisonsDF.to_csv("{}ComparisonValues.csv".format(coverFolder))

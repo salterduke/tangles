@@ -15,6 +15,7 @@ import Modules.protChecker as protChecker
 import cdChecker
 import random
 
+
 class graphCD():
     def __init__(self, job, log):
 
@@ -370,7 +371,7 @@ class graphCD():
         #     print("Found commQual: ", quality["commQual"])
         #     # NMI is Normalised mutual inf between assigned comms and comms by GO terms
 
-        quality, mships = self.cdChecker.compareCDMethods(self.foundcover, methods=["CPM3", "CPM4"])
+        # quality = self.cdChecker.compareCDMethods(self.foundcover, methods=["CPM3", "CPM4"])
 
 
         # todo - do somthing with the qual measures

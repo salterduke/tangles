@@ -119,8 +119,8 @@ def clique_percolation_method(graph, k = 3, workers = 1, attribute = None, verbo
     if verbose:    
         print("Finished all --- %s seconds ---" % (time.time() - start_time))
         
-    for comm in communities:
-        print(len(comm))
+        for comm in communities:
+            print(len(comm))
         
     return communities
 
