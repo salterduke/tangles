@@ -15,11 +15,73 @@ import seaborn as sns
 
 sns.set()
 
+class Grapher():
+    def processCDComparisons(self):
 
-def processCDComparisons():
-    comparisonDataFile = "ComparisonValues-B-A-Jazz.csv"
-    comparisonsDF = pd.read_csv(comparisonDataFile, delimiter=",", header=0)
+        metricLongNames = {
+            'LFK': "Overlapping NMI - LFK",
+            'MGH': 'Overlapping NMI - MGH',
+            'adjusted_rand': "Adjusted Rand Index",
+            'nmi': "Normalised Mutual Information",
+            'omega': "Omega Index of Resemblance",
+            'rand': "Rand Index",
+            'split-join': "Split-Join Distance",
+            'vi': "Variation of Information"
+        }
 
+        methodLongNames = {
+            'CPM3': "CPM, size 3",
+            'CPM4': "CPM, size 4",
+            'CPM5': "CPM, size 5",
+            'CPM6': "CPM, size 6",
+            'between': "Edge-betweenness",
+            'eigen': "Leading Eigenvector" ,
+            'fastgreedy': "Fast-greedy",
+            'infomap': "Infomap",
+            'labelprop': "Label Propagation",
+            'leiden': "Leiden Modularity",
+            'modularity': "Optimal Modularity",
+            'multilevel': "Louvain Modularity",
+            'spinglass': "Spinglass",
+            'walktrap': "Walktrap"
+        }
+
+        dfList = []
+        coverFolder = "../outputdevResults_VY/Preliminary/"
+
+        for comparisonDataFile in [
+            "ComparisonValuesBAJCopFbBs-1.csv"
+        ]:
+            fname = coverFolder + comparisonDataFile
+            dfList.append(pd.read_csv(fname, delimiter=",", header=0))
+
+        # todo add new files, remove old spinglass or relabel
+
+        self.compDF = pd.concat(dfList)
+
+        self.compDF["methodLongName"] = self.compDF["method"].map(methodLongNames)
+        self.compDF["metricLongName"] = self.compDF["metric"].map(metricLongNames)
+
+        for dataName in np.unique(self.compDF["dataName"]):
+            self.processSingleDataFile(dataName)
+            dummy = 1
+
+
+    def processSingleDataFile(self, dataName):
+        outputGraphsFolder = "../outputdevResults_VY/Visualisations/"
+
+        singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
+
+        for order in np.unique(singleDF["order"]):
+            disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
+            overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
+            for metric in np.unique(disjointMethods["metricLongName"]):
+                ax = sns.barplot(data = disjointMethods.loc[disjointMethods["metricLongName"] == metric],
+                            x="methodLongName", y="value", errorbar=None)
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                ax.set(ylabel = metric, xlabel = "Community Detection Method")
+                plt.show()
 
 
 def readAlgTimingData(timingFiles, algName):
@@ -200,4 +262,5 @@ def processTimingData():
     #
 
 # processTimingData()
-processCDComparisons()
+grapher = Grapher()
+grapher.processCDComparisons()

@@ -16,6 +16,8 @@ def matchCols(df1, df2):
 
 
 def pruneToStubs(G):
+    G.simplify(combine_edges="sum")
+
     # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
     # since a twig is always "small", don't need to deal with all parts of the twig.
     outershell = G.induced_subgraph(np.where(np.array(G.coreness()) == 1)[0])

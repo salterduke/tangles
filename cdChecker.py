@@ -11,7 +11,10 @@ import cdlib
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
+        before = pd.Series(G.vs["name"])
+
         self.G = tools.pruneToStubs(G)
+        after = pd.Series(self.G.vs["name"])
         bch.commChecker.__init__(self, self.G.vs["name"])
 
     def compareCovers(self, cov1, cov2):
@@ -43,7 +46,7 @@ class cdChecker(bch.commChecker):
                                     "leiden", "multilevel", "modularity", "spinglass", "walktrap",
                                     "CPM3"]):
         resList = [] # will be list of dicts, then convert to DF
-        mshipList = []
+        # mshipList = []
 
         # optimal modularity doesn't run for larger graphs, so remove
         if self.G.vcount() > 100:
@@ -84,7 +87,7 @@ class cdChecker(bch.commChecker):
                 cluster = self.G.community_optimal_modularity()
                 CD_mship = self.getMembershipFromClustering(cluster)
             elif method == "spinglass":
-                cluster = self.G.community_spinglass()
+                cluster = self.G.community_spinglass(update_rule="simple")
                 CD_mship = self.getMembershipFromClustering(cluster)
             elif method == "walktrap":
                 dendro = self.G.community_walktrap()
@@ -187,7 +190,6 @@ class cdChecker(bch.commChecker):
             if any(cover.loc[self.G.vs[vid]["name"], :]==1):
                 membership[vid] = \
                     cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
-
         return membership
 
     def getMembershipFromCommList(self, commList):
@@ -296,6 +298,9 @@ class cdChecker(bch.commChecker):
 
         return cpmCover, commList
 
+    def getInterestingOrders(self, cover):
+        return cover.loc[:, cover.loc["order"].duplicated(keep=False)]
+
 
 if __name__ == '__main__':
 
@@ -306,10 +311,11 @@ if __name__ == '__main__':
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
         "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
         "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
-        # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
+        "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
+
 
     allComparisons = []
 
@@ -317,21 +323,43 @@ if __name__ == '__main__':
         print("Running data {}".format(dataName))
         graphFile = dataFiles[0]
         G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
-        checker = cdChecker(G)
+        G = G.connected_components().giant()
+        checker = cdChecker(G) # should condense nodes in __init__
 
         colTypes = defaultdict(lambda:int, {0:str})
         fullFilename = coverFolder + dataFiles[1]
         foundcover = pd.read_csv(fullFilename, index_col=0, dtype=colTypes)
         foundcover.columns = foundcover.columns.astype(int)
 
-        # removed higher CPM orders. May do separately.
-        # , "CPM4", "CPM5", "CPM6"
-        checkresults = checker.compareCDMethods(foundcover)
-        checkresults["dataName"] = dataName
-        allComparisons.append(checkresults)
+        # make sure vertices match
+        graphVSeries = pd.Series(checker.G.vs["name"]).sort_values(ignore_index=True)
+        coverVSeries = pd.Series(foundcover.index)
+        order = foundcover.loc["order"]
+        coverVSeries = coverVSeries[coverVSeries != "order"]
+        coverVSeries = coverVSeries.sort_values(ignore_index=True)
+        # tweak so sorted *after* removing order so doesn't get sorted into the midddle.
+        if not graphVSeries.equals(coverVSeries):
+            print("vertices don't match up for datafile {} ----------------------------.".format(dataName))
+            continue
+        else:
+            print("yay vertices match")
+            # stuff it, I couldn't be stuffed to avoid the redundancy here
+            sortOrder = pd.Series(checker.G.vs["name"])
+            foundcover = foundcover.loc[sortOrder]
+            foundcover.loc["order"] = order
+            # The order in foundcover now matches the order in the graph.
+
+        foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
+        if len(foundcover.columns) != 0:
+            # removed higher CPM orders. May do separately.
+            methods = ["CPM5"] #, "CPM5", "CPM6"
+            methods = ["spinglass"] #, "CPM5", "CPM6"
+            checkresults = checker.compareCDMethods(foundcover, methods=methods)
+            checkresults["dataName"] = dataName
+            allComparisons.append(checkresults)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValues.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesSpinglass.csv".format(coverFolder))
 
 
         # This stuff is for comparing two covers to ensure they're the same.
