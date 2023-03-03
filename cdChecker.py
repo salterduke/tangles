@@ -43,10 +43,11 @@ class cdChecker(bch.commChecker):
 
     def compareCDMethods(self, foundcover, othercover = None,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
-                                    "leiden", "multilevel", "modularity", "spinglass", "walktrap",
-                                    "CPM3"]):
+                                    "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
         # mshipList = []
+
+        modularityList = []
 
         # optimal modularity doesn't run for larger graphs, so remove
         if self.G.vcount() > 100:
@@ -68,6 +69,10 @@ class cdChecker(bch.commChecker):
             elif method == "fastgreedy":
                 dendro = self.G.community_fastgreedy()
                 CD_mship = self.getMembershipFromDendro(dendro)
+                modularityList.append({
+                    "method": method,
+                    "modularity": self.G.modularity(CD_mship)
+                })
             elif method == "infomap":
                 cluster = self.G.community_infomap()
                 CD_mship = self.getMembershipFromClustering(cluster)
@@ -77,15 +82,27 @@ class cdChecker(bch.commChecker):
             elif method == "eigen":
                 cluster = self.G.community_leading_eigenvector()
                 CD_mship = self.getMembershipFromClustering(cluster)
+                modularityList.append({
+                    "method": method,
+                    "modularity": self.G.modularity(CD_mship)
+                })
             elif method == "leiden":
                 cluster = self.G.community_leiden()
                 CD_mship = self.getMembershipFromClustering(cluster)
             elif method == "multilevel":
                 cluster = self.G.community_multilevel()
                 CD_mship = self.getMembershipFromClustering(cluster)
+                modularityList.append({
+                    "method": method,
+                    "modularity": self.G.modularity(CD_mship)
+                })
             elif method == "modularity":
                 cluster = self.G.community_optimal_modularity()
                 CD_mship = self.getMembershipFromClustering(cluster)
+                modularityList.append({
+                    "method": method,
+                    "modularity": self.G.modularity(CD_mship)
+                })
             elif method == "spinglass":
                 cluster = self.G.community_spinglass(update_rule="simple")
                 CD_mship = self.getMembershipFromClustering(cluster)
@@ -141,8 +158,9 @@ class cdChecker(bch.commChecker):
                                         "value": value})
 
         resDF = pd.DataFrame(resList)
+        modDF = pd.DataFrame(modularityList)
         # mshipDF = pd.DataFrame(mshipList)
-        return resDF  #, mshipDF
+        return resDF, modDF
 
     def compareOverlapping(self, commList1, commList2, metric):
 
@@ -305,10 +323,10 @@ class cdChecker(bch.commChecker):
 if __name__ == '__main__':
 
     dataSets = {
-        # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
+        "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
         "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
         "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
-        # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
+        "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
         "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
         "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
@@ -318,6 +336,7 @@ if __name__ == '__main__':
 
 
     allComparisons = []
+    allModularities = []
 
     for dataName, dataFiles in dataSets.items():
         print("Running data {}".format(dataName))
@@ -352,14 +371,22 @@ if __name__ == '__main__':
         foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. May do separately.
-            methods = ["CPM5"] #, "CPM5", "CPM6"
-            methods = ["spinglass"] #, "CPM5", "CPM6"
-            checkresults = checker.compareCDMethods(foundcover, methods=methods)
+            # methods = ["CPM5"] #, "CPM5", "CPM6"
+            methods = ["fastgreedy", "eigen", "multilevel", "modularity"]
+            checkresults, modularityVals = checker.compareCDMethods(foundcover)
             checkresults["dataName"] = dataName
+            modularityVals["dataName"] = dataName
             allComparisons.append(checkresults)
+            allModularities.append(modularityVals)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesSpinglass.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesModOnly.csv".format(coverFolder))
+    modularityDF = pd.concat(allModularities)
+    modularityDF.to_csv("{}Modularities.csv".format(coverFolder))
+    modularityDF.groupby(["dataName"])["modularity"].max()
+    modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
+    dummy=1
+
 
 
         # This stuff is for comparing two covers to ensure they're the same.

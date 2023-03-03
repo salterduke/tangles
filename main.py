@@ -26,7 +26,7 @@ if __name__ == '__main__':
         testName = sys.argv[1]
         print("Dev testing, name {}".format(testName))
         configFile = "config2.txt"
-        runDepth = 16
+        runDepth = 9
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
         testName = "DevVY" # note leaving VY in name so alg is correctly selected later

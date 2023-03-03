@@ -76,12 +76,20 @@ class Grapher():
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             for metric in np.unique(disjointMethods["metricLongName"]):
-                ax = sns.barplot(data = disjointMethods.loc[disjointMethods["metricLongName"] == metric],
-                            x="methodLongName", y="value", errorbar=None)
+                fig, ax = plt.subplots()
+                sns.barplot(data = disjointMethods.loc[disjointMethods["metricLongName"] == metric],
+                            x="methodLongName", y="value", errorbar=None, ax=ax)
                 plt.xticks(rotation=45)
-                plt.tight_layout()
+                # ax.set_xticklabels(ax.get_xticks(), rotation=45)
+                fig.tight_layout()
                 ax.set(ylabel = metric, xlabel = "Community Detection Method")
-                plt.show()
+                # plt.show()
+                shortMetric = np.unique(disjointMethods.loc[disjointMethods["metricLongName"] == metric]["metric"])[0]
+                shortMetric = shortMetric.replace("_", "-")
+                # absolutely SURE there's a better way of doing this!
+                outputFileName = "{}{}-ord{}-disj-{}.png".format(outputGraphsFolder, dataName, order, shortMetric)
+                fig.savefig(outputFileName)
+                dummy = 1
 
 
 def readAlgTimingData(timingFiles, algName):
