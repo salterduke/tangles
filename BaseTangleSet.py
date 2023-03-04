@@ -355,11 +355,11 @@ class TangleSet():
         orientArrayNamed.to_csv(OrientsOutfileNamed)
         # print("OUTPUT ORIENTATIONS")
 
-        with open('sepList.txt', 'w') as f:
-            for i in [1,2,3]:
-                f.write("sep order: {}\n".format(i))
-                for item in [i]:
-                    f.write("{}\n".format(item))
+        # with open('sepList.txt', 'w') as f:
+        #     for i in [1,2,3]:
+        #         f.write("sep order: {}\n".format(i))
+        #         for item in [i]:
+        #             f.write("{}\n".format(item))
 
         #####################
         doTreePrint = False

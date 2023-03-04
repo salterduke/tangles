@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # import igraph as ig
 # import itertools as iter
 # import sklearn.metrics as skl
-from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import LinearRegression
 # import os
 # import socket
 import random
@@ -18,7 +18,7 @@ sns.set()
 class Grapher():
     def processCDComparisons(self):
 
-        metricLongNames = {
+        self.metricLongNames = {
             'LFK': "Overlapping NMI - LFK",
             'MGH': 'Overlapping NMI - MGH',
             'adjusted_rand': "Adjusted Rand Index",
@@ -29,7 +29,7 @@ class Grapher():
             'vi': "Variation of Information"
         }
 
-        methodLongNames = {
+        self.methodLongNames = {
             'CPM3': "CPM, size 3",
             'CPM4': "CPM, size 4",
             'CPM5': "CPM, size 5",
@@ -39,28 +39,30 @@ class Grapher():
             'fastgreedy': "Fast-greedy",
             'infomap': "Infomap",
             'labelprop': "Label Propagation",
-            'leiden': "Leiden Modularity",
+            'leiden': "Leiden Algorithm",
             'modularity': "Optimal Modularity",
             'multilevel': "Louvain Modularity",
             'spinglass': "Spinglass",
             'walktrap': "Walktrap"
         }
+        # Note that modularity and multilevel (Louvain) have to be one after another
+        # to ensure graphs put them in the same place on the x axis (since only one is included)
 
         dfList = []
         coverFolder = "../outputdevResults_VY/Preliminary/"
 
         for comparisonDataFile in [
-            "ComparisonValuesBAJCopFbBs-1.csv"
+            "ComparisonValuesDisjoint.csv"
         ]:
             fname = coverFolder + comparisonDataFile
             dfList.append(pd.read_csv(fname, delimiter=",", header=0))
 
-        # todo add new files, remove old spinglass or relabel
+        # todo add new files for CPM
 
         self.compDF = pd.concat(dfList)
 
-        self.compDF["methodLongName"] = self.compDF["method"].map(methodLongNames)
-        self.compDF["metricLongName"] = self.compDF["metric"].map(metricLongNames)
+        self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
+        self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
             self.processSingleDataFile(dataName)
@@ -71,24 +73,33 @@ class Grapher():
         outputGraphsFolder = "../outputdevResults_VY/Visualisations/"
 
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
+        if "modularity" in singleDF["method"]:
+            deleteModMethods = {"eigen", "multilevel", "fastgreedy"}
+        else:
+            deleteModMethods = {"eigen", "fastgreedy"}
+        singleDF = singleDF.loc[~singleDF["method"].isin(deleteModMethods)]
 
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-            for metric in np.unique(disjointMethods["metricLongName"]):
+            for metric in np.unique(disjointMethods["metric"]):
                 fig, ax = plt.subplots()
-                sns.barplot(data = disjointMethods.loc[disjointMethods["metricLongName"] == metric],
-                            x="methodLongName", y="value", errorbar=None, ax=ax)
-                plt.xticks(rotation=45)
+                sns.barplot(data = disjointMethods.loc[disjointMethods["metric"] == metric],
+                            x="methodLongName", y="value", ax=ax,
+                            order=[methodLong for methodLong in self.methodLongNames.values()
+                                   if methodLong in np.unique(disjointMethods["methodLongName"])]
+                            )
+                # plt.xticks(rotation=45)
+                ax.tick_params("x", direction="out", bottom=True)
+
                 # ax.set_xticklabels(ax.get_xticks(), rotation=45)
-                fig.tight_layout()
-                ax.set(ylabel = metric, xlabel = "Community Detection Method")
-                # plt.show()
-                shortMetric = np.unique(disjointMethods.loc[disjointMethods["metricLongName"] == metric]["metric"])[0]
-                shortMetric = shortMetric.replace("_", "-")
-                # absolutely SURE there's a better way of doing this!
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
+                fig.tight_layout(pad=3)
+                ax.set(ylabel = self.metricLongNames[metric], xlabel = "Community Detection Method")
+                shortMetric = metric.replace("_", "-") # to make it friendly for latex
                 outputFileName = "{}{}-ord{}-disj-{}.png".format(outputGraphsFolder, dataName, order, shortMetric)
-                fig.savefig(outputFileName)
+                # fig.savefig(outputFileName)
+                fig.show()
                 dummy = 1
 
 
