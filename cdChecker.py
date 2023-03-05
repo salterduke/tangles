@@ -8,6 +8,7 @@ import igraph as ig
 import Modules.CliquePercolationMethod as cpm
 import Modules.tools as tools
 import cdlib
+import platform
 
 class cdChecker(bch.commChecker):
     def __init__(self, G):
@@ -45,7 +46,7 @@ class cdChecker(bch.commChecker):
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
                                     "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
-        # mshipList = []
+        mshipList = []
 
         modularityList = []
 
@@ -114,9 +115,9 @@ class cdChecker(bch.commChecker):
             else:
                 print("Unknown method: {}".format(method))
 
-            # mshipList.append({"method": method,
-            #                   "mship": CD_mship
-            # })
+            mshipList.append({"method": method,
+                              "mship": CD_mship
+            })
 
             for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
@@ -159,8 +160,8 @@ class cdChecker(bch.commChecker):
 
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
-        # mshipDF = pd.DataFrame(mshipList)
-        return resDF, modDF
+        mshipDF = pd.DataFrame(mshipList)
+        return resDF, modDF, mshipDF
 
     def compareOverlapping(self, commList1, commList2, metric):
 
@@ -334,9 +335,16 @@ if __name__ == '__main__':
     }
     coverFolder = "./outputdevResults_VY/"
 
+    if platform.system != "Linux":
+        for dname in dataSets.keys():
+            dataSets[dname] = (
+                dataSets[dname][0].replace("../", "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/"),
+                dataSets[dname][1]
+            )
 
     allComparisons = []
     allModularities = []
+    allMships = []
 
     for dataName, dataFiles in dataSets.items():
         print("Running data {}".format(dataName))
@@ -372,19 +380,21 @@ if __name__ == '__main__':
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. May do separately.
             # methods = ["CPM5"] #, "CPM5", "CPM6"
-            methods = ["fastgreedy", "eigen", "multilevel", "modularity"]
-            checkresults, modularityVals = checker.compareCDMethods(foundcover)
+            methods = ["leiden"]
+            checkresults, modularityVals, mships = checker.compareCDMethods(foundcover, methods=methods)
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
             allComparisons.append(checkresults)
             allModularities.append(modularityVals)
+            allMships.append(mships)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesModOnly.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesDisjoint.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
     modularityDF.to_csv("{}Modularities.csv".format(coverFolder))
     modularityDF.groupby(["dataName"])["modularity"].max()
     modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
+    mshipsDF = pd.concat(allMships)
     dummy=1
 
 

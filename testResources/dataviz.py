@@ -63,6 +63,7 @@ class Grapher():
 
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
+        self.compDF["value"] = self.compDF["value"].round(3)
 
         for dataName in np.unique(self.compDF["dataName"]):
             self.processSingleDataFile(dataName)
@@ -82,25 +83,30 @@ class Grapher():
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-            for metric in np.unique(disjointMethods["metric"]):
-                fig, ax = plt.subplots()
+            # for metric in np.unique(disjointMethods["metric"]):
+            fig, ax = plt.subplots(3,1, figsize=(6.4,9))
+            for id, metric in enumerate(("adjusted_rand", "split-join", "nmi")):
                 sns.barplot(data = disjointMethods.loc[disjointMethods["metric"] == metric],
-                            x="methodLongName", y="value", ax=ax,
+                            x="methodLongName", y="value", ax=ax[id],
                             order=[methodLong for methodLong in self.methodLongNames.values()
                                    if methodLong in np.unique(disjointMethods["methodLongName"])]
                             )
-                # plt.xticks(rotation=45)
-                ax.tick_params("x", direction="out", bottom=True)
-
-                # ax.set_xticklabels(ax.get_xticks(), rotation=45)
-                ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
-                fig.tight_layout(pad=3)
-                ax.set(ylabel = self.metricLongNames[metric], xlabel = "Community Detection Method")
-                shortMetric = metric.replace("_", "-") # to make it friendly for latex
-                outputFileName = "{}{}-ord{}-disj-{}.png".format(outputGraphsFolder, dataName, order, shortMetric)
-                # fig.savefig(outputFileName)
-                fig.show()
-                dummy = 1
+                if id == 2:
+                    ax[id].tick_params("x", direction="out", bottom=True)
+                    ax[id].set_xticklabels(ax[id].get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
+                    ax[id].set(ylabel=self.metricLongNames[metric], xlabel = "Community Detection Method")
+                else:
+                    ax[id].tick_params("x", direction="out", bottom=False)
+                    ax[id].set_xticklabels([])
+                    ax[id].set(ylabel=self.metricLongNames[metric], xlabel="")
+                    # ax[id].xaxis.label.set_visible(False)
+                # shortMetric = metric.replace("_", "-") # to make it friendly for latex
+            fig.tight_layout(pad=1)
+            fig.align_ylabels()
+            outputFileName = "{}{}-ord{}-disj.png".format(outputGraphsFolder, dataName, order)
+            fig.savefig(outputFileName)
+            # fig.show()
+            dummy = 1
 
 
 def readAlgTimingData(timingFiles, algName):
