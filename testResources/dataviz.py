@@ -29,6 +29,18 @@ class Grapher():
             'vi': "Variation of Information"
         }
 
+        self.tidyShort = {
+            'LFK': "LFK",
+            'MGH': 'MGH',
+            'adjusted_rand': "Adj. Rand",
+            'nmi': "NMI",
+            'omega': "Omega",
+            'rand': "Rand",
+            'split-join': "Split-Join",
+            'vi': "VI"
+        }
+
+
         self.methodLongNames = {
             'CPM3': "CPM, size 3",
             'CPM4': "CPM, size 4",
@@ -63,33 +75,60 @@ class Grapher():
 
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
+        self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
 
         for dataName in np.unique(self.compDF["dataName"]):
-            self.processSingleDataFile(dataName)
+            self.processSingleNetwork(dataName)
             dummy = 1
 
+    def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
+        outputTableFolder = "../outputdevResults_VY/Tables/"
+        if df.size == 0:
+            return
 
-    def processSingleDataFile(self, dataName):
+        dataName = df["dataName"].iloc[0]
+        order = df["order"].iloc[0]
+
+        df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
+
+        sortOrder = [methodLong for methodLong in self.methodLongNames.values()
+                 if methodLong in np.unique(df.index)]
+        df = df.loc[sortOrder]
+
+        tableFilename = "{}{}-ord{}-{}.csv".format(outputTableFolder, dataName, order, fileLabel)
+        df.index.name = "Community Detection Method"
+        df.to_csv(tableFilename)
+
+
+    def plotNetworkOrder(self, df, numMetrics = 5, disjoint = True, fileLabel = None, removeExtraneous = False):
         outputGraphsFolder = "../outputdevResults_VY/Visualisations/"
+        if df.size == 0:
+            return
 
-        singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
-        if "modularity" in singleDF["method"]:
-            deleteModMethods = {"eigen", "multilevel", "fastgreedy"}
-        else:
-            deleteModMethods = {"eigen", "fastgreedy"}
-        singleDF = singleDF.loc[~singleDF["method"].isin(deleteModMethods)]
+        if removeExtraneous:
+            # removing because igraph leiden fn doesn't seem to work with default params
+            df = df.loc[df["method"] != "leiden"]
 
-        for order in np.unique(singleDF["order"]):
-            disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-            overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-            # for metric in np.unique(disjointMethods["metric"]):
+            # removing because don't need all modularity methods
+            if "modularity" in df["method"]:
+                deleteModMethods = {"eigen", "multilevel", "fastgreedy"}
+            else:
+                deleteModMethods = {"eigen", "fastgreedy"}
+            df = df.loc[~df["method"].isin(deleteModMethods)]
+
+        if numMetrics == 3:
+            if disjoint:
+                metrics = ("adjusted_rand", "split-join", "nmi")
+            else:
+                metrics = np.unique(df["metric"])
+
             fig, ax = plt.subplots(3,1, figsize=(6.4,9))
-            for id, metric in enumerate(("adjusted_rand", "split-join", "nmi")):
-                sns.barplot(data = disjointMethods.loc[disjointMethods["metric"] == metric],
+            for id, metric in enumerate(metrics):
+                sns.barplot(data = df.loc[df["metric"] == metric],
                             x="methodLongName", y="value", ax=ax[id],
                             order=[methodLong for methodLong in self.methodLongNames.values()
-                                   if methodLong in np.unique(disjointMethods["methodLongName"])]
+                                   if methodLong in np.unique(df["methodLongName"])]
                             )
                 if id == 2:
                     ax[id].tick_params("x", direction="out", bottom=True)
@@ -99,14 +138,60 @@ class Grapher():
                     ax[id].tick_params("x", direction="out", bottom=False)
                     ax[id].set_xticklabels([])
                     ax[id].set(ylabel=self.metricLongNames[metric], xlabel="")
-                    # ax[id].xaxis.label.set_visible(False)
-                # shortMetric = metric.replace("_", "-") # to make it friendly for latex
-            fig.tight_layout(pad=1)
-            fig.align_ylabels()
-            outputFileName = "{}{}-ord{}-disj.png".format(outputGraphsFolder, dataName, order)
+
+        elif numMetrics == 5:
+            metrics = np.unique(df["metric"])
+            fig, allAxes = plt.subplots(3,2, figsize=(7.5,9))
+            allAxes.flat[1].set_visible(False)
+            for metID, metric in enumerate(metrics):
+                if metID == 1 or metID == 3:
+                    id = metID + 2
+                    # so that the gap is on the top of the second column, not the bottom
+                else:
+                    id = metID
+                ax = allAxes.flat[id]
+                sns.barplot(data = df.loc[df["metric"] == metric],
+                            x="methodLongName", y="value", ax=ax,
+                            order=[methodLong for methodLong in self.methodLongNames.values()
+                                   if methodLong in np.unique(df["methodLongName"])]
+                            )
+                if id == 4 or id == 5: #ie, the bottom ones
+                    ax.tick_params("x", direction="out", bottom=True)
+                    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
+                    ax.set(ylabel=self.metricLongNames[metric], xlabel = "Community Detection Method")
+                else:
+                    ax.tick_params("x", direction="out", bottom=False)
+                    ax.set_xticklabels([])
+                    ax.set(ylabel=self.metricLongNames[metric], xlabel="")
+
+        fig.tight_layout(pad=1)
+        fig.align_ylabels()
+
+        if fileLabel is not None:
+            dataName = df["dataName"].iloc[0]
+            order = df["order"].iloc[0]
+            outputFileName = "{}{}-ord{}-{}.pdf".format(outputGraphsFolder, dataName, order, fileLabel)
             fig.savefig(outputFileName)
-            # fig.show()
-            dummy = 1
+        else:
+            fig.show()
+
+
+
+
+    def processSingleNetwork(self, dataName):
+
+        singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
+
+        for order in np.unique(singleDF["order"]):
+            disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
+            overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
+
+            # self.plotNetworkOrder(disjointMethods, numMetrics=3, disjoint=True, fileLabel="disj-3", removeExtraneous = True)
+            # self.plotNetworkOrder(disjointMethods, numMetrics=5, disjoint=True, fileLabel="disj-5")
+            # self.plotNetworkOrder(overlapMethods, numMetrics=3, disjoint=False, fileLabel="overlap")
+
+            self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
+            self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
 
 def readAlgTimingData(timingFiles, algName):

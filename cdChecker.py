@@ -115,9 +115,10 @@ class cdChecker(bch.commChecker):
             else:
                 print("Unknown method: {}".format(method))
 
-            mshipList.append({"method": method,
-                              "mship": CD_mship
-            })
+            if "CPM" not in method:
+                mshipList.append({"method": method,
+                                  "mship": CD_mship
+                })
 
             for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
@@ -335,7 +336,9 @@ if __name__ == '__main__':
     }
     coverFolder = "./outputdevResults_VY/"
 
-    if platform.system != "Linux":
+    dummy = 1
+
+    if platform.system() != "Linux":
         for dname in dataSets.keys():
             dataSets[dname] = (
                 dataSets[dname][0].replace("../", "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/"),
@@ -380,10 +383,11 @@ if __name__ == '__main__':
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. May do separately.
             # methods = ["CPM5"] #, "CPM5", "CPM6"
-            methods = ["leiden"]
+            methods = ["CPM6"]
             checkresults, modularityVals, mships = checker.compareCDMethods(foundcover, methods=methods)
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
+            mships["dataName"] = dataName
             allComparisons.append(checkresults)
             allModularities.append(modularityVals)
             allMships.append(mships)
@@ -395,7 +399,8 @@ if __name__ == '__main__':
     modularityDF.groupby(["dataName"])["modularity"].max()
     modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
     mshipsDF = pd.concat(allMships)
-    dummy=1
+    mshipsDF.to_csv("{}Memberships.csv".format(coverFolder))
+    dummy = 1
 
 
 

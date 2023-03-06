@@ -19,3 +19,4 @@ __pycache__/
 /output*/
 /*.png
 /GOfiles/GO_FS.txt
+/.idea/*
