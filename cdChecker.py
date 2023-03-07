@@ -120,11 +120,13 @@ class cdChecker(bch.commChecker):
                                   "mship": CD_mship
                 })
 
+            expandedVsDF = pd.DataFrame()
             for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
                 orderCover = orderCover.drop(index="order")
-                Tangle_mship = self.getMembershipFromCover(orderCover)
+                Tangle_mship, expandedMship = self.getMembershipFromCover(orderCover, expandVs = True)
                 Tangle_commList = self.getCommListFromMship(Tangle_mship)
+                expandedVsDF[order] = expandedMship
 
                 if "CPM" in method:
                     # method should be CPM3, CPM4, etc, so just get last char
@@ -162,7 +164,7 @@ class cdChecker(bch.commChecker):
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
         mshipDF = pd.DataFrame(mshipList)
-        return resDF, modDF, mshipDF
+        return resDF, modDF, mshipDF, expandedVsDF
 
     def compareOverlapping(self, commList1, commList2, metric):
 
@@ -197,7 +199,7 @@ class cdChecker(bch.commChecker):
             commList[commID].append(vid)
         return commList
 
-    def getMembershipFromCover(self, cover):
+    def getMembershipFromCover(self, cover, expandVs = False):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
 
@@ -210,7 +212,22 @@ class cdChecker(bch.commChecker):
             if any(cover.loc[self.G.vs[vid]["name"], :]==1):
                 membership[vid] = \
                     cover.loc[:, cover.loc[self.G.vs[vid]["name"], :] == 1].columns[0]
-        return membership
+
+        if expandVs:
+            # yes I know this is redundant...
+            unmergedVs = [v for mergedv in self.G.vs["name"] for v in mergedv.split(";")]
+            unmergedVs.sort()
+            vSeries = pd.Series(index = unmergedVs)
+            for vid, mergedv in enumerate(self.G.vs["name"]):
+                # I *think* it's safe to enumerate rather than calling .indices explicitly....
+                for v in mergedv.split(";"):
+                    vSeries[v] = membership[vid]
+            vSeries = vSeries.astype(int)
+            vSeries.replace(noneID, -1)
+        else:
+            vSeries = None
+
+        return membership, vSeries
 
     def getMembershipFromCommList(self, commList):
         noneID = len(commList)
@@ -383,8 +400,9 @@ if __name__ == '__main__':
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. May do separately.
             # methods = ["CPM5"] #, "CPM5", "CPM6"
-            methods = ["CPM6"]
-            checkresults, modularityVals, mships = checker.compareCDMethods(foundcover, methods=methods)
+            methods = ["fastgreedy"]
+            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods=methods)
+            expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
             mships["dataName"] = dataName
