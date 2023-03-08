@@ -124,6 +124,7 @@ class cdChecker(bch.commChecker):
             for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
                 orderCover = orderCover.drop(index="order")
+                print("ORDER: {}".format(order))
                 Tangle_mship, expandedMship = self.getMembershipFromCover(orderCover, expandVs = True)
                 Tangle_commList = self.getCommListFromMship(Tangle_mship)
                 expandedVsDF[order] = expandedMship
@@ -203,7 +204,7 @@ class cdChecker(bch.commChecker):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
 
-        noneID = cover.shape[1]
+        noneID = max(cover.columns) + 1
         # all vertices not assigned to any comm should still be included in the comparison,
         # as "unassigned" is still information. Therefore give them all the same id so None's not removed
         membership = [noneID]*self.G.vcount()
@@ -223,7 +224,7 @@ class cdChecker(bch.commChecker):
                 for v in mergedv.split(";"):
                     vSeries[v] = membership[vid]
             vSeries = vSeries.astype(int)
-            vSeries.replace(noneID, -1)
+            vSeries = vSeries.replace(noneID, -1)
         else:
             vSeries = None
 
@@ -342,13 +343,13 @@ class cdChecker(bch.commChecker):
 if __name__ == '__main__':
 
     dataSets = {
-        "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
-        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
-        "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
-        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
-        "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
+        # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
+        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
+        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
@@ -413,7 +414,7 @@ if __name__ == '__main__':
     comparisonsDF = pd.concat(allComparisons)
     comparisonsDF.to_csv("{}ComparisonValuesDisjoint.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
-    modularityDF.to_csv("{}Modularities.csv".format(coverFolder))
+    modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
     modularityDF.groupby(["dataName"])["modularity"].max()
     modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
     mshipsDF = pd.concat(allMships)
