@@ -121,10 +121,11 @@ class cdChecker(bch.commChecker):
                 })
 
             expandedVsDF = pd.DataFrame()
-            for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
+            # for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
+            for order in np.unique(foundcover.loc["order"]):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
                 orderCover = orderCover.drop(index="order")
-                print("ORDER: {}".format(order))
+                # print("ORDER: {}".format(order))
                 Tangle_mship, expandedMship = self.getMembershipFromCover(orderCover, expandVs = True)
                 Tangle_commList = self.getCommListFromMship(Tangle_mship)
                 expandedVsDF[order] = expandedMship
@@ -151,10 +152,7 @@ class cdChecker(bch.commChecker):
                                         "value": value})
                 else:  # CD method other than CPM
                     for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
-                        try:
-                            value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
-                        except:
-                            print("moocow")
+                        value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
 
                         # print(order, method, metric, value)
                         resList.append({"order": order,
@@ -204,7 +202,10 @@ class cdChecker(bch.commChecker):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
 
-        noneID = max(cover.columns) + 1
+        try:
+            noneID = max(cover.columns) + 1
+        except:
+            dummy = 1
         # all vertices not assigned to any comm should still be included in the comparison,
         # as "unassigned" is still information. Therefore give them all the same id so None's not removed
         membership = [noneID]*self.G.vcount()
@@ -218,7 +219,7 @@ class cdChecker(bch.commChecker):
             # yes I know this is redundant...
             unmergedVs = [v for mergedv in self.G.vs["name"] for v in mergedv.split(";")]
             unmergedVs.sort()
-            vSeries = pd.Series(index = unmergedVs)
+            vSeries = pd.Series(index = unmergedVs, dtype=int)
             for vid, mergedv in enumerate(self.G.vs["name"]):
                 # I *think* it's safe to enumerate rather than calling .indices explicitly....
                 for v in mergedv.split(";"):
@@ -344,17 +345,15 @@ if __name__ == '__main__':
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
-        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
-        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
-
-    dummy = 1
 
     if platform.system() != "Linux":
         for dname in dataSets.keys():
@@ -399,10 +398,11 @@ if __name__ == '__main__':
 
         foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
         if len(foundcover.columns) != 0:
-            # removed higher CPM orders. May do separately.
-            # methods = ["CPM5"] #, "CPM5", "CPM6"
-            methods = ["fastgreedy"]
-            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods=methods)
+            # removed higher CPM orders. Do separately.
+            methods = ["CPM3", "CPM4", "CPM5"]
+            # methods = ["fastgreedy"]
+            # checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover)
+            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods = methods)
             expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
@@ -412,7 +412,7 @@ if __name__ == '__main__':
             allMships.append(mships)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesDisjoint.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesCPM.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
     modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
     modularityDF.groupby(["dataName"])["modularity"].max()

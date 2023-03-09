@@ -186,12 +186,12 @@ class Grapher():
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
 
-            # self.plotNetworkOrder(disjointMethods, numMetrics=3, disjoint=True, fileLabel="disj-3", removeExtraneous = True)
-            # self.plotNetworkOrder(disjointMethods, numMetrics=5, disjoint=True, fileLabel="disj-5")
+            self.plotNetworkOrder(disjointMethods, numMetrics=3, disjoint=True, fileLabel="disj-3", removeExtraneous = True)
+            self.plotNetworkOrder(disjointMethods, numMetrics=5, disjoint=True, fileLabel="disj-5")
             # self.plotNetworkOrder(overlapMethods, numMetrics=3, disjoint=False, fileLabel="overlap")
 
             self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
-            self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
+            # self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
 
 def readAlgTimingData(timingFiles, algName):
