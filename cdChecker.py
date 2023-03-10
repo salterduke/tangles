@@ -399,7 +399,7 @@ if __name__ == '__main__':
         foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. Do separately.
-            methods = ["CPM3", "CPM4", "CPM5"]
+            methods = ["CPM5"]
             # methods = ["fastgreedy"]
             # checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover)
             checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods = methods)
@@ -414,9 +414,10 @@ if __name__ == '__main__':
     comparisonsDF = pd.concat(allComparisons)
     comparisonsDF.to_csv("{}ComparisonValuesCPM.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
-    modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
-    modularityDF.groupby(["dataName"])["modularity"].max()
-    modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
+    if modularityDF.size > 0:
+        modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
+        modularityDF.groupby(["dataName"])["modularity"].max()
+        modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
     mshipsDF = pd.concat(allMships)
     mshipsDF.to_csv("{}Memberships.csv".format(coverFolder))
     dummy = 1
