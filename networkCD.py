@@ -143,7 +143,7 @@ class graphCD():
         timings, sepCounts = self.TangleSet.findAllTangles(depth=dep, maxEmptyOrders=maxEmptyOrders, sepsOnly=sepsOnly)
 
         if not sepsOnly:
-            self.assignCommunities()
+            self.assignCommunities(rule="all")
             # if not self.job.get("doImage"):
             #     quality = self.evaluateCommunities()
             # todo add evaluation for images
@@ -156,7 +156,40 @@ class graphCD():
 
     # also note currently only does *once* at end for all k levels -
     # could change to do each level?
-    def assignCommunities(self):
+    def assignCommunities(self, rule="dist"):
+        if rule == "dist":
+            self.assignCommunitiesDistSeps()
+        else:
+            self.assignCommunitiesAllSeps()
+
+
+        # This bit is working with the tangle tree to assign colours to the comms.
+        # note that traverse default is BFS, which is what we want - deeper comms will
+        # overwrite colours for parent comms.
+        # todo if change to every level, need to do on *copy* of tangletree.
+        for node in self.giantComp.vs:
+            node["color"] = "#ffffff"
+
+        for treenode in self.TangleSet.TangleTree.traverse():
+            if "T" not in treenode.name:
+                # keeps only complete tangles
+                # print("deleting non-tangle treenodes")
+                treenode.delete(prevent_nondicotomic=False)
+            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
+                # keeps only tangles with >= 3 nodes
+                # print("deleting trivial tangle treenodes")
+                treenode.delete(prevent_nondicotomic=False)
+            else:
+                # these are the actual communities we want to colour
+                commIndex = int(treenode.name.replace("T", ""))
+                treedep = treenode.get_distance(self.TangleSet.TangleTree)
+                for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
+                    if nodeName != "order":
+                        self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
+        self.printCommTree()
+
+
+    def assignCommunitiesDistSeps(self):
         self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
         # we are going to work out which seps are distinguishing
         # I don't think we can mark them off as they're added, as we might be adding prematurely
@@ -261,45 +294,55 @@ class graphCD():
         # I *think* we can keep the "order" row in and it won't bugger anything up,
         # except yeast?
 
-        # # making copy to add row for orders without messing with anything else.
-        # cover_copy = self.foundcover.copy(deep = True)
-        # # cover_copy = cover_copy.append(pd.Series(sepOrders, index=self.foundcover.columns, name="order"), ignore_index=False)
-        # try:
-        #     cover_copy.loc[len(cover_copy)] = sepOrders
-        # except:
-        #     print("moocow")
-        # cover_copy.index.values[len(cover_copy)-1] = "order"
-        # cover_copy.to_csv(outfile)
 
-        # this makes sure only those communities with at least 3 modes are included
-        # in subsequent comparison. But still printed to file
-        self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) >= 3)]
-        # todo add check for duplicate comms
+    def assignCommunitiesAllSeps(self):
+        self.foundcover = pd.DataFrame(index = sorted(self.giantComp.vs["name"]), columns=range(self.TangleSet.currentTangle), dtype=int)
 
-        for node in self.giantComp.vs:
-            node["color"] = "#ffffff"
+        sepOrders = []
 
-        # This bit is working with the tangle tree to assign colours to the comms.
-        # note that traverse default is BFS, which is what we want - deeper comms will
-        # overwrite colours for parent comms.
-        # todo if change to every level, need to do on *copy* of tangletree.
-        for treenode in self.TangleSet.TangleTree.traverse():
-            if "T" not in treenode.name:
-                # keeps only complete tangles
-                # print("deleting non-tangle treenodes")
-                treenode.delete(prevent_nondicotomic=False)
-            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
-                # keeps only tangles with >= 3 nodes
-                # print("deleting trivial tangle treenodes")
-                treenode.delete(prevent_nondicotomic=False)
-            else:
-                # these are the actual communities we want to colour
-                commIndex = int(treenode.name.replace("T", ""))
-                treedep = treenode.get_distance(self.TangleSet.TangleTree)
-                for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
-                    if nodeName != "order":
-                        self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
-        self.printCommTree()
+        # Note that these orders are the order of the *separations*, not the tangles.
+        tangNum = 0
+        for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
+            # print("Order: -------------------- {}".format(order))
+
+            for tang in self.TangleSet.TangleLists[order]:
+
+                # probably not necessary, but helps my brain in comparison to dist version
+                allSmallSides = list(tang.smallSides)
+
+                if len(allSmallSides) > 0:
+                    onAllBig = set(self.giantComp.vs.indices) - set.union(*allSmallSides)
+                else:
+                    onAllBig = set(self.giantComp.vs.indices)
+
+
+                for v in range(self.TangleSet.groundsetSize):
+                    self.foundcover.loc[self.TangleSet.names[v], tangNum] = \
+                        1 if (v in onAllBig) else 0
+
+                tangNum+=1
+                sepOrders.append(order)
+
+
+
+        outfile = "{}/{}-TangNodesAllSeps.csv". \
+            format(self.job['outputFolder'], self.job['outName'])
+        # the astype is necessary as results_wide init as NaNs, which are stored as floats.
+        self.foundcover = self.foundcover.astype(np.int8)
+
+
+        self.foundcover.loc[len(self.foundcover)] = [ord+1 for ord in sepOrders]
+        # as tangle orders are +1 to the highest order seps in them
+
+        # For if we want to remove communities with zero nodes assigned.
+        # not currently working correctly.
+        # self.foundcover = self.foundcover.loc[:, (self.foundcover.sum(axis=0) > 0)]
+
+        self.foundcover.index.values[len(self.foundcover)-1] = "order"
+        #
+        self.foundcover.to_csv(outfile)
+        # I *think* we can keep the "order" row in and it won't bugger anything up,
+        # except yeast?
 
     def printCommTree(self):
         outfile = "{}/{}-CommTree.png". \

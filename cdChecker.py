@@ -345,13 +345,16 @@ if __name__ == '__main__':
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
-        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
-        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
-        "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv")
+        # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
+        "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
+        "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
+        "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
 
@@ -399,10 +402,15 @@ if __name__ == '__main__':
         foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
         if len(foundcover.columns) != 0:
             # removed higher CPM orders. Do separately.
-            methods = ["CPM5"]
+
+            # methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
+            #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
+            #            "CPM3", "CPM4", "CPM5", "CPM6"]
+            methods = ["CPM3", "CPM4", "CPM5", "CPM6"]
+
             # methods = ["fastgreedy"]
-            # checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover)
-            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods = methods)
+            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover)
+            # checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods = methods)
             expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
@@ -412,7 +420,7 @@ if __name__ == '__main__':
             allMships.append(mships)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesCPM.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesDisj_New.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
     if modularityDF.size > 0:
         modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))

@@ -42,12 +42,12 @@ class Grapher():
 
 
         self.methodLongNames = {
-            'CPM3': "CPM, size 3",
-            'CPM4': "CPM, size 4",
-            'CPM5': "CPM, size 5",
-            'CPM6': "CPM, size 6",
+            'CPM3': "CPM clique size 3",
+            'CPM4': "CPM clique size 4",
+            'CPM5': "CPM clique size 5",
+            'CPM6': "CPM clique size 6",
             'between': "Edge-betweenness",
-            'eigen': "Leading Eigenvector" ,
+            'eigen': "Leading Eigenvector",
             'fastgreedy': "Fast-greedy",
             'infomap': "Infomap",
             'labelprop': "Label Propagation",
@@ -63,8 +63,14 @@ class Grapher():
         dfList = []
         coverFolder = "../outputdevResults_VY/Preliminary/"
 
+        # for comparisonDataFile in [
+        #     "ComparisonValuesDisjoint.csv"
+        # ]:
+
+        # todo add all separate CPM results for original networks
         for comparisonDataFile in [
-            "ComparisonValuesDisjoint.csv"
+            "ComparisonValuesDisj_New.csv",
+            "ComparisonValuesCPM_New.csv"
         ]:
             fname = coverFolder + comparisonDataFile
             dfList.append(pd.read_csv(fname, delimiter=",", header=0))
@@ -130,6 +136,7 @@ class Grapher():
                             order=[methodLong for methodLong in self.methodLongNames.values()
                                    if methodLong in np.unique(df["methodLongName"])]
                             )
+                ax[id].set_box_aspect(6/len(ax[id].get_xticklabels()))
                 if id == 2:
                     ax[id].tick_params("x", direction="out", bottom=True)
                     ax[id].set_xticklabels(ax[id].get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
@@ -186,12 +193,13 @@ class Grapher():
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
 
+
             self.plotNetworkOrder(disjointMethods, numMetrics=3, disjoint=True, fileLabel="disj-3", removeExtraneous = True)
             self.plotNetworkOrder(disjointMethods, numMetrics=5, disjoint=True, fileLabel="disj-5")
-            # self.plotNetworkOrder(overlapMethods, numMetrics=3, disjoint=False, fileLabel="overlap")
+            self.plotNetworkOrder(overlapMethods, numMetrics=3, disjoint=False, fileLabel="overlap")
 
             self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
-            # self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
+            self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
 
 def readAlgTimingData(timingFiles, algName):

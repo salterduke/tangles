@@ -19,14 +19,14 @@ if __name__ == '__main__':
 
     # default
     configFile = "const.txt"
-    runDepth = 4
+    # runDepth = 4
 
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         # testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
         testName = sys.argv[1]
         print("Dev testing, name {}".format(testName))
         configFile = "config2.txt"
-        runDepth = 6
+        # runDepth = 6
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
         testName = "DevVY" # note leaving VY in name so alg is correctly selected later
@@ -44,11 +44,13 @@ if __name__ == '__main__':
     copyPics = False
 # ------------------------------------------------------------------------------
 
-def runAnalysis(job, dep=4):
+def runAnalysis(job):
 
     log.log("Job: {}".format(job['outName']))
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
+
+    runDepth = job.get("depth", 4)
 
     # modified so dep is total number of orders, not total after the first one
     n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, sepsOnly=False)
@@ -133,7 +135,7 @@ if __name__ == '__main__':
             job['outputFolder'] = "./output{}".format(testName)
             job['testName'] = testName
             job["imParser"] = parser
-            jobres = runAnalysis(job, dep = runDepth)
+            jobres = runAnalysis(job)
             jobResults.append(jobres)
 
     # elif doImage:
