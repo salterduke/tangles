@@ -1,12 +1,15 @@
 import igraph as ig
 import matplotlib.pyplot as plt
 
-outfolder = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/Tangles/testResources/diagrams/"
+basefolder = "/home/saltermich1/PhDThesisGdrive/"
+# basefolder = "C:/Users/mrousset/Documents/PhDThesisLaptop/"
+outfolder = basefolder + "Code/Tangles/testResources/diagrams/"
 
 # --------------------------------------------------------------------
 # tinyEdges
-def drawGraphExample():
-    gFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyEdges.csv"
+def drawGraphExample(format = "png"):
+    # gFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyEdges.csv"
+    gFile = basefolder + "Code/NetworkData/SmallNWs/TinyEdges.csv"
     layout = [(0, 0), (0, 2), (1, 1), (2, 1), (2, 0), (3, 1), (4, 0), (5, 1), (4, 2)]
     G = ig.Graph.Read_Ncol(gFile, names=True, directed=False)
 
@@ -15,7 +18,7 @@ def drawGraphExample():
     visual_style["vertex_label"] = G.vs["name"]
     visual_style["bbox"] = (0, 0, 500, 250)
 
-    outfile = outfolder + "tinyedges.png"
+    outfile = outfolder + "tinyedges." + format
 
     g = ig.plot(G, layout=layout, **visual_style)
     # g = ig.plot(G, layout=layout, target=outfile, **visual_style)
@@ -25,8 +28,9 @@ def drawGraphExample():
 # --------------------------------------------------------------------
 # branch decomp of tinyEdges
 
-def drawBranchDecomp():
-    bDecompFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyBranchDecomp.csv"
+def drawBranchDecomp(format = "png"):
+    # bDecompFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyBranchDecomp.csv"
+    bDecompFile = basefolder + "Code/NetworkData/SmallNWs/TinyBranchDecomp.csv"
 
     G = ig.Graph.Read_Ncol(bDecompFile, names=True, directed=False)
     G.es["curved"] = 0
@@ -46,14 +50,15 @@ def drawBranchDecomp():
 
     g = ig.plot(G, layout=layout, **visual_style)
     # g.show()
-    outfile = outfolder + "tinybranchdecomp.png"
+    outfile = outfolder + "tinybranchdecomp." + format
     g.save(outfile)
 
 # --------------------------------------------------------------------
 # carving decomp of tinyEdges
 
-def drawCarving():
-    cDecompFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyCarvingDecomp.csv"
+def drawCarving(format = "png"):
+    # cDecompFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/TinyCarvingDecomp.csv"
+    cDecompFile = basefolder + "Code/NetworkData/SmallNWs/TinyCarvingDecomp.csv"
 
     G = ig.Graph.Read_Ncol(cDecompFile, names=True, directed=False)
     G.es["curved"] = 0
@@ -77,15 +82,16 @@ def drawCarving():
     layout = G.layout_reingold_tilford()
     visual_style["bbox"] = (0, 0, 500, 250)
     g = ig.plot(G, layout=layout, **visual_style)
-    g.show()
+    # g.show()
 
-    outfile = outfolder + "tinycarvingdecomp.png"
+    outfile = outfolder + "tinycarvingdecomp." + format
     g.save(outfile)
 
 # --------------------------------------------------------------------
 # tree diagram for VY, YWS
-def drawCutFinderTree():
-    treeFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/ForDiagrams/treeDiagVY.csv"
+def drawCutFinderTree(format = "png"):
+    # treeFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/ForDiagrams/treeDiagVY.csv"
+    treeFile = basefolder + "Code/NetworkData/SmallNWs/ForDiagrams/treeDiagVY.csv"
 
     G = ig.Graph.Read_Ncol(treeFile, names=True, directed=False)
     G.es["curved"] = 0
@@ -111,14 +117,18 @@ def drawCutFinderTree():
     g = ig.plot(G, layout=layout, **visual_style)
     g.show()
 
-    outfile = outfolder + "cutfinder.png"
+    outfile = outfolder + "cutfinder." + format
     g.save(outfile)
 
 
 # _____________________________________________
 
-drawCutFinderTree()
+# drawCutFinderTree()
 
-# drawGraphExample()
-# drawBranchDecomp()
-# drawCarving()
+# note that it appears that saving as pdf *doesn't* mean it's saved as a vector format,
+# it's just an image within a pdf. Similarly for svg.
+outformat = "pdf"
+
+drawGraphExample(format = outformat)
+drawBranchDecomp(format = outformat)
+drawCarving(format = outformat)
