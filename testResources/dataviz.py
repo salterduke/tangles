@@ -259,34 +259,47 @@ class Grapher():
 
     # ------------------------------------------------------------
     def plotTimingResults(self, results):
-        results["nm"] = results["Vs"] * results["Es"]
 
-        doLog = "log"
-        # doLog = "linear"
 
-        # # for vs in (20,50,100):
-        for vs in (150, 200):
+        # results["nm"] = results["Vs"] * results["Es"]
+
+        # doLog = "log"
+        doLog = "linear"
+
+        timeSummary = results.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["delay"].mean().reset_index()
+        sns.relplot(x="NominalEs", y="delay", col="order", row="NominalVs", hue="algorithm", data=timeSummary)
+        plt.yscale(doLog)
+        plt.show(block=True)
+
+        dummy = 1
+
+        for vs in (20,50,100):
+        # for vs in ([100]):
+        # for vs in (150, 200):
             singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
-                "time"].mean().reset_index()
+                "delay"].mean().reset_index()
             # singleVs = singleVs[singleVs["order"] < 5]
-            sns.relplot(x="NominalEs", y="time", col="order", col_wrap=2, hue="algorithm", data=singleVs)
+            sns.relplot(x="NominalEs", y="delay", col="order", row="NominalVs", hue="algorithm", data=singleVs)
             plt.yscale(doLog)
-            plt.savefig("./Timings/Vertices_{}_{}.png".format(doLog, vs))
+            plt.show(block=True)
+
+            dummy = 1
+            # plt.savefig("./Timings/Vertices_{}_{}.png".format(doLog, vs))
             # plt.savefig("./Timings/Vertices_{}.pdf".format(vs))
 
-        for ord in (range(2, 6)):
-            singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
-                "time"].mean().reset_index()
-            sns.relplot(x="NominalEs", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
-            plt.yscale(doLog)
-            plt.savefig("./Timings/Order_{}_{}.png".format(doLog, ord))
-
-        for ord in (range(2, 6)):
-            singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "nm", "order", "algorithm"])[
-                "time"].mean().reset_index()
-            sns.relplot(x="nm", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
-            plt.yscale(doLog)
-            plt.savefig("./Timings/Order_{}_nm_{}.png".format(doLog, ord))
+        # for ord in (range(2, 6)):
+        #     singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
+        #         "time"].mean().reset_index()
+        #     sns.relplot(x="NominalEs", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
+        #     plt.yscale(doLog)
+        #     plt.savefig("./Timings/Order_{}_{}.png".format(doLog, ord))
+        #
+        # for ord in (range(2, 6)):
+        #     singleOrd = results.loc[results.order == ord].groupby(["NominalEs", "NominalVs", "nm", "order", "algorithm"])[
+        #         "time"].mean().reset_index()
+        #     sns.relplot(x="nm", y="time", col="NominalVs", col_wrap=2, hue="algorithm", data=singleOrd)
+        #     plt.yscale(doLog)
+        #     plt.savefig("./Timings/Order_{}_nm_{}.png".format(doLog, ord))
 
     # ------------------------------------------------------------
     def regressResults(self, results):
@@ -294,71 +307,165 @@ class Grapher():
 
     # ------------------------------------------------------------
 
+    def readSepCounts(self, countFiles, algName):
+        dfList = []
+
+        for id, file in enumerate(countFiles):
+            # print("Reading ", file)
+            df = pd.read_csv(file, delimiter=',', header=0, comment="#")
+            df["fileID"] = id
+            df["algorithm"] = algName
+            dfList.append(df)
+
+        counts_wide = pd.concat(dfList, ignore_index=True)
+
+        df1 = counts_wide['sepCounts'].str.split('-', expand=True).add_prefix('sepNumber').fillna('')
+        counts_wide = pd.concat([counts_wide, df1], axis = 1)
+
+        df1 = counts_wide['tangCounts'].str.split('-', expand=True).add_prefix('Order').fillna('')
+        counts_wide = pd.concat([counts_wide, df1], axis = 1)
+
+        counts_wide.drop('Order4', axis=1, inplace=True)
+        counts_wide.drop('Order5', axis=1, inplace=True)
+        counts_wide.drop('Order6', axis=1, inplace=True)
+
+        for col in [col for col in counts_wide.columns if "Order" in str(col)]:
+            counts_wide[col] = counts_wide.apply(lambda x: x[col][1], axis=1)
+
+        orders = [col for col in counts_wide.columns if "Order" in col]
+        counts = [col for col in counts_wide.columns if "sepNumber" in col]
+        nOrders = len(orders)
+
+        for i in range(1,10):
+            counts_wide["seps_at_ord{}".format(i)] = np.nan
+
+        for rid, row in counts_wide.iterrows():
+            for i in range(nOrders):
+                counts_wide.loc[rid, "seps_at_ord{}".format(row["Order{}".format(i)])] = row["sepNumber{}".format(i)]
+
+        counts_wide = counts_wide.drop(columns=["tangCounts", "timings", "Es", "Vs", "Unnamed: 0", "secs", "sepCounts"] + orders + counts)
+        counts_wide = counts_wide.dropna(how='all', axis='columns')
+
+        results = pd.wide_to_long(counts_wide, ["seps_at_ord"], i=["fileID", "network"], j="order")
+        results = results.rename(columns = {"seps_at_ord": "numSeps"})
+        results = results.reset_index()
+        results.numSeps = pd.to_numeric(results.numSeps)
+
+        return results
+
+
+    def combineSepcounts(self, timeDF, sepDF):
+        # first check that sepnums in VY and YWS match!
+        sepNumsVY = sepDF.loc[sepDF.algorithm == "VY"]
+        sepNumsYWS = sepDF.loc[sepDF.algorithm == "YWS"]
+        for id, row in sepNumsVY.iterrows():
+            rowYWS = sepNumsYWS.loc[
+                (sepNumsYWS.network == row.network) &
+                (sepNumsYWS.order == row.order)
+            ]
+            rowYWS = pd.Series(rowYWS.iloc[0])
+            if row.numSeps != rowYWS.numSeps:
+                print("ARRGH, numSeps doesn't match")
+                print(row)
+                print(rowYWS)
+                exit()
+
+        sepDF = sepDF.set_index(["network", "order", "algorithm"])
+        timeDF = timeDF.set_index(["network", "order", "algorithm"])
+
+        sepDF = sepDF.drop(columns = ["fileID"])
+
+        timeDF = timeDF.join(sepDF)
+        timeDF["delay"] = timeDF.time / timeDF.numSeps
+
+        return timeDF  # edit when written this fn!!!
+
     def processTimingData(self):
+        # VYfiles = [
+        # "../outputTestVY/results2022-11-23 20.49.11.331334.csv",
+        # "../outputTestVY/results2022-11-25 00.56.39.342710.csv",
+        # "../outputTestVY/results2022-11-25 13.58.17.443580.csv",
+        # "../outputTestVY/results2022-11-26 22.46.30.592230.csv",
+        # "../outputTestVY/results2022-12-10 09.10.23.870668.csv",
+        # "../outputTestVY/results2022-12-10 12.38.50.019390.csv",
+        # "../outputTestVY/results2022-12-11 10.43.25.282799.csv",
+        # "../outputTestVY/results2022-12-11 14.12.00.441343.csv",
+        # "../outputTestVY/results2022-12-12 02.14.09.467554.csv",
+        # "../outputTestVY/results2022-12-12 06.07.45.566873.csv",
+        # "../outputTestVY/results2022-12-12 12.19.58.915419.csv",
+        # "../outputTestVY/results2022-12-12 15.48.30.065434.csv",
+        # "../outputTestVY/results2022-12-13 15.02.59.722227.csv",
+        # "../outputTestVY/results2022-12-13 19.05.02.100191.csv",
+        # "../outputTestVY/results2022-12-18 22.15.15.806828.csv",
+        # "../outputTestVY/results2022-12-19 16.52.11.097076.csv",
+        # "../outputTestVY/results2022-12-26 23.03.21.097428.csv",
+        # "../outputTestVY/results2022-12-27 18.20.50.612801.csv",
+        # "../outputTestVY/results2023-01-03 17.54.11.479864.csv",
+        # "../outputTestVY/results2023-01-04 18.50.10.710700.csv"
+        # ]
+        #
+        # YWSfiles = [
+        # "../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
+        # "../outputTestYWS/results2022-11-25 09.06.28.692849.csv",
+        # "../outputTestYWS/results2022-11-28 17.05.09.511741.csv",
+        # "../outputTestYWS/results2022-11-29 19.19.01.456783.csv",
+        # "../outputTestYWS/results2022-12-10 09.17.26.935472.csv",
+        # "../outputTestYWS/results2022-12-10 13.08.02.281325.csv",
+        # "../outputTestYWS/results2022-12-11 10.50.25.246702.csv",
+        # "../outputTestYWS/results2022-12-11 14.41.15.343567.csv",
+        # "../outputTestYWS/results2022-12-12 02.21.42.212079.csv",
+        # "../outputTestYWS/results2022-12-12 06.38.50.450858.csv",
+        # "../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
+        # "../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
+        # "../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
+        # "../outputTestYWS/results2022-12-13 19.37.09.424597.csv",
+        # "../outputTestYWS/results2022-12-19 05.22.53.195299.csv",
+        # "../outputTestYWS/results2022-12-22 12.04.04.355848.csv",
+        # "../outputTestYWS/results2022-12-27 06.33.52.986415.csv",
+        # "../outputTestYWS/results2022-12-30 10.29.12.984751.csv",
+        # "../outputTestYWS/results2023-01-04 01.38.36.360110.csv",
+        # "../outputTestYWS/results2023-01-08 20.27.45.931906.csv"
+        # ]
+        # note, there seem to be some more files there. Check out.
+
         VYfiles = [
-        "../outputTestVY/results2022-11-23 20.49.11.331334.csv",
-        "../outputTestVY/results2022-11-25 00.56.39.342710.csv",
-        "../outputTestVY/results2022-11-25 13.58.17.443580.csv",
-        "../outputTestVY/results2022-11-26 22.46.30.592230.csv",
-        "../outputTestVY/results2022-12-10 09.10.23.870668.csv",
-        "../outputTestVY/results2022-12-10 12.38.50.019390.csv",
-        "../outputTestVY/results2022-12-11 10.43.25.282799.csv",
-        "../outputTestVY/results2022-12-11 14.12.00.441343.csv",
-        "../outputTestVY/results2022-12-12 02.14.09.467554.csv",
-        "../outputTestVY/results2022-12-12 06.07.45.566873.csv",
-        "../outputTestVY/results2022-12-12 12.19.58.915419.csv",
-        "../outputTestVY/results2022-12-12 15.48.30.065434.csv",
-        "../outputTestVY/results2022-12-13 15.02.59.722227.csv",
-        "../outputTestVY/results2022-12-13 19.05.02.100191.csv",
-        "../outputTestVY/results2022-12-18 22.15.15.806828.csv",
-        "../outputTestVY/results2022-12-19 16.52.11.097076.csv",
-        "../outputTestVY/results2022-12-26 23.03.21.097428.csv",
-        "../outputTestVY/results2022-12-27 18.20.50.612801.csv",
-        "../outputTestVY/results2023-01-03 17.54.11.479864.csv",
-        "../outputTestVY/results2023-01-04 18.50.10.710700.csv"
+            "../outputTestVY/timesexampleVY.csv"
         ]
 
         YWSfiles = [
-        "../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
-        "../outputTestYWS/results2022-11-25 09.06.28.692849.csv",
-        "../outputTestYWS/results2022-11-28 17.05.09.511741.csv",
-        "../outputTestYWS/results2022-11-29 19.19.01.456783.csv",
-        "../outputTestYWS/results2022-12-10 09.17.26.935472.csv",
-        "../outputTestYWS/results2022-12-10 13.08.02.281325.csv",
-        "../outputTestYWS/results2022-12-11 10.50.25.246702.csv",
-        "../outputTestYWS/results2022-12-11 14.41.15.343567.csv",
-        "../outputTestYWS/results2022-12-12 02.21.42.212079.csv",
-        "../outputTestYWS/results2022-12-12 06.38.50.450858.csv",
-        "../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
-        "../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
-        "../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
-        "../outputTestYWS/results2022-12-13 19.37.09.424597.csv",
-        "../outputTestYWS/results2022-12-19 05.22.53.195299.csv",
-        "../outputTestYWS/results2022-12-22 12.04.04.355848.csv",
-        "../outputTestYWS/results2022-12-27 06.33.52.986415.csv",
-        "../outputTestYWS/results2022-12-30 10.29.12.984751.csv",
-        "../outputTestYWS/results2023-01-04 01.38.36.360110.csv",
-        "../outputTestYWS/results2023-01-08 20.27.45.931906.csv"
+            "../outputTestYWS/timesexampleYWS.csv"
         ]
-        # note, there seem to be some more files there. Check out.
 
-        sepNumberFiles = [
-            "../outputTestVY/results2023-01-2421.31.56.721371.csv",
-            "../outputTestVY/results2023-01-2605.33.37.125949.csv",
-            "../outputTestYWS/results2023-01-2510.27.19.290499.csv"
-        ]
+        # sepNumberFiles = [
+        #     "../outputTestVY/results2023-01-2421.31.56.721371.csv",
+        #     "../outputTestVY/results2023-01-2605.33.37.125949.csv",
+        #     "../outputTestYWS/results2023-01-2510.27.19.290499.csv"
+        # ]
         # confirm sep nums match, run for lower orders.
+        sepNumbersVY = [
+            "../outputTestVY/sepcountsVY.csv"
+        ]
+
+        sepNumbersYWS = [
+            "../outputTestYWS/sepcountsYWS.csv"
+        ]
 
         fileLists = [VYfiles, YWSfiles]
+        sepcountLists = [sepNumbersVY, sepNumbersYWS]
         algNames = ["VY", "YWS"]
-        resDFs = []
+        timeDFs = []
+        sepcountDFs = []
 
         for id in (0,1):
-            resDFs.append(readAlgTimingData(fileLists[id], algNames[id]))
+            timeDFs.append(self.readAlgTimingData(fileLists[id], algNames[id]))
+            sepcountDFs.append(self.readSepCounts(sepcountLists[id], algNames[id]))
 
-        results = pd.concat(resDFs)
+        timings = pd.concat(timeDFs)
+        sepCounts = pd.concat(sepcountDFs)
+        results = self.combineSepcounts(timings, sepCounts)
 
         self.plotTimingResults(results)
+
         # self.regressResults(results)
 
         # nomDiffs = results.groupby(["network"]).agg({
