@@ -260,6 +260,8 @@ class Grapher():
     # ------------------------------------------------------------
     def plotTimingResults(self, results):
 
+        results["sepOrder"] = results["order"] - 1
+
         timeSummary = results.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["delay"].mean().reset_index()
 
         # eplots = sns.relplot(x="NominalEs", y="delay", col="order", row="NominalVs", hue="algorithm", data=timeSummary)
@@ -269,25 +271,23 @@ class Grapher():
         # plt.show(block=True)
         # # plt.savefig("./Timings/All-against-edges.pdf")
 
-        timeSummary["sepOrder"] = timeSummary["order"] - 1
-
-        nplots = sns.relplot(x="NominalVs", y="delay", row="sepOrder", hue="NominalEs", col="algorithm", palette="copper_r", data=timeSummary)
-        nplots.set_axis_labels("Number of vertices (n)", "Delay per cut (seconds)")
-        nplots.set_titles(row_template='Order {row_name} Separations', col_template='Algorithm: {col_name}')
-        nplots._legend.set_title("Edges (m)")
-        # plt.show(block=True)
-        plt.savefig("./Timings/All-against-verts.pdf")
-
-        for ord in np.unique(timeSummary["sepOrder"]):
-            singleOrd = timeSummary.loc[timeSummary["sepOrder"] == ord]
-            nplots = sns.relplot(x="NominalVs", y="delay", hue="NominalEs", col="algorithm", palette="copper_r", data=singleOrd)
-            nplots.set_axis_labels("Number of vertices (n)", "Delay per cut (seconds)")
-            nplots.set_titles(col_template='Algorithm: {col_name}')
-            # plt.show(block=True)
-            plt.savefig("./Timings/Ord{}-against-verts.pdf".format(ord))
+        # nplots = sns.relplot(x="NominalVs", y="delay", row="sepOrder", hue="NominalEs", col="algorithm", palette="copper_r", data=timeSummary)
+        # nplots.set_axis_labels("Number of vertices (n)", "Delay per cut (seconds)")
+        # nplots.set_titles(row_template='Order {row_name} Separations', col_template='Algorithm: {col_name}')
+        # nplots._legend.set_title("Edges (m)")
+        # # plt.show(block=True)
+        # plt.savefig("./Timings/All-against-verts.pdf")
+        #
+        # for ord in np.unique(timeSummary["sepOrder"]):
+        #     singleOrd = timeSummary.loc[timeSummary["sepOrder"] == ord]
+        #     nplots = sns.relplot(x="NominalVs", y="delay", hue="NominalEs", col="algorithm", palette="copper_r", data=singleOrd)
+        #     nplots.set_axis_labels("Number of vertices (n)", "Delay per cut (seconds)")
+        #     nplots.set_titles(col_template='Algorithm: {col_name}')
+        #     # plt.show(block=True)
+        #     plt.savefig("./Timings/Ord{}-against-verts.pdf".format(ord))
 
         for vs in (20,50,100,150,200):
-            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
+            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "sepOorder", "algorithm"])[
                 "delay"].mean().reset_index()
             # singleVs = singleVs[singleVs["order"] < 5]
             eplots = sns.relplot(x="NominalEs", y="delay", col="order", col_wrap=2, hue="algorithm", data=singleVs)
