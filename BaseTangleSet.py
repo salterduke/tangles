@@ -362,7 +362,7 @@ class TangleSet():
         #             f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = True
+        doTreePrint = False
         if doTreePrint:
             self.printTangleTree(k)
 

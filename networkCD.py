@@ -186,7 +186,7 @@ class graphCD():
         #         for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
         #             if nodeName != "order":
         #                 self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
-        self.printCommTree()
+        # self.printCommTree()
 
 
     def assignCommunitiesDistSeps(self):
