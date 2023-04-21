@@ -260,9 +260,13 @@ class Grapher():
     # ------------------------------------------------------------
     def plotTimingResults(self, results):
 
-        results["sepOrder"] = results["order"] - 1
+        #print("Results-------------")
+        #print(results.head())
+
 
         timeSummary = results.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["delay"].mean().reset_index()
+
+        timeSummary["sepOrder"] = timeSummary["order"] - 1
 
         # eplots = sns.relplot(x="NominalEs", y="delay", col="order", row="NominalVs", hue="algorithm", data=timeSummary)
         # eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
@@ -287,10 +291,11 @@ class Grapher():
         #     plt.savefig("./Timings/Ord{}-against-verts.pdf".format(ord))
 
         for vs in (20,50,100,150,200):
-            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "sepOorder", "algorithm"])[
+            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
                 "delay"].mean().reset_index()
             # singleVs = singleVs[singleVs["order"] < 5]
-            eplots = sns.relplot(x="NominalEs", y="delay", col="order", col_wrap=2, hue="algorithm", data=singleVs)
+            singleVs["sepOrder"] = singleVs["order"] - 1 
+            eplots = sns.relplot(x="NominalEs", y="delay", col="sepOrder", col_wrap=2, hue="algorithm", data=singleVs)
             eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
             eplots.set_titles(col_template='Order {col_name} Separations')
             eplots._legend.set_title("Algorithm")
