@@ -217,7 +217,7 @@ class TangleSet():
                     self.foundTangle +=1
                     # todo editing to make tidy tree tidier - kludge. Fix later to code with sep ids and A/B maybe?
                     # child.name = "T{}{}".format(self.currentTangle, formatSideName(side))
-                    currentBranch.name = "T{}".format(self.currentTangle)
+                    currentBranch.name = "T{}-{}".format(self.currentTangle, currentBranch.name)
                     self.TangleLists[k].append(currentBranch)
                     self.currentTangle += 1
 
@@ -303,10 +303,10 @@ class TangleSet():
                 tangle.smallSides = []
             ##########################
             for smallSide in tangle.smallSides:
-                if smallSide == {6,7,8}:
-                    global debugBreak
-                    debugBreak = True
-                    print("Found trouble sep in printSingleTangle")
+                # if smallSide == {6,7,8}:
+                #     global debugBreak
+                #     debugBreak = True
+                #     print("Found trouble sep in printSingleTangle")
 
                 complement = self.groundset - smallSide
 
@@ -362,7 +362,7 @@ class TangleSet():
         #             f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = False
+        doTreePrint = True
         if doTreePrint:
             self.printTangleTree(k)
 
@@ -406,6 +406,8 @@ class TangleSet():
         for treenode in tidyTree.traverse():
             if "T" not in treenode.name:
                 treenode.delete(prevent_nondicotomic=False)
+            else:
+                dummy = 1
         ts.show_branch_length = False
 
         for node in tidyTree.iter_descendants():

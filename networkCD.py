@@ -143,7 +143,7 @@ class graphCD():
         timings, sepCounts = self.TangleSet.findAllTangles(depth=dep, maxEmptyOrders=maxEmptyOrders, sepsOnly=sepsOnly)
 
         if not sepsOnly:
-            self.assignCommunities(rule="all")
+            self.assignCommunities(rule="dist")
             # if not self.job.get("doImage"):
             #     quality = self.evaluateCommunities()
             # todo add evaluation for images
@@ -160,7 +160,7 @@ class graphCD():
         if rule == "dist":
             self.assignCommunitiesDistSeps()
         else:
-            self.assignCommunitiesAllSeps()
+            self.assignCommunitiesAllSeps() # not currently working, but ignore
 
 
         # This bit is working with the tangle tree to assign colours to the comms.
@@ -170,22 +170,22 @@ class graphCD():
         for node in self.giantComp.vs:
             node["color"] = "#ffffff"
 
-        for treenode in self.TangleSet.TangleTree.traverse():
-            if "T" not in treenode.name:
-                # keeps only complete tangles
-                # print("deleting non-tangle treenodes")
-                treenode.delete(prevent_nondicotomic=False)
-            elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
-                # keeps only tangles with >= 3 nodes
-                # print("deleting trivial tangle treenodes")
-                treenode.delete(prevent_nondicotomic=False)
-            else:
-                # these are the actual communities we want to colour
-                commIndex = int(treenode.name.replace("T", ""))
-                treedep = treenode.get_distance(self.TangleSet.TangleTree)
-                for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
-                    if nodeName != "order":
-                        self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
+        # for treenode in self.TangleSet.TangleTree.traverse():
+        #     if "T" not in treenode.name:
+        #         # keeps only complete tangles
+        #         # print("deleting non-tangle treenodes")
+        #         treenode.delete(prevent_nondicotomic=False)
+        #     elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
+        #         # keeps only tangles with >= 3 nodes
+        #         # print("deleting trivial tangle treenodes")
+        #         treenode.delete(prevent_nondicotomic=False)
+        #     else:
+        #         # these are the actual communities we want to colour
+        #         commIndex = int(treenode.name.replace("T", ""))
+        #         treedep = treenode.get_distance(self.TangleSet.TangleTree)
+        #         for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
+        #             if nodeName != "order":
+        #                 self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
         self.printCommTree()
 
 
@@ -201,6 +201,13 @@ class graphCD():
         distSepsOneSided = []
         # Note that these orders are the order of the *separations*, not the tangles.
         tangNum = 0
+
+        try:
+            for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
+                donothing = 1
+        except:
+            print("moocow")
+
         for order in range(self.TangleSet.kmin, self.TangleSet.kmax+1):
             # print("Order: -------------------- {}".format(order))
             for side in self.TangleSet.separations[order]:
@@ -372,7 +379,7 @@ class graphCD():
         ts.show_branch_length = False
 
         for node in self.TangleSet.TangleTree.iter_descendants():
-            node.dist *= 4
+            node.dist /= 4
 
         ts.branch_vertical_margin = 8
         ts.scale = 360

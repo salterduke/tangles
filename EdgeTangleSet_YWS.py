@@ -459,7 +459,7 @@ class EdgeTangleSet(btang.TangleSet):
 
         # Takes every "twig" hanging off the edges of the main graph, and condenses it to a single node as a "stub"
         # since a twig is always "small", don't need to deal with all parts of the twig.
-        self.G = tools.pruneToStubs(G)
+        # self.G = tools.pruneToStubs(G)
 
         self.leaves = set(self.G.vs.select(_degree_eq=1).indices)
         self.leafExtent = 0

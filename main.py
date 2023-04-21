@@ -50,7 +50,10 @@ def runAnalysis(job):
     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
     jobGraph = netCD.graphCD(job, log)
 
-    runDepth = job.get("depth", 4)
+    depDefault = 4
+    runDepth = job.get("depth", depDefault)
+    if np.isnan(runDepth):
+        runDepth = depDefault
 
     # modified so dep is total number of orders, not total after the first one
     n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, sepsOnly=False)
