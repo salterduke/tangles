@@ -55,7 +55,8 @@ class Grapher():
             'modularity': "Optimal Modularity",
             'multilevel': "Louvain Modularity",
             'spinglass': "Spinglass",
-            'walktrap': "Walktrap"
+            'walktrap': "Walktrap",
+            'Reference': "Ref. Infomap vs Louvain"
         }
         # Note that modularity and multilevel (Louvain) have to be one after another
         # to ensure graphs put them in the same place on the x axis (since only one is included)
@@ -67,10 +68,16 @@ class Grapher():
         #     "ComparisonValuesDisjoint.csv"
         # ]:
 
+        self.refValsDF = pd.read_csv("../outputdevResults_VY/referenceMetrics.csv")
+
         # todo add all separate CPM results for original networks
         for comparisonDataFile in [
-            "ComparisonValuesDisj_New.csv",
-            "ComparisonValuesCPM_New.csv"
+            "ComparisonValuesDisj_All.csv",
+            "ComparisonValuesCPM_New.csv",
+            "ComparisonValuesCPM3.csv",
+            "ComparisonValuesCPM4.csv",
+            "ComparisonValuesCPM5.csv",
+            "ComparisonValuesCPM6.csv"
         ]:
             fname = coverFolder + comparisonDataFile
             dfList.append(pd.read_csv(fname, delimiter=",", header=0))
@@ -78,6 +85,8 @@ class Grapher():
         # todo add new files for CPM
 
         self.compDF = pd.concat(dfList)
+        dups = self.compDF.loc[self.compDF.duplicated(subset=["dataName", "method", "metric", "order"], keep=False)]
+        self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
@@ -96,7 +105,10 @@ class Grapher():
         dataName = df["dataName"].iloc[0]
         order = df["order"].iloc[0]
 
-        df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
+        try:
+            df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
+        except:
+            dummy = 1
 
         sortOrder = [methodLong for methodLong in self.methodLongNames.values()
                  if methodLong in np.unique(df.index)]
@@ -183,12 +195,28 @@ class Grapher():
 
     def processSingleNetwork(self, dataName):
 
+
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
+
+        singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
+        meanRefs = singleRefs.groupby("metric")["value"].mean()
 
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-
+            for metric, val in meanRefs.iteritems():
+                rowdict = {'Unnamed: 0':"",
+                                    'order':order,
+                                    'method':"Reference",
+                                    'metric':metric,
+                                    'value':val,
+                                    'dataName':dataName,
+                                    'methodLongName':self.methodLongNames["Reference"],
+                                    'metricLongName':self.metricLongNames[metric],
+                                    'metricShortName':self.tidyShort[metric]
+                                    }
+                newRow = pd.DataFrame([rowdict])
+                disjointMethods = pd.concat([disjointMethods, newRow], ignore_index=True)
 
             self.plotNetworkOrder(disjointMethods, numMetrics=3, disjoint=True, fileLabel="disj-3", removeExtraneous = True)
             self.plotNetworkOrder(disjointMethods, numMetrics=5, disjoint=True, fileLabel="disj-5")
@@ -531,5 +559,5 @@ class Grapher():
 
 # processTimingData()
 grapher = Grapher()
-# grapher.processCDComparisons()
-grapher.processTimingData()
+grapher.processCDComparisons()
+# grapher.processTimingData()

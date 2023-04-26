@@ -47,6 +47,7 @@ class cdChecker(bch.commChecker):
                                     "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
         mshipList = []
+        refValList = []
 
         modularityList = []
 
@@ -134,16 +135,8 @@ class cdChecker(bch.commChecker):
                     # method should be CPM3, CPM4, etc, so just get last char
                     # todo add error checking
                     cliqueSize = int(method[3])
-                    # CD_cover_mine, commList_mine = self.overlapCliquePercolation(cliqueSize)
-                    # mine currently cracking the sads, probably with how it handles when no cliques.
                     commList_his = cpm.clique_percolation_method(self.G, k=cliqueSize)
-                    # CD_cover_his = self.getCoverFromCommList(commList_his)
 
-                    # print("Mine is first, his is second, method {}".format(method))
-                    # matches = self.compareCovers(CD_cover_mine, CD_cover_his)
-                    # if not matches:
-                    #     input("Well stink, my CPM and his CPM don't match. Press any key to continue.")
-                    # else:
                     for metric in ("omega", "LFK", "MGH"):
                         value = self.compareOverlapping(commList_his, Tangle_commList, metric)
                         resList.append({"order": order,
@@ -153,17 +146,39 @@ class cdChecker(bch.commChecker):
                 else:  # CD method other than CPM
                     for metric in ("vi", "nmi", "split-join", "rand", "adjusted_rand"):
                         value = ig.compare_communities(Tangle_mship, CD_mship, method=metric, remove_none=False)
-
-                        # print(order, method, metric, value)
                         resList.append({"order": order,
                                         "method": method,
                                         "metric": metric,
                                         "value": value})
 
+                        referenceVal = self.getReferenceVal(metric)
+                        # at this stage *always doing these two algs - too complicated to do otherwise
+                        refValList.append({"method1": "infomap",
+                                           "method2": "multilevel",
+                                           "metric": metric,
+                                           "value": referenceVal})
+
+        referenceDF = pd.DataFrame(refValList).drop_duplicates()
+
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
         mshipDF = pd.DataFrame(mshipList)
-        return resDF, modDF, mshipDF, expandedVsDF
+        return resDF, modDF, mshipDF, expandedVsDF, referenceDF
+
+    def getReferenceVal(self, metric):
+        # at this stage at least *always* doing same two algs - too complicated to do otherwise
+        # "between", "fastgreedy", "infomap", "labelprop", "eigen",
+        # "leiden", "multilevel", "modularity", "spinglass", "walktrap"
+
+        InfomapCluster = self.G.community_infomap()
+        InfomapMship = self.getMembershipFromClustering(InfomapCluster)
+
+        MultilevelCluster = self.G.community_multilevel()
+        MultilevelMship = self.getMembershipFromClustering(MultilevelCluster)
+
+        refVal = ig.compare_communities(InfomapMship, MultilevelMship, method=metric, remove_none=False)
+        return refVal
+
 
     def compareOverlapping(self, commList1, commList2, metric):
 
@@ -344,14 +359,14 @@ class cdChecker(bch.commChecker):
 if __name__ == '__main__':
 
     dataSets = {
-        # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
-        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
-        # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
-        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
-        # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
-        # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
+        "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
+        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
+        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
+        "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
         "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
         "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
         "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
@@ -368,6 +383,7 @@ if __name__ == '__main__':
     allComparisons = []
     allModularities = []
     allMships = []
+    allRefVals = []
 
     for dataName, dataFiles in dataSets.items():
         print("Running data {}".format(dataName))
@@ -406,22 +422,26 @@ if __name__ == '__main__':
             # methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
             #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
             #            "CPM3", "CPM4", "CPM5", "CPM6"]
-            methods = ["CPM3", "CPM4", "CPM5", "CPM6"]
+            methods = ["CPM3"]
 
             # methods = ["fastgreedy"]
-            checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover)
-            # checkresults, modularityVals, mships, expMships = checker.compareCDMethods(foundcover, methods = methods)
+            checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover)
+            # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, methods = methods)
             expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
+            refVals["dataName"] = dataName
             mships["dataName"] = dataName
             allComparisons.append(checkresults)
             allModularities.append(modularityVals)
             allMships.append(mships)
+            allRefVals.append(refVals)
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesDisj_New.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesDisj_All.csv".format(coverFolder))
     modularityDF = pd.concat(allModularities)
+    refDF = pd.concat(allRefVals)
+    refDF.to_csv("{}referenceMetrics.csv".format(coverFolder))
     if modularityDF.size > 0:
         modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
         modularityDF.groupby(["dataName"])["modularity"].max()
