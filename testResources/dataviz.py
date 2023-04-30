@@ -62,13 +62,13 @@ class Grapher():
         # to ensure graphs put them in the same place on the x axis (since only one is included)
 
         dfList = []
-        coverFolder = "../outputdevResults_VY/Preliminary/"
+        coverFolder = "./CDcompFiles/"
 
         # for comparisonDataFile in [
         #     "ComparisonValuesDisjoint.csv"
         # ]:
 
-        self.refValsDF = pd.read_csv("../outputdevResults_VY/referenceMetrics.csv")
+        self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics.csv")
 
         # todo add all separate CPM results for original networks
         for comparisonDataFile in [
@@ -117,6 +117,59 @@ class Grapher():
         tableFilename = "{}{}-ord{}-{}.csv".format(outputTableFolder, dataName, order, fileLabel)
         df.index.name = "Community Detection Method"
         df.to_csv(tableFilename)
+
+    def plotSelectedMetrics(self, df, disjoint = True, fileLabel = None, onlyOrders=None):
+        outputGraphsFolder = "../outputdevResults_VY/Visualisations_v2/"
+        if df.size == 0:
+            return
+
+        # removing because igraph leiden fn doesn't seem to work with default params
+        df = df.loc[df["method"] != "leiden"]
+
+        # removing because don't need all modularity methods
+        if "modularity" in df["method"]:
+            deleteModMethods = {"eigen", "multilevel", "fastgreedy"}
+        else:
+            deleteModMethods = {"eigen", "fastgreedy"}
+        df = df.loc[~df["method"].isin(deleteModMethods)]
+
+        if disjoint:
+            metrics = ("adjusted_rand", "nmi")
+        else:
+            metrics = np.unique(df["metric"])
+
+        df = df.loc[df.metric.isin(metrics)]
+        if onlyOrders:
+            df = df.loc[df.order.isin(onlyOrders)]
+
+        fg = sns.catplot(data=df, kind="bar", x="methodLongName", y="value", col="order", row="metricShortName",
+                    order=[methodLong for methodLong in self.methodLongNames.values()
+                        if methodLong in np.unique(df["methodLongName"])]
+                    )
+        fg.set_xticklabels(rotation=-90, horizontalalignment='left', rotation_mode='anchor')
+        # fg.tick_params("x", direction="out", bottom=True)
+        fg.set(xlabel = "Community Detection Method")
+        fg.set_titles(col_template='{col_name}', row_template='{row_name}')
+        for ax in fg.axes.flat:
+            title = ax.get_title()
+            metric = title.split("|")[0].strip()
+            order = title.split("|")[1].strip()
+            ax.set_title("Order {} tangles".format(order))
+            ax.set(ylabel=metric)
+
+        fg.fig.subplots_adjust(wspace=.1)
+
+        # fig.tight_layout(pad=1)
+        # fig.align_ylabels()
+
+        if fileLabel is not None:
+            dataName = df["dataName"].iloc[0]
+            outputFileName = "{}{}-{}.pdf".format(outputGraphsFolder, dataName, fileLabel)
+            fg.savefig(outputFileName)
+            plt.close(fg.fig)
+        else:
+            # actually this won't work, but eh.
+            fg.show()
 
     def plotNetworkOrder(self, df, numMetrics = 5, disjoint = True, fileLabel = None, removeExtraneous = False):
         outputGraphsFolder = "../outputdevResults_VY/Visualisations/"
@@ -190,16 +243,63 @@ class Grapher():
             order = df["order"].iloc[0]
             outputFileName = "{}{}-ord{}-{}.pdf".format(outputGraphsFolder, dataName, order, fileLabel)
             fig.savefig(outputFileName)
+            plt.close()
         else:
             fig.show()
+            plt.close()
 
     def processSingleNetwork(self, dataName):
 
+        # this is the order currently used in the results discussion in latex
+        selectedOrders = {
+            "YeastA": (2,3,4,5),
+            "YeastB": (3,4),
+            "Bsubtilis": (3,),
+            "Jazz": (4,),
+            "Copperfield": (5,),
+            "Dolphins": (3,7,8,9),
+            "Zebra": (4,14),
+            "Iceland": (3,4)
+        }
 
+        print(dataName)
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
 
         singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
         meanRefs = singleRefs.groupby("metric")["value"].mean()
+
+        disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
+        # overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
+        for order in np.unique(singleDF["order"]):
+            for metric, val in meanRefs.iteritems():
+                rowdict = {'Unnamed: 0':"",
+                                    'order':order,
+                                    'method':"Reference",
+                                    'metric':metric,
+                                    'value':val,
+                                    'dataName':dataName,
+                                    'methodLongName':self.methodLongNames["Reference"],
+                                    'metricLongName':self.metricLongNames[metric],
+                                    'metricShortName':self.tidyShort[metric]
+                                    }
+                newRow = pd.DataFrame([rowdict])
+                disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
+
+        onlyOrders = selectedOrders[dataName]
+        print(onlyOrders)
+        # try:
+        #     len(onlyOrders)
+        #     dummy = 1
+        # except:
+        #     dummy = 1
+
+        if len(onlyOrders) <= 2:
+            self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = onlyOrders)
+        elif len(onlyOrders) <= 4:
+            ords1 = onlyOrders[0:2]
+            ords2 = onlyOrders[2:]
+            self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = ords1)
+            self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selectedPt2", onlyOrders = ords2)
 
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
