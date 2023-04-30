@@ -14,6 +14,8 @@ class cdChecker(bch.commChecker):
     def __init__(self, G):
         before = pd.Series(G.vs["name"])
 
+        self.oldVs = G.vcount()
+
         self.G = tools.pruneToStubs(G)
         after = pd.Series(self.G.vs["name"])
         bch.commChecker.__init__(self, self.G.vs["name"])
@@ -122,12 +124,27 @@ class cdChecker(bch.commChecker):
                 })
 
             expandedVsDF = pd.DataFrame()
+
+            ############################# new line here!
+            inheritParent = True
+            self.noneID = self.G.vcount() - 1
+            last_Mship = [self.noneID]*self.G.vcount()
+            last_Expanded = [-1]*self.oldVs
+            # if any vs unassigned even at lowest order, they should *stay* unassigned
+
+            # print(dataName)
             # for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
             for order in np.unique(foundcover.loc["order"]):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
                 orderCover = orderCover.drop(index="order")
-                # print("ORDER: {}".format(order))
-                Tangle_mship, expandedMship = self.getMembershipFromCover(orderCover, expandVs = True)
+                Tangle_mship, expandedMship = self.getMembershipFromCover(orderCover, expandVs = True, useNegative = True)
+                # print("Order {}----------------------------------------------".format(order))
+                # print(Tangle_mship)
+                Tangle_mship, expandedMship = self.dealwithUnassigned(Tangle_mship, last_Mship, expandedMship, last_Expanded, inheritParent)
+                last_Mship = Tangle_mship
+                last_Expanded = expandedMship
+                # print(Tangle_mship)
+
                 Tangle_commList = self.getCommListFromMship(Tangle_mship)
                 expandedVsDF[order] = expandedMship
 
@@ -164,6 +181,26 @@ class cdChecker(bch.commChecker):
         modDF = pd.DataFrame(modularityList)
         mshipDF = pd.DataFrame(mshipList)
         return resDF, modDF, mshipDF, expandedVsDF, referenceDF
+
+    def dealwithUnassigned(self, thisMship, lastMship, thisExp, lastExp, inheritParent=True):
+
+        if inheritParent:
+
+                for i in range(len(thisMship)):
+                    if thisMship[i] == -1:
+                        thisMship[i] = lastMship[i]
+                for i in range(len(thisExp)):
+                    if thisExp[i] == -1:
+                        thisExp[i] = lastExp[i]
+        else:
+            # have to use non negative for compare_communities, but want -1 in expanded for output
+            for i in range(len(thisMship)):
+                if thisMship[i] == -1:
+                    thisMship[i] = self.noneID
+
+        return thisMship, thisExp
+
+
 
     def getReferenceVal(self, metric):
         # at this stage at least *always* doing same two algs - too complicated to do otherwise
@@ -213,17 +250,20 @@ class cdChecker(bch.commChecker):
             commList[commID].append(vid)
         return commList
 
-    def getMembershipFromCover(self, cover, expandVs = False):
+    def getMembershipFromCover(self, cover, expandVs = False, useNegative = False):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
 
-        try:
-            noneID = max(cover.columns) + 1
-        except:
-            dummy = 1
+
+
+        if useNegative:
+            localNone = -1
+        else:
+            localNone = self.noneID
+
         # all vertices not assigned to any comm should still be included in the comparison,
         # as "unassigned" is still information. Therefore give them all the same id so None's not removed
-        membership = [noneID]*self.G.vcount()
+        membership = [localNone]*self.G.vcount()
 
         for vid in self.G.vs.indices:
             if any(cover.loc[self.G.vs[vid]["name"], :]==1):
@@ -240,7 +280,7 @@ class cdChecker(bch.commChecker):
                 for v in mergedv.split(";"):
                     vSeries[v] = membership[vid]
             vSeries = vSeries.astype(int)
-            vSeries = vSeries.replace(noneID, -1)
+            vSeries = vSeries.replace(localNone, -1)
         else:
             vSeries = None
 
@@ -359,19 +399,22 @@ class cdChecker(bch.commChecker):
 if __name__ == '__main__':
 
     dataSets = {
-        "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
+        # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
         "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
         "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
-        "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
+        # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
         "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
         "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
-        "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
+        # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
         "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
         "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
         "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
+    subfolder = "inheritComparisons/"
+    # subfolder = ""
+
 
     if platform.system() != "Linux":
         for dname in dataSets.keys():
@@ -422,12 +465,13 @@ if __name__ == '__main__':
             # methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
             #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
             #            "CPM3", "CPM4", "CPM5", "CPM6"]
-            methods = ["CPM3"]
+            # methods = ["CPM3"]
 
-            # methods = ["fastgreedy"]
+            methods = ["fastgreedy"]
             checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover)
             # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, methods = methods)
-            expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder, dataName))
+
+            expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder+subfolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
             refVals["dataName"] = dataName
@@ -437,17 +481,18 @@ if __name__ == '__main__':
             allMships.append(mships)
             allRefVals.append(refVals)
 
+
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesDisj_All.csv".format(coverFolder))
+    comparisonsDF.to_csv("{}ComparisonValuesDisj_All.csv".format(coverFolder+subfolder))
     modularityDF = pd.concat(allModularities)
     refDF = pd.concat(allRefVals)
-    refDF.to_csv("{}referenceMetrics.csv".format(coverFolder))
+    refDF.to_csv("{}referenceMetrics.csv".format(coverFolder+subfolder))
     if modularityDF.size > 0:
-        modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder))
+        modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder+subfolder))
         modularityDF.groupby(["dataName"])["modularity"].max()
         modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
     mshipsDF = pd.concat(allMships)
-    mshipsDF.to_csv("{}Memberships.csv".format(coverFolder))
+    mshipsDF.to_csv("{}Memberships.csv".format(coverFolder+subfolder))
     dummy = 1
 
 

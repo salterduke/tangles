@@ -62,7 +62,7 @@ class Grapher():
         # to ensure graphs put them in the same place on the x axis (since only one is included)
 
         dfList = []
-        coverFolder = "./CDcompFiles/"
+        coverFolder = "../outputdevResults_VY/inheritComparisons/"
 
         # for comparisonDataFile in [
         #     "ComparisonValuesDisjoint.csv"
@@ -72,12 +72,12 @@ class Grapher():
 
         # todo add all separate CPM results for original networks
         for comparisonDataFile in [
-            "ComparisonValuesDisj_All.csv",
-            "ComparisonValuesCPM_New.csv",
-            "ComparisonValuesCPM3.csv",
-            "ComparisonValuesCPM4.csv",
-            "ComparisonValuesCPM5.csv",
-            "ComparisonValuesCPM6.csv"
+            "ComparisonValuesDisj_All.csv"
+            # "ComparisonValuesCPM_New.csv",
+            # "ComparisonValuesCPM3.csv",
+            # "ComparisonValuesCPM4.csv",
+            # "ComparisonValuesCPM5.csv",
+            # "ComparisonValuesCPM6.csv"
         ]:
             fname = coverFolder + comparisonDataFile
             dfList.append(pd.read_csv(fname, delimiter=",", header=0))
@@ -262,7 +262,6 @@ class Grapher():
             "Iceland": (3,4)
         }
 
-        print(dataName)
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
 
         singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
