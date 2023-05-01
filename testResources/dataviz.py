@@ -12,6 +12,10 @@ import matplotlib.pyplot as plt
 # import socket
 import random
 import seaborn as sns
+import warnings
+
+# warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
+warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" )
 
 sns.set()
 
@@ -70,6 +74,8 @@ class Grapher():
 
         self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics.csv")
 
+        self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
+
         # todo add all separate CPM results for original networks
         for comparisonDataFile in [
             "ComparisonValuesDisj_All.csv"
@@ -85,17 +91,19 @@ class Grapher():
         # todo add new files for CPM
 
         self.compDF = pd.concat(dfList)
-        dups = self.compDF.loc[self.compDF.duplicated(subset=["dataName", "method", "metric", "order"], keep=False)]
+        # dups = self.compDF.loc[self.compDF.duplicated(subset=["dataName", "method", "metric", "order"], keep=False)]
         self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
-        self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
-        self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
+        # self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
+        self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
+        self.plotSimilarityAgainstobjFunc()
+        self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
             self.processSingleNetwork(dataName)
-            dummy = 1
+            # exit()
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
         outputTableFolder = "../outputdevResults_VY/Tables/"
@@ -105,10 +113,7 @@ class Grapher():
         dataName = df["dataName"].iloc[0]
         order = df["order"].iloc[0]
 
-        try:
-            df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
-        except:
-            dummy = 1
+        df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
 
         sortOrder = [methodLong for methodLong in self.methodLongNames.values()
                  if methodLong in np.unique(df.index)]
@@ -117,6 +122,34 @@ class Grapher():
         tableFilename = "{}{}-ord{}-{}.csv".format(outputTableFolder, dataName, order, fileLabel)
         df.index.name = "Community Detection Method"
         df.to_csv(tableFilename)
+
+    def plotSimilarityAgainstobjFunc(self):
+
+        self.objDF.drop('Unnamed: 0', axis=1, inplace=True)
+        self.objDF = self.objDF.rename(columns={"objFunction":"method"})
+
+        specificComps = self.compDF.loc[self.compDF.method.isin(("multilevel", "infomap"))].reset_index()
+        specificComps = specificComps.set_index(["dataName", "method"])
+        self.objDF = self.objDF.set_index(["dataName", "method"])
+
+        joinedDF = specificComps.join(self.objDF, lsuffix="_metric", rsuffix="_obj")
+        joinedDF.xs("infomap", level="method")
+
+        joinedDF = joinedDF.loc[joinedDF.metric.isin(("nmi", "adjusted_rand"))]
+
+        # on the right track. Consider normalisation of map eqn?
+        # do I want to do mod, map eqn separately, or on relplot?
+        # fix labels etc.
+        eplots = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName", data=joinedDF.xs("infomap", level="method"))
+        # eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
+        # eplots.set_titles(row_template='Vertices n={row_name}', col_template='Order {col_name} Separations')
+        # eplots._legend.set_title("Algorithm")
+        # plt.show(block=True)
+        # # plt.savefig("./Timings/All-against-edges.pdf")
+
+
+        # modComp = self.compDF.loc[self.compDF.method == "multilevel"]
+        # mapComp = self.compDF.loc[self.compDF.method == "infomap"]
 
     def plotSelectedMetrics(self, df, disjoint = True, fileLabel = None, onlyOrders=None):
         outputGraphsFolder = "../outputdevResults_VY/Visualisations_v2/"
@@ -142,12 +175,13 @@ class Grapher():
         if onlyOrders:
             df = df.loc[df.order.isin(onlyOrders)]
 
-        fg = sns.catplot(data=df, kind="bar", x="methodLongName", y="value", col="order", row="metricShortName",
+        fg = sns.catplot(data=df, kind="bar", x="methodLongName", y="value", col="order", row="metricLongName",
                     order=[methodLong for methodLong in self.methodLongNames.values()
                         if methodLong in np.unique(df["methodLongName"])]
                     )
-        fg.set_xticklabels(rotation=-90, horizontalalignment='left', rotation_mode='anchor')
-        # fg.tick_params("x", direction="out", bottom=True)
+
+        # fg.set_xticklabels(rotation=-90, horizontalalignment='left', rotation_mode='anchor')
+        fg.tick_params("x", direction="out", bottom=True, labelrotation=-90)
         fg.set(xlabel = "Community Detection Method")
         fg.set_titles(col_template='{col_name}', row_template='{row_name}')
         for ax in fg.axes.flat:
@@ -203,7 +237,8 @@ class Grapher():
                 ax[id].set_box_aspect(6/len(ax[id].get_xticklabels()))
                 if id == 2:
                     ax[id].tick_params("x", direction="out", bottom=True)
-                    ax[id].set_xticklabels(ax[id].get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
+                    # ax[id].set_xticklabels(ax[id].get_xticklabels(), rotation=-90, horizontalalignment='right', rotation_mode='anchor')
+                    ax[id].set_xticklabels(ax[id].get_xticklabels(), rotation=-90)
                     ax[id].set(ylabel=self.metricLongNames[metric], xlabel = "Community Detection Method")
                 else:
                     ax[id].tick_params("x", direction="out", bottom=False)
@@ -228,7 +263,8 @@ class Grapher():
                             )
                 if id == 4 or id == 5: #ie, the bottom ones
                     ax.tick_params("x", direction="out", bottom=True)
-                    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right', rotation_mode='anchor')
+                    # ax.set_xticklabels(ax.get_xticklabels(), rotation=-90, horizontalalignment='right', rotation_mode='anchor')
+                    ax.set_xticklabels(ax.get_xticklabels(), rotation=-90)
                     ax.set(ylabel=self.metricLongNames[metric], xlabel = "Community Detection Method")
                 else:
                     ax.tick_params("x", direction="out", bottom=False)
@@ -270,27 +306,22 @@ class Grapher():
         disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
         # overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
         for order in np.unique(singleDF["order"]):
-            for metric, val in meanRefs.iteritems():
-                rowdict = {'Unnamed: 0':"",
-                                    'order':order,
-                                    'method':"Reference",
-                                    'metric':metric,
-                                    'value':val,
-                                    'dataName':dataName,
-                                    'methodLongName':self.methodLongNames["Reference"],
-                                    'metricLongName':self.metricLongNames[metric],
-                                    'metricShortName':self.tidyShort[metric]
-                                    }
+            for metric, val in meanRefs.items():
+                rowdict =  {'order':order,
+                            'method':"Reference",
+                            'metric':metric,
+                            'value':val,
+                            'dataName':dataName,
+                            'methodLongName':self.methodLongNames["Reference"],
+                            'metricLongName':self.metricLongNames[metric],
+                            'metricShortName':self.tidyShort[metric]
+                            }
                 newRow = pd.DataFrame([rowdict])
                 disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
 
         onlyOrders = selectedOrders[dataName]
+        print(dataName)
         print(onlyOrders)
-        # try:
-        #     len(onlyOrders)
-        #     dummy = 1
-        # except:
-        #     dummy = 1
 
         if len(onlyOrders) <= 2:
             self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = onlyOrders)
@@ -303,17 +334,16 @@ class Grapher():
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
-            for metric, val in meanRefs.iteritems():
-                rowdict = {'Unnamed: 0':"",
-                                    'order':order,
-                                    'method':"Reference",
-                                    'metric':metric,
-                                    'value':val,
-                                    'dataName':dataName,
-                                    'methodLongName':self.methodLongNames["Reference"],
-                                    'metricLongName':self.metricLongNames[metric],
-                                    'metricShortName':self.tidyShort[metric]
-                                    }
+            for metric, val in meanRefs.items():
+                rowdict =  {'order':order,
+                            'method':"Reference",
+                            'metric':metric,
+                            'value':val,
+                            'dataName':dataName,
+                            'methodLongName':self.methodLongNames["Reference"],
+                            'metricLongName':self.metricLongNames[metric],
+                            'metricShortName':self.tidyShort[metric]
+                            }
                 newRow = pd.DataFrame([rowdict])
                 disjointMethods = pd.concat([disjointMethods, newRow], ignore_index=True)
 
@@ -538,7 +568,7 @@ class Grapher():
             "../outputTestVY/results2023-01-03 17.54.11.479864.csv",
             "../outputTestVY/results2023-01-04 18.50.10.710700.csv",
             "../outputTestVY/results2023-01-24 00.38.06.570735.csv",
-            "../outputTestVY/results2023-01-24 06.17.45.901736.csv",
+            "../outputTestVY/results2023-01-24 06.17.-90.901736.csv",
             "../outputTestVY/results2023-01-24 01.55.55.688959.csv",
             "../outputTestVY/results2023-01-24 08.53.11.574409.csv",
             "../outputTestVY/results2023-01-24 04.07.53.285378.csv"
@@ -551,7 +581,7 @@ class Grapher():
             "../outputTestVY/results2022-12-11 10.43.25.282799.csv",
             "../outputTestVY/results2022-12-11 14.12.00.441343.csv",
             "../outputTestVY/results2022-12-12 02.14.09.467554.csv",
-            "../outputTestVY/results2022-12-12 06.07.45.566873.csv",
+            "../outputTestVY/results2022-12-12 06.07.-90.566873.csv",
             "../outputTestVY/results2022-12-12 12.19.58.915419.csv",
             "../outputTestVY/results2022-12-12 15.48.30.065434.csv",
             "../outputTestVY/results2022-12-13 15.02.59.722227.csv",
@@ -562,13 +592,13 @@ class Grapher():
             "../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
             "../outputTestYWS/results2022-11-25 09.06.28.692849.csv",
             "../outputTestYWS/results2022-11-28 17.05.09.511741.csv",
-            "../outputTestYWS/results2022-11-29 19.19.01.456783.csv",
+            "../outputTestYWS/results2022-11-29 19.19.01.-906783.csv",
             "../outputTestYWS/results2022-12-19 05.22.53.195299.csv",
             "../outputTestYWS/results2022-12-22 12.04.04.355848.csv",
             "../outputTestYWS/results2022-12-27 06.33.52.986415.csv",
             "../outputTestYWS/results2022-12-30 10.29.12.984751.csv",
             "../outputTestYWS/results2023-01-04 01.38.36.360110.csv",
-            "../outputTestYWS/results2023-01-08 20.27.45.931906.csv",
+            "../outputTestYWS/results2023-01-08 20.27.-90.931906.csv",
             "../outputTestYWS/results2023-01-24 01.05.40.484337.csv",
             "../outputTestYWS/results2023-01-24 07.14.30.492746.csv",
             "../outputTestYWS/results2023-01-24 02.40.56.709631.csv",
@@ -583,11 +613,11 @@ class Grapher():
             "../outputTestYWS/results2022-12-11 10.50.25.246702.csv",
             "../outputTestYWS/results2022-12-11 14.41.15.343567.csv",
             "../outputTestYWS/results2022-12-12 02.21.42.212079.csv",
-            "../outputTestYWS/results2022-12-12 06.38.50.450858.csv",
+            "../outputTestYWS/results2022-12-12 06.38.50.-900858.csv",
             "../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
             "../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
             "../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
-            "../outputTestYWS/results2022-12-13 19.37.09.424597.csv"
+            "../outputTestYWS/results2022-12-13 19.37.09.42-9097.csv"
         ]
 
         # VYfiles = [

@@ -52,6 +52,7 @@ class cdChecker(bch.commChecker):
         refValList = []
 
         modularityList = []
+        objFunctionsList = []
 
         # optimal modularity doesn't run for larger graphs, so remove
         if self.G.vcount() > 100:
@@ -79,6 +80,11 @@ class cdChecker(bch.commChecker):
                 })
             elif method == "infomap":
                 cluster = self.G.community_infomap()
+                infoCodelength = cluster.codelength
+                objFunctionsList.append({
+                    "objFunction": "infomap",
+                    "value": infoCodelength
+                })
                 CD_mship = self.getMembershipFromClustering(cluster)
             elif method == "labelprop":
                 cluster = self.G.community_label_propagation()
@@ -100,7 +106,13 @@ class cdChecker(bch.commChecker):
                     "method": method,
                     "modularity": self.G.modularity(CD_mship)
                 })
+                # yes, I know it'd redundant; I don't give a shit.
+                objFunctionsList.append({
+                    "objFunction": method,
+                    "value": self.G.modularity(CD_mship)
+                })
             elif method == "modularity":
+                cluster = self.G.community_optimal_modularity()
                 cluster = self.G.community_optimal_modularity()
                 CD_mship = self.getMembershipFromClustering(cluster)
                 modularityList.append({
@@ -179,8 +191,10 @@ class cdChecker(bch.commChecker):
 
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
+        objDF = pd.DataFrame(objFunctionsList)
+
         mshipDF = pd.DataFrame(mshipList)
-        return resDF, modDF, mshipDF, expandedVsDF, referenceDF
+        return resDF, modDF, mshipDF, expandedVsDF, referenceDF, objDF
 
     def dealwithUnassigned(self, thisMship, lastMship, thisExp, lastExp, inheritParent=True):
 
@@ -414,7 +428,7 @@ if __name__ == '__main__':
     coverFolder = "./outputdevResults_VY/"
     subfolder = "inheritComparisons/"
     # subfolder = ""
-
+    outfileLabel = "Disj"
 
     if platform.system() != "Linux":
         for dname in dataSets.keys():
@@ -427,6 +441,7 @@ if __name__ == '__main__':
     allModularities = []
     allMships = []
     allRefVals = []
+    allobjVals = []
 
     for dataName, dataFiles in dataSets.items():
         print("Running data {}".format(dataName))
@@ -465,27 +480,32 @@ if __name__ == '__main__':
             # methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
             #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
             #            "CPM3", "CPM4", "CPM5", "CPM6"]
-            # methods = ["CPM3"]
+            methods = ["CPM3", "CPM4", "CPM5", "CPM6"]
+            outfileLabel = "Disj"
 
-            methods = ["fastgreedy"]
-            checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover)
+            # methods = ["fastgreedy"]
+            checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover)
             # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, methods = methods)
 
             expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder+subfolder, dataName))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
             refVals["dataName"] = dataName
+            objVals["dataName"] = dataName
             mships["dataName"] = dataName
             allComparisons.append(checkresults)
             allModularities.append(modularityVals)
             allMships.append(mships)
             allRefVals.append(refVals)
+            allobjVals.append(objVals)
 
 
     comparisonsDF = pd.concat(allComparisons)
-    comparisonsDF.to_csv("{}ComparisonValuesDisj_All.csv".format(coverFolder+subfolder))
+    comparisonsDF.to_csv("{}ComparisonValues{}_All.csv".format(coverFolder+subfolder, outfileLabel))
     modularityDF = pd.concat(allModularities)
     refDF = pd.concat(allRefVals)
+    objDF = pd.concat(allobjVals)
+    objDF.to_csv("{}objectiveFns.csv".format(coverFolder+subfolder))
     refDF.to_csv("{}referenceMetrics.csv".format(coverFolder+subfolder))
     if modularityDF.size > 0:
         modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder+subfolder))
