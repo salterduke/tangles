@@ -57,6 +57,9 @@ class cdChecker(bch.commChecker):
         if othercover is not None:
             methods = methods + ["otherCover"]
 
+        expandedVsDF = pd.DataFrame()
+
+
         # for method in [method in methods if "CPM" not in method]:
         for method in methods:
             print("Running method {}".format(method))
@@ -120,7 +123,7 @@ class cdChecker(bch.commChecker):
                                   "mship": CD_mship
                 })
 
-            expandedVsDF = pd.DataFrame()
+
             # for order in range(min(foundcover.loc["order"]), max(foundcover.loc["order"]) + 1):
             for order in np.unique(foundcover.loc["order"]):
                 orderCover = foundcover.loc[:, foundcover.loc["order"] == order]
@@ -160,9 +163,14 @@ class cdChecker(bch.commChecker):
                                         "metric": metric,
                                         "value": value})
 
+            expandedVsDF[method] = self.expandMshipList(CD_mship)
+
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
         mshipDF = pd.DataFrame(mshipList)
+
+        print(expandedVsDF.columns)
+
         return resDF, modDF, mshipDF, expandedVsDF
 
     def compareOverlapping(self, commList1, commList2, metric):
@@ -197,6 +205,18 @@ class cdChecker(bch.commChecker):
         for vid, commID in enumerate(mship):
             commList[commID].append(vid)
         return commList
+
+    def expandMshipList(self, membership):
+        unmergedVs = [v for mergedv in self.G.vs["name"] for v in mergedv.split(";")]
+        unmergedVs.sort()
+        vSeries = pd.Series(index=unmergedVs, dtype=int)
+        for vid, mergedv in enumerate(self.G.vs["name"]):
+            # I *think* it's safe to enumerate rather than calling .indices explicitly....
+            for v in mergedv.split(";"):
+                vSeries[v] = membership[vid]
+        vSeries = vSeries.astype(int)
+        return(vSeries)
+        # vSeries = vSeries.replace(noneID, -1)
 
     def getMembershipFromCover(self, cover, expandVs = False):
         if any(cover.sum(axis="columns") > 1):
@@ -345,16 +365,16 @@ if __name__ == '__main__':
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv")
         # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
         # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
         # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
-        "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
-        "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
-        "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
+        # "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
+        # "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
+        # "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
 
