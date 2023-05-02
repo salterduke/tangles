@@ -63,7 +63,6 @@ class cdChecker(bch.commChecker):
 
         expandedVsDF = pd.DataFrame()
 
-
         # for method in [method in methods if "CPM" not in method]:
         for method in methods:
             print("Running method {}".format(method))
@@ -136,8 +135,6 @@ class cdChecker(bch.commChecker):
                 mshipList.append({"method": method,
                                   "mship": CD_mship
                 })
-
-            expandedVsDF = pd.DataFrame()
 
             ############################# new line here!
             inheritParent = True
@@ -428,16 +425,16 @@ if __name__ == '__main__':
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv")
-        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
-        # "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
+        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
-        # "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
-        # "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
-        # "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
-        # "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
+        "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
+        "Iceland": ("../NetworkData/MediumSize/Iceland.csv", "Iceland-TangNodes.csv"),
+        "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
+        "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
     coverFolder = "./outputdevResults_VY/"
     subfolder = "inheritComparisons/"

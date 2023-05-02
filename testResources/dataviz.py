@@ -4,7 +4,7 @@ import pandas as pd
 # import colorsys
 # from matplotlib import cm
 import matplotlib.pyplot as plt
-# import igraph as ig
+import igraph as ig
 # import itertools as iter
 # import sklearn.metrics as skl
 # from sklearn.linear_model import LinearRegression
@@ -20,6 +20,121 @@ warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" 
 sns.set()
 
 class Grapher():
+    def plotNetworks(self):
+        self.dataFolder = "../outputdevResults_VY/inheritComparisons/"
+
+        dataSets = {
+            "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
+            "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
+            # "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
+            # "Jazz": "../../NetworkData/MediumSize/Jazz.csv",
+            # "Copperfield": "../../NetworkData/MediumSize/Copperfield.csv",
+            # "Iceland": "../../NetworkData/MediumSize/Iceland.csv",
+            # "Zebra": "../../NetworkData/MediumSize/Zebra.csv",
+            # "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
+        }
+
+        for datakey, graphFile in dataSets.items():
+            G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+            G = G.connected_components().giant().simplify()
+            mshipFile = self.dataFolder + datakey + "_expandedTangleComms.csv"
+            mships = pd.read_csv(mshipFile)
+            mships = mships.set_index("Unnamed: 0")
+
+            mships, nTangleComms = self.consolidateTangleComms(mships)
+            for clusteringName in list(mships.columns):
+                self.plotSingleClustering(datakey, clusteringName, G, mships[clusteringName], nTangleComms)
+
+            self.plotSingleClustering(datakey, "plain", G, None)
+
+    # if diff order tangles equivalent, make sure they've got the same comm ID
+    def consolidateTangleComms(self, mships):
+        tangOrds = [col for col in mships.columns if col.isnumeric()]
+        tangDF = mships[tangOrds]
+
+        replacementTable = dict()
+
+        for columnID, order in enumerate(tangOrds):
+            for commID in tangDF[order].unique():
+                commVs = tangDF.loc[tangDF[order] == commID]
+                for nextColumnID in range(columnID+1, len(tangOrds)):
+                    # commVs[tangOrds[nextColumnID]]
+                    if len(commVs[tangOrds[nextColumnID]].unique()) == 1:
+                        # if there's only one value, the communities are equivalent
+                        # (higher order tangle must be \subseteq lower order, so no need to check other way round)
+                        higherOrdCommID = commVs[tangOrds[nextColumnID]].unique()[0]
+                        if higherOrdCommID != commID:
+                            replacementTable[higherOrdCommID] = commID
+
+        chainedReplacements = dict()
+        firstGo = True # emulating do while loop
+        foundValToChain = False
+        # keep checking until we're sure we've got them all.
+        while firstGo or foundValToChain:
+            foundValToChain = False
+            firstGo = False
+            for old, new in replacementTable.items():
+                if new in replacementTable.keys():
+                    foundValToChain = True
+                    chainedReplacements[old] = replacementTable[new]
+            for old, new in chainedReplacements.items():
+                replacementTable[old] = new
+            # doing this way so not modifying while iterating
+
+        replacementInstructions = {order: replacementTable for order in tangOrds}
+        newMships = mships.replace(replacementInstructions)
+
+        uniqueCommsEachOrd = []
+        for order in tangOrds:
+            uniqueCommsEachOrd = uniqueCommsEachOrd + list(newMships[order].unique())
+
+        allUnique = np.unique(uniqueCommsEachOrd)
+        allUnique.sort()
+        if max(allUnique) != len(allUnique) - 1:
+            # ie, there are gaps
+            # replace so numbers all contiguous
+            for id, val in enumerate(allUnique):
+                if id != val:
+                    replacementInstructions = {order: {val:id} for order in tangOrds}
+                    newMships = newMships.replace(replacementInstructions)
+
+        return newMships, len(allUnique)
+
+
+    def plotSingleClustering(self, dataName, clusteringName, G, clustering, nTangleComms=None):
+
+
+        G.es["curved"] = 0
+
+        visual_style = {}
+        visual_style["vertex_size"] = 10
+        # visual_style["bbox"] = (0, 0, 500, 130)
+        # visual_style["edge_background"] = "white"
+        # visual_style["bbox"] = (0, 0, 500, 250)
+        visual_style["edge_width"] = 1
+
+        if clustering is None:
+            visual_style["vertex_color"] = "Light Sky Blue"
+        else:
+            if clusteringName.isnumeric() and nTangleComms is not None:
+                pal = ig.drawing.colors.ClusterColoringPalette(nTangleComms)
+                clusteringName = "ord" + clusteringName
+            else:
+                pal = ig.drawing.colors.ClusterColoringPalette(len(np.unique(clustering)))
+            G.vs['color'] = pal.get_many(clustering.loc[G.vs["name"]])
+
+        # fig, ax = plt.subplots()
+        # ig.plot(G, layout=layout, target=ax, **visual_style)
+        # plt.show()
+        imageFilename = "{}{}-{}.pdf".format(self.dataFolder, dataName, clusteringName)
+
+        layout = G.layout_kamada_kawai();ig.plot(G, target=imageFilename, layout=layout, **visual_style)
+        # ig.plot(G, target=imageFilename, **visual_style)
+        dummy = 1
+
+        # outfile = outfolder + "cutfinder." + format
+        # g.save(outfile)
+
     def processCDComparisons(self):
 
         self.metricLongNames = {
@@ -688,5 +803,7 @@ class Grapher():
 
 # processTimingData()
 grapher = Grapher()
-grapher.processCDComparisons()
+# grapher.processCDComparisons()
+grapher.plotNetworks()
 # grapher.processTimingData()
+
