@@ -2,8 +2,8 @@ import os
 
 for i in range(1):
     os.system("cp const_all.txt const.txt")
-    print("Before VY lower order, run: {}".format(i))
-    os.system("python main.py VY_np")
+    # print("Before VY lower order, run: {}".format(i))
+    # os.system("python main.py VY_np")
     print("Before YWS lower order, run: {}".format(i))
     os.system("python main.py YWS_np")
     # os.system("cp const_200.txt const.txt")
