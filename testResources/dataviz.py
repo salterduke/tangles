@@ -20,30 +20,53 @@ warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" 
 sns.set()
 
 class Grapher():
-    def plotNetworks(self):
+    def plotNetworks(self, inherit = False):
         self.dataFolder = "../outputdevResults_VY/inheritComparisons/"
 
         dataSets = {
             "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
-            "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv"
-            # "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
-            # "Jazz": "../../NetworkData/MediumSize/Jazz.csv",
-            # "Copperfield": "../../NetworkData/MediumSize/Copperfield.csv",
-            # "Iceland": "../../NetworkData/MediumSize/Iceland.csv",
-            # "Zebra": "../../NetworkData/MediumSize/Zebra.csv",
-            # "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
+            "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv",
+            "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
+            "Jazz": "../../NetworkData/MediumSize/Jazz.csv",
+            "Copperfield": "../../NetworkData/MediumSize/Copperfield.csv",
+            "Iceland": "../../NetworkData/MediumSize/Iceland.csv",
+            "Zebra": "../../NetworkData/MediumSize/Zebra.csv",
+            "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
         }
 
-        for datakey, graphFile in dataSets.items():
+        plainOnly = {
+            "Karate": "../../NetworkData/SmallNWs/KarateEdges.csv",
+            "Celegans": "../../NetworkData/Celegans/NeuronConnect.csv",
+            "Football": "../../NetworkData/MediumSize/Football.csv"
+        }
+
+        for datakey, graphFile in plainOnly.items():
             G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
             G = G.connected_components().giant().simplify()
-            mshipFile = self.dataFolder + datakey + "_expandedTangleComms.csv"
+            self.plotSingleClustering(datakey, "plain", G, None)
+
+        for datakey, graphFile in dataSets.items():
+            print(datakey)
+            G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+            G = G.connected_components().giant().simplify()
+            if inherit:
+                filelabel = "Disj_inherit"
+            else:
+                filelabel = "Disj_negatives"
+            mshipFile = "{}{}_expandedTangleComms{}.csv".format(self.dataFolder, datakey, filelabel)
             mships = pd.read_csv(mshipFile)
             mships = mships.set_index("Unnamed: 0")
 
+            if any(mships.iloc[:, 0] == -1):
+                print("{} has unassigned vs at lowest level".format(datakey))
+                print(mships.loc[mships.iloc[:, 0] == -1])
+
             mships, nTangleComms = self.consolidateTangleComms(mships)
             for clusteringName in list(mships.columns):
-                self.plotSingleClustering(datakey, clusteringName, G, mships[clusteringName], nTangleComms)
+                if inherit:
+                    self.plotSingleClustering(datakey, clusteringName, G, mships[clusteringName], inherit = nTangleComms)
+                else:
+                    self.plotSingleClustering(datakey, clusteringName, G, mships[clusteringName], inherit = 0)
 
             self.plotSingleClustering(datakey, "plain", G, None)
 
@@ -59,10 +82,11 @@ class Grapher():
                 commVs = tangDF.loc[tangDF[order] == commID]
                 for nextColumnID in range(columnID+1, len(tangOrds)):
                     # commVs[tangOrds[nextColumnID]]
-                    if len(commVs[tangOrds[nextColumnID]].unique()) == 1:
+                    uniqueComms = commVs[tangOrds[nextColumnID]].unique()
+                    if len(uniqueComms) == 1 and uniqueComms[0] != -1:
                         # if there's only one value, the communities are equivalent
                         # (higher order tangle must be \subseteq lower order, so no need to check other way round)
-                        higherOrdCommID = commVs[tangOrds[nextColumnID]].unique()[0]
+                        higherOrdCommID = uniqueComms[0]
                         if higherOrdCommID != commID:
                             replacementTable[higherOrdCommID] = commID
 
@@ -90,45 +114,82 @@ class Grapher():
 
         allUnique = np.unique(uniqueCommsEachOrd)
         allUnique.sort()
+
+        allUnique = [comm for comm in allUnique if comm != -1]
+
         if max(allUnique) != len(allUnique) - 1:
             # ie, there are gaps
             # replace so numbers all contiguous
             for id, val in enumerate(allUnique):
                 if id != val:
                     replacementInstructions = {order: {val:id} for order in tangOrds}
+                    # print(replacementInstructions)
                     newMships = newMships.replace(replacementInstructions)
 
         return newMships, len(allUnique)
 
 
-    def plotSingleClustering(self, dataName, clusteringName, G, clustering, nTangleComms=None):
-
+    def plotSingleClustering(self, dataName, clusteringName, G, clustering, inherit=0):
 
         G.es["curved"] = 0
 
         visual_style = {}
-        visual_style["vertex_size"] = 10
+        visual_style["vertex_size"] = 14
         # visual_style["bbox"] = (0, 0, 500, 130)
         # visual_style["edge_background"] = "white"
         # visual_style["bbox"] = (0, 0, 500, 250)
         visual_style["edge_width"] = 1
+        newUnassignedVal = None
+
+        nTangleComms = inherit
 
         if clustering is None:
             visual_style["vertex_color"] = "Light Sky Blue"
         else:
-            if clusteringName.isnumeric() and nTangleComms is not None:
+            if clusteringName.isnumeric() and nTangleComms:
                 pal = ig.drawing.colors.ClusterColoringPalette(nTangleComms)
                 clusteringName = "ord" + clusteringName
+            elif clusteringName.isnumeric():
+                # replace unassigned with non-negative value
+                clusteringName = "ord" + clusteringName
+                newUnassignedVal = len(np.unique(clustering))
+                # newUnassignedVal = max(commIDS.values())+1
+                replacementInstructions = {-1: newUnassignedVal}
+                clustering = clustering.replace(replacementInstructions)
+
+                pal = ig.drawing.colors.ClusterColoringPalette(newUnassignedVal+1)
             else:
                 pal = ig.drawing.colors.ClusterColoringPalette(len(np.unique(clustering)))
-            G.vs['color'] = pal.get_many(clustering.loc[G.vs["name"]])
-
+            try:
+                # G.vs['color'] = pal.get_many(clustering.loc[G.vs["name"]])
+                commIDS = {val: id for id, val in enumerate(np.unique(clustering))}
+                G.vs['color'] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
+                if newUnassignedVal:
+                    for v in G.vs:
+                        if clustering.loc[v["name"]] == newUnassignedVal:
+                            v['color'] = "white"
+            except KeyError:
+                # this is probably when the index of clustering is ints, and the V names are strings of ints.
+                # try that, then crack the sads if still no good.
+                try:
+                    G.vs['color'] = pal.get_many((commIDS[clustering.loc[int(v["name"])]] for v in G.vs))
+                    # G.vs['color'] = pal.get_many((commIDS[clustering.loc[list(map(int, G.vs["name"]))]] for v in G.vs))
+                    # G.vs['color'] = pal.get_many(clustering.loc[list(map(int, G.vs["name"]))])
+                except:
+                    exit("Arrg, something still wrong with int index")
+            except:
+                exit("Arrg, something wrong other than keyerror")
         # fig, ax = plt.subplots()
         # ig.plot(G, layout=layout, target=ax, **visual_style)
         # plt.show()
-        imageFilename = "{}{}-{}.pdf".format(self.dataFolder, dataName, clusteringName)
+        if inherit:
+            filelabel = "-inherit"
+        else:
+            filelabel = "-unassigned"
+        imageFilename = "{}{}-{}{}.pdf".format(self.dataFolder, dataName, clusteringName, filelabel)
 
-        layout = G.layout_kamada_kawai();ig.plot(G, target=imageFilename, layout=layout, **visual_style)
+        layout = G.layout_kamada_kawai()
+        ig.plot(G, target=imageFilename, layout=layout, **visual_style)
         # ig.plot(G, target=imageFilename, **visual_style)
         dummy = 1
 
@@ -804,6 +865,6 @@ class Grapher():
 # processTimingData()
 grapher = Grapher()
 # grapher.processCDComparisons()
-grapher.plotNetworks()
+grapher.plotNetworks(inherit=True)
 # grapher.processTimingData()
 

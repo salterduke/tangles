@@ -44,7 +44,7 @@ class cdChecker(bch.commChecker):
         else:
             return False
 
-    def compareCDMethods(self, foundcover, othercover = None,
+    def compareCDMethods(self, foundcover, othercover = None, inheritParent = False,
                          methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
                                     "leiden", "multilevel", "modularity", "spinglass", "walktrap"]):
         resList = [] # will be list of dicts, then convert to DF
@@ -137,7 +137,6 @@ class cdChecker(bch.commChecker):
                 })
 
             ############################# new line here!
-            inheritParent = True
             self.noneID = self.G.vcount() - 1
             last_Mship = [self.noneID]*self.G.vcount()
             last_Expanded = [-1]*self.oldVs
@@ -278,8 +277,6 @@ class cdChecker(bch.commChecker):
     def getMembershipFromCover(self, cover, expandVs = False, useNegative = False):
         if any(cover.sum(axis="columns") > 1):
             print("Ooops, node assigned to too many communities")
-
-
 
         if useNegative:
             localNone = -1
@@ -492,13 +489,17 @@ if __name__ == '__main__':
             #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
             #            "CPM3", "CPM4", "CPM5", "CPM6"]
             methods = ["CPM3", "CPM4", "CPM5", "CPM6"]
-            outfileLabel = "Disj"
 
+            inheritParent = True
+            if inheritParent:
+                outfileLabel = "Disj_inherit"
+            else:
+                outfileLabel = "Disj_negatives"
             # methods = ["fastgreedy"]
-            checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover)
-            # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, methods = methods)
+            checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
+            # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
 
-            expMships.to_csv("{}{}_expandedTangleComms.csv".format(coverFolder+subfolder, dataName))
+            expMships.to_csv("{}{}_expandedTangleComms{}.csv".format(coverFolder+subfolder, dataName, outfileLabel))
             checkresults["dataName"] = dataName
             modularityVals["dataName"] = dataName
             refVals["dataName"] = dataName
