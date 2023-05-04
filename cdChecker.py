@@ -498,7 +498,7 @@ if __name__ == '__main__':
                 checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
             elif methodClass == "CPM":
                 methods = ["CPM3", "CPM4", "CPM5"]
-                checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
+                checkresults, modularityVals, mships, expMships, refVals, objVals  = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
             else:
                 exit("crack the sads, invalid methodClass {}".format(methodClass))
 
