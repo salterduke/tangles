@@ -24,14 +24,14 @@ class Grapher():
         self.dataFolder = "../outputdevResults_VY/inheritComparisons/"
 
         dataSets = {
-            "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
-            "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv",
-            "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
-            "Jazz": "../../NetworkData/MediumSize/Jazz.csv",
-            "Copperfield": "../../NetworkData/MediumSize/Copperfield.csv",
-            "Iceland": "../../NetworkData/MediumSize/Iceland.csv",
-            "Zebra": "../../NetworkData/MediumSize/Zebra.csv",
-            "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
+            # "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
+            # "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv",
+            # "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
+            # "Jazz": "../../NetworkData/MediumSize/Jazz.csv",
+            # "Copperfield": "../../NetworkData/MediumSize/Copperfield.csv",
+            # "Iceland": "../../NetworkData/MediumSize/Iceland.csv",
+            "Zebra": "../../NetworkData/MediumSize/Zebra.csv"
+            # "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
         }
 
         plainOnly = {
@@ -40,10 +40,10 @@ class Grapher():
             "Football": "../../NetworkData/MediumSize/Football.csv"
         }
 
-        for datakey, graphFile in plainOnly.items():
-            G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
-            G = G.connected_components().giant().simplify()
-            self.plotSingleClustering(datakey, "plain", G, None)
+        # for datakey, graphFile in plainOnly.items():
+        #     G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+        #     G = G.connected_components().giant().simplify()
+        #     self.plotSingleClustering(datakey, "plain", G, None)
 
         for datakey, graphFile in dataSets.items():
             print(datakey)
@@ -135,53 +135,33 @@ class Grapher():
 
         visual_style = {}
         visual_style["vertex_size"] = 14
-        # visual_style["bbox"] = (0, 0, 500, 130)
-        # visual_style["edge_background"] = "white"
-        # visual_style["bbox"] = (0, 0, 500, 250)
         visual_style["edge_width"] = 1
-        newUnassignedVal = None
 
         nTangleComms = inherit
 
         if clustering is None:
             visual_style["vertex_color"] = "Light Sky Blue"
         else:
-            if clusteringName.isnumeric() and nTangleComms:
+            if nTangleComms and clusteringName.isnumeric():
                 pal = ig.drawing.colors.ClusterColoringPalette(nTangleComms)
-                clusteringName = "ord" + clusteringName
-            elif clusteringName.isnumeric():
-                # replace unassigned with non-negative value
-                clusteringName = "ord" + clusteringName
-                newUnassignedVal = len(np.unique(clustering))
-                # newUnassignedVal = max(commIDS.values())+1
-                replacementInstructions = {-1: newUnassignedVal}
-                clustering = clustering.replace(replacementInstructions)
-
-                pal = ig.drawing.colors.ClusterColoringPalette(newUnassignedVal+1)
             else:
                 pal = ig.drawing.colors.ClusterColoringPalette(len(np.unique(clustering)))
+
+            clustering.index = clustering.index.astype("str")
+
+            if clusteringName.isnumeric():
+                clusteringName = "ord" + clusteringName
             try:
-                # G.vs['color'] = pal.get_many(clustering.loc[G.vs["name"]])
-                commIDS = {val: id for id, val in enumerate(np.unique(clustering))}
+                # make the colour ids non-negative, and order by frequency so biggest comm first
+                commIDS = {val: id for id, val in enumerate(clustering.value_counts().index)}
+
                 G.vs['color'] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
-                if newUnassignedVal:
-                    for v in G.vs:
-                        if clustering.loc[v["name"]] == newUnassignedVal:
-                            v['color'] = "white"
-            except KeyError:
-                # this is probably when the index of clustering is ints, and the V names are strings of ints.
-                # try that, then crack the sads if still no good.
-                try:
-                    G.vs['color'] = pal.get_many((commIDS[clustering.loc[int(v["name"])]] for v in G.vs))
-                    # G.vs['color'] = pal.get_many((commIDS[clustering.loc[list(map(int, G.vs["name"]))]] for v in G.vs))
-                    # G.vs['color'] = pal.get_many(clustering.loc[list(map(int, G.vs["name"]))])
-                except:
-                    exit("Arrg, something still wrong with int index")
+                for v in G.vs:
+                    if clustering.loc[v["name"]] == -1:
+                        v['color'] = "white"
             except:
                 exit("Arrg, something wrong other than keyerror")
-        # fig, ax = plt.subplots()
-        # ig.plot(G, layout=layout, target=ax, **visual_style)
-        # plt.show()
+
         if inherit:
             filelabel = "-inherit"
         else:
@@ -190,11 +170,7 @@ class Grapher():
 
         layout = G.layout_kamada_kawai()
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
-        # ig.plot(G, target=imageFilename, **visual_style)
-        dummy = 1
 
-        # outfile = outfolder + "cutfinder." + format
-        # g.save(outfile)
 
     def processCDComparisons(self):
 
@@ -271,14 +247,14 @@ class Grapher():
         self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
-        # self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
+        self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
         self.plotSimilarityAgainstobjFunc()
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
-        for dataName in np.unique(self.compDF["dataName"]):
-            self.processSingleNetwork(dataName)
+        # for dataName in np.unique(self.compDF["dataName"]):
+        #     self.processSingleNetwork(dataName)
             # exit()
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
@@ -289,7 +265,11 @@ class Grapher():
         dataName = df["dataName"].iloc[0]
         order = df["order"].iloc[0]
 
-        df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
+        try:
+            df = df.pivot(columns="metricShortName", index="methodLongName", values="value")
+        except:
+            dummy = 1
+            exit("File not pivoting right")
 
         sortOrder = [methodLong for methodLong in self.methodLongNames.values()
                  if methodLong in np.unique(df.index)]
@@ -313,19 +293,23 @@ class Grapher():
 
         joinedDF = joinedDF.loc[joinedDF.metric.isin(("nmi", "adjusted_rand"))]
 
-        # on the right track. Consider normalisation of map eqn?
-        # do I want to do mod, map eqn separately, or on relplot?
-        # fix labels etc.
-        eplots = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName", data=joinedDF.xs("infomap", level="method"))
-        # eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
-        # eplots.set_titles(row_template='Vertices n={row_name}', col_template='Order {col_name} Separations')
-        # eplots._legend.set_title("Algorithm")
-        # plt.show(block=True)
-        # # plt.savefig("./Timings/All-against-edges.pdf")
+        for method in joinedDF.index.unique(level='method'):
+            # on the right track. Consider normalisation of map eqn?
+            # do I want to do mod, map eqn separately, or on relplot?
+            # fix labels etc.
+            xlabel = {
+                "multilevel": "Modularity",
+                "infomap": "Map equation"
+            }
 
+            g = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName",
+                            data=joinedDF.xs(method, level="method"))
+            g.set_axis_labels("{} value".format(xlabel[method]), "Similarity metric value")
+            g.set_titles(col_template='{col_name}')
+            g._legend.set_title("Network")
+            # plt.show(block=True)
+            plt.savefig("../outputdevResults_VY/Visualisations_v2/Similarity-vs-objective-{}.pdf".format(method))
 
-        # modComp = self.compDF.loc[self.compDF.method == "multilevel"]
-        # mapComp = self.compDF.loc[self.compDF.method == "infomap"]
 
     def plotSelectedMetrics(self, df, disjoint = True, fileLabel = None, onlyOrders=None):
         outputGraphsFolder = "../outputdevResults_VY/Visualisations_v2/"
@@ -470,8 +454,8 @@ class Grapher():
             "Jazz": (4,),
             "Copperfield": (5,),
             "Dolphins": (3,7,8,9),
-            "Zebra": (4,14),
-            "Iceland": (3,4)
+            "Zebra": (4,5,6,14),
+            "Iceland": (3,4,5,6)
         }
 
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
@@ -864,7 +848,7 @@ class Grapher():
 
 # processTimingData()
 grapher = Grapher()
-# grapher.processCDComparisons()
-grapher.plotNetworks(inherit=True)
+grapher.processCDComparisons()
+# grapher.plotNetworks(inherit=False)
 # grapher.processTimingData()
 

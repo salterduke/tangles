@@ -483,21 +483,23 @@ if __name__ == '__main__':
 
         foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
         if len(foundcover.columns) != 0:
-            # removed higher CPM orders. Do separately.
 
-            # methods = ["between", "fastgreedy", "infomap", "labelprop", "eigen",
-            #            "leiden", "multilevel", "modularity", "spinglass", "walktrap",
-            #            "CPM3", "CPM4", "CPM5", "CPM6"]
-            methods = ["CPM3", "CPM4", "CPM5", "CPM6"]
+            # todo change this when relevant
+            methodClass = "CPM"
+            # methodClass = "Disj"
 
             inheritParent = True
             if inheritParent:
-                outfileLabel = "Disj_inherit"
+                outfileLabel = "{}_inherit".format(methodClass)
             else:
-                outfileLabel = "Disj_negatives"
-            # methods = ["fastgreedy"]
-            checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
-            # checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
+                outfileLabel = "{}_negatives".format(methodClass)
+            if methodClass == "Disj":
+                checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
+            elif methodClass == "CPM":
+                methods = ["CPM3", "CPM4", "CPM5"]
+                checkresults, modularityVals, mships, expMships, refVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
+            else:
+                exit("crack the sads, invalid methodClass {}".format(methodClass))
 
             expMships.to_csv("{}{}_expandedTangleComms{}.csv".format(coverFolder+subfolder, dataName, outfileLabel))
             checkresults["dataName"] = dataName
