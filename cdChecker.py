@@ -163,6 +163,7 @@ class cdChecker(bch.commChecker):
                     # todo add error checking
                     cliqueSize = int(method[3])
                     commList_his = cpm.clique_percolation_method(self.G, k=cliqueSize)
+                    CD_mship = self.getMembershipFromCommList(commList_his)
 
                     for metric in ("omega", "LFK", "MGH"):
                         value = self.compareOverlapping(commList_his, Tangle_commList, metric)
