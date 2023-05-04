@@ -135,6 +135,7 @@ class cdChecker(bch.commChecker):
                 mshipList.append({"method": method,
                                   "mship": CD_mship
                 })
+                expandedVsDF[method] = self.expandMshipList(CD_mship)
 
             ############################# new line here!
             self.noneID = self.G.vcount() - 1
@@ -163,7 +164,6 @@ class cdChecker(bch.commChecker):
                     # todo add error checking
                     cliqueSize = int(method[3])
                     commList_his = cpm.clique_percolation_method(self.G, k=cliqueSize)
-                    CD_mship = self.getMembershipFromCommList(commList_his)
 
                     for metric in ("omega", "LFK", "MGH"):
                         value = self.compareOverlapping(commList_his, Tangle_commList, metric)
@@ -186,7 +186,7 @@ class cdChecker(bch.commChecker):
                                            "metric": metric,
                                            "value": referenceVal})
 
-            expandedVsDF[method] = self.expandMshipList(CD_mship)
+
         referenceDF = pd.DataFrame(refValList).drop_duplicates()
         resDF = pd.DataFrame(resList)
         modDF = pd.DataFrame(modularityList)
