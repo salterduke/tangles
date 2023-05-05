@@ -222,32 +222,19 @@ class Grapher():
         dfList = []
         coverFolder = "../outputdevResults_VY/inheritComparisons/"
 
-        # for comparisonDataFile in [
-        #     "ComparisonValuesDisjoint.csv"
-        # ]:
-
         self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics_Disj_inherit.csv")
 
         self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
 
-        # todo add all separate CPM results for original networks
         for comparisonDataFile in [
-            # "ComparisonValuesDisj_All.csv",
-            "ComparisonValuesDisj_inherit_All.csv",
-            "ComparisonValuesCPM_inherit_All.csv"
-            # "ComparisonValuesCPM_New.csv",
-            # "ComparisonValuesCPM3.csv",
-            # "ComparisonValuesCPM4.csv",
-            # "ComparisonValuesCPM5.csv",
-            # "ComparisonValuesCPM6.csv"
+            # "ComparisonValuesDisj_inherit_All.csv",
+            # "ComparisonValuesCPM_inherit_All.csv",
+            "ComparisonValuesCPM_negatives_All.csv"
         ]:
             fname = coverFolder + comparisonDataFile
             dfList.append(pd.read_csv(fname, delimiter=",", header=0))
 
-        # todo add new files for CPM
-
         self.compDF = pd.concat(dfList)
-        # dups = self.compDF.loc[self.compDF.duplicated(subset=["dataName", "method", "metric", "order"], keep=False)]
         self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
@@ -460,7 +447,7 @@ class Grapher():
             df = df.loc[~df["method"].isin(deleteModMethods)]
         else:
             df = df.loc[df.metric.isin(("LFK", "omega"))]
-            fileLabel = dataName + "-overlap"
+            fileLabel = dataName + "-overlap-negatives"
 
         g = sns.relplot(x="order", y="value", kind="line", col="metricLongName",
                         hue="methodLongName", marker="o", palette="bright", data=df)
