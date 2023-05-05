@@ -423,10 +423,10 @@ if __name__ == '__main__':
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
-        "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
-        "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
+        # "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
+        # "YeastA": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv","YeastGSCompA-TangNodes.csv"),
         # "Celegans": ("../NetworkData/Celegans/NeuronConnect.csv","Celegans-TangNodes.csv"),
-        "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
+        # "Jazz": ("../NetworkData/MediumSize/Jazz.csv","Jazz-TangNodes.csv"),
         "Copperfield": ("../NetworkData/MediumSize/Copperfield.csv","Copperfield-TangNodes.csv"),
         # "Football": ("../NetworkData/MediumSize/Football.csv","Football-TangNodes.csv"),
         "Bsubtilis": ("../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt","BSubtilis-htb-TangNodes.csv"),
@@ -521,7 +521,7 @@ if __name__ == '__main__':
     refDF = pd.concat(allRefVals)
     objDF = pd.concat(allobjVals)
     objDF.to_csv("{}objectiveFns.csv".format(coverFolder+subfolder))
-    refDF.to_csv("{}referenceMetrics.csv".format(coverFolder+subfolder))
+    refDF.to_csv("{}referenceMetrics_{}.csv".format(coverFolder+subfolder, outfileLabel))
     if modularityDF.size > 0:
         modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder+subfolder))
         modularityDF.groupby(["dataName"])["modularity"].max()

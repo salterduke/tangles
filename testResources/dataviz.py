@@ -4,6 +4,7 @@ import pandas as pd
 # import colorsys
 # from matplotlib import cm
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, MaxNLocator
 import igraph as ig
 # import itertools as iter
 # import sklearn.metrics as skl
@@ -174,8 +175,9 @@ class Grapher():
 
     def processCDComparisons(self):
 
+        # Only using LFK NMI, so remove qualifier.
         self.metricLongNames = {
-            'LFK': "Overlapping NMI - LFK",
+            'LFK': "Overlapping NMI",
             'MGH': 'Overlapping NMI - MGH',
             'adjusted_rand': "Adjusted Rand Index",
             'nmi': "Normalised Mutual Information",
@@ -224,13 +226,15 @@ class Grapher():
         #     "ComparisonValuesDisjoint.csv"
         # ]:
 
-        self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics.csv")
+        self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics_Disj_inherit.csv")
 
         self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
 
         # todo add all separate CPM results for original networks
         for comparisonDataFile in [
-            "ComparisonValuesDisj_All.csv"
+            # "ComparisonValuesDisj_All.csv",
+            "ComparisonValuesDisj_inherit_All.csv",
+            "ComparisonValuesCPM_inherit_All.csv"
             # "ComparisonValuesCPM_New.csv",
             # "ComparisonValuesCPM3.csv",
             # "ComparisonValuesCPM4.csv",
@@ -250,11 +254,11 @@ class Grapher():
         self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
-        self.plotSimilarityAgainstobjFunc()
+        # self.plotSimilarityAgainstobjFunc()
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
-        # for dataName in np.unique(self.compDF["dataName"]):
-        #     self.processSingleNetwork(dataName)
+        for dataName in np.unique(self.compDF["dataName"]):
+            self.processSingleNetwork(dataName)
             # exit()
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
@@ -320,7 +324,7 @@ class Grapher():
         df = df.loc[df["method"] != "leiden"]
 
         # removing because don't need all modularity methods
-        if "modularity" in df["method"]:
+        if any(df.method == "modularity"):
             deleteModMethods = {"eigen", "multilevel", "fastgreedy"}
         else:
             deleteModMethods = {"eigen", "fastgreedy"}
@@ -444,6 +448,30 @@ class Grapher():
             fig.show()
             plt.close()
 
+    def plotMetricsLinegraph(self, df, dataName, disjoint=True):
+
+        if disjoint:
+            df = df.loc[df.metric.isin(("nmi", "adjusted_rand"))]
+            fileLabel = dataName + "-disjoint"
+            if any(df.method == "modularity"):
+                deleteModMethods = {"eigen", "multilevel", "fastgreedy", "leiden"}
+            else:
+                deleteModMethods = {"eigen", "fastgreedy", "leiden"}
+            df = df.loc[~df["method"].isin(deleteModMethods)]
+        else:
+            df = df.loc[df.metric.isin(("LFK", "omega"))]
+            fileLabel = dataName + "-overlap"
+
+        g = sns.relplot(x="order", y="value", kind="line", col="metricLongName",
+                        hue="methodLongName", marker="o", palette="bright", data=df)
+        g.set_axis_labels("Tangle order", "Similarity metric value")
+        g.set_titles(col_template='{col_name}')
+        g._legend.set_title("CD Method")
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        # plt.show(block=True)
+        plt.savefig("../outputdevResults_VY/Visualisations_v2/{}-SimilarityLinegraph.pdf".format(fileLabel))
+
     def processSingleNetwork(self, dataName):
 
         # this is the order currently used in the results discussion in latex
@@ -464,7 +492,7 @@ class Grapher():
         meanRefs = singleRefs.groupby("metric")["value"].mean()
 
         disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
-        # overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
+        overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
         for order in np.unique(singleDF["order"]):
             for metric, val in meanRefs.items():
                 rowdict =  {'order':order,
@@ -483,17 +511,25 @@ class Grapher():
         print(dataName)
         print(onlyOrders)
 
+        self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True)
+        self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False)
+
         if len(onlyOrders) <= 2:
             self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = onlyOrders)
+            self.plotSelectedMetrics(overlapMethodsAll, disjoint=False, fileLabel="selected", onlyOrders = onlyOrders)
         elif len(onlyOrders) <= 4:
             ords1 = onlyOrders[0:2]
             ords2 = onlyOrders[2:]
             self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = ords1)
             self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selectedPt2", onlyOrders = ords2)
+            self.plotSelectedMetrics(overlapMethodsAll, disjoint=False, fileLabel="selected", onlyOrders = ords1)
+            self.plotSelectedMetrics(overlapMethodsAll, disjoint=False, fileLabel="selectedPt2", onlyOrders = ords2)
 
         for order in np.unique(singleDF["order"]):
             disjointMethods = singleDF.loc[(~singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
             overlapMethods = singleDF.loc[(singleDF["method"].str.contains("CPM")) & (singleDF["order"] == order)]
+            # yeah, I know this is redundant, but the dfs just above are based on singleDF
+            #
             for metric, val in meanRefs.items():
                 rowdict =  {'order':order,
                             'method':"Reference",
@@ -522,11 +558,18 @@ class Grapher():
         for id, file in enumerate(timingFiles):
             # print("Reading ", file)
             df = pd.read_csv(file, delimiter=',', header=0, comment="#")
+            # print(np.unique(df.Vs))
             df["fileID"] = id
             df["algorithm"] = algName
+
             dfList.append(df)
 
         results_wide = pd.concat(dfList, ignore_index=True)
+        # np.unique(results_wide.groupby("network").count().Vs)
+        # This was just to get an idea of what timing data I actually *have*
+        # actual = results_wide.groupby("network")[("Vs", "Es")].max()
+        # sns.scatterplot(data=actual, x="Vs", y="Es").set(title=algName)
+        # plt.savefig("Es-vs-Vs-{}.pdf".format(algName))
 
         df1 = results_wide['tangCounts'].str.split('-', expand=True).add_prefix('Order').fillna('')
         results_wide = pd.concat([results_wide, df1], axis = 1)
@@ -728,7 +771,7 @@ class Grapher():
             "../outputTestVY/results2023-01-03 17.54.11.479864.csv",
             "../outputTestVY/results2023-01-04 18.50.10.710700.csv",
             "../outputTestVY/results2023-01-24 00.38.06.570735.csv",
-            "../outputTestVY/results2023-01-24 06.17.-90.901736.csv",
+            "../outputTestVY/results2023-01-24 06.17.45.901736.csv",
             "../outputTestVY/results2023-01-24 01.55.55.688959.csv",
             "../outputTestVY/results2023-01-24 08.53.11.574409.csv",
             "../outputTestVY/results2023-01-24 04.07.53.285378.csv"
@@ -741,7 +784,7 @@ class Grapher():
             "../outputTestVY/results2022-12-11 10.43.25.282799.csv",
             "../outputTestVY/results2022-12-11 14.12.00.441343.csv",
             "../outputTestVY/results2022-12-12 02.14.09.467554.csv",
-            "../outputTestVY/results2022-12-12 06.07.-90.566873.csv",
+            "../outputTestVY/results2022-12-12 06.07.45.566873.csv",
             "../outputTestVY/results2022-12-12 12.19.58.915419.csv",
             "../outputTestVY/results2022-12-12 15.48.30.065434.csv",
             "../outputTestVY/results2022-12-13 15.02.59.722227.csv",
@@ -752,13 +795,13 @@ class Grapher():
             "../outputTestYWS/results2022-11-24 04.13.04.126166.csv",
             "../outputTestYWS/results2022-11-25 09.06.28.692849.csv",
             "../outputTestYWS/results2022-11-28 17.05.09.511741.csv",
-            "../outputTestYWS/results2022-11-29 19.19.01.-906783.csv",
+            "../outputTestYWS/results2022-11-29 19.19.01.456783.csv",
             "../outputTestYWS/results2022-12-19 05.22.53.195299.csv",
             "../outputTestYWS/results2022-12-22 12.04.04.355848.csv",
             "../outputTestYWS/results2022-12-27 06.33.52.986415.csv",
             "../outputTestYWS/results2022-12-30 10.29.12.984751.csv",
             "../outputTestYWS/results2023-01-04 01.38.36.360110.csv",
-            "../outputTestYWS/results2023-01-08 20.27.-90.931906.csv",
+            "../outputTestYWS/results2023-01-08 20.27.45.931906.csv",
             "../outputTestYWS/results2023-01-24 01.05.40.484337.csv",
             "../outputTestYWS/results2023-01-24 07.14.30.492746.csv",
             "../outputTestYWS/results2023-01-24 02.40.56.709631.csv",
@@ -773,11 +816,11 @@ class Grapher():
             "../outputTestYWS/results2022-12-11 10.50.25.246702.csv",
             "../outputTestYWS/results2022-12-11 14.41.15.343567.csv",
             "../outputTestYWS/results2022-12-12 02.21.42.212079.csv",
-            "../outputTestYWS/results2022-12-12 06.38.50.-900858.csv",
+            "../outputTestYWS/results2022-12-12 06.38.50.450858.csv",
             "../outputTestYWS/results2022-12-12 12.27.02.689464.csv",
             "../outputTestYWS/results2022-12-12 16.17.42.518543.csv",
             "../outputTestYWS/results2022-12-13 15.10.50.769288.csv",
-            "../outputTestYWS/results2022-12-13 19.37.09.42-9097.csv"
+            "../outputTestYWS/results2022-12-13 19.37.09.424597.csv"
         ]
 
         # VYfiles = [
