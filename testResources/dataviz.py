@@ -229,29 +229,15 @@ class Grapher():
 
         self.refValsDF = pd.read_csv("{}referenceMetrics_{}.csv".format(coverFolder, infileLabel))
 
-        self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
-
-        comparisonDataFile = "ComparisonValues{}_All.csv".format(infileLabel)
-        fname = coverFolder + comparisonDataFile
-        dfList.append(pd.read_csv(fname, delimiter=",", header=0))
-
-        # for comparisonDataFile in [
-        #     "ComparisonValuesDisj_inherit_All.csv",
-        #     # "ComparisonValuesDisj_negatives_All.csv",
-        #     # "ComparisonValuesCPM_inherit_All.csv",
-        #     # "ComparisonValuesCPM_negatives_All.csv"
-        # ]:
-        #     fname = coverFolder + comparisonDataFile
-        #     dfList.append(pd.read_csv(fname, delimiter=",", header=0))
-
-        self.compDF = pd.concat(dfList)
+        self.objDF = pd.read_csv("{}objectiveFns{}.csv".format(coverFolder, infileLabel))
+        self.compDF = pd.read_csv("{}ComparisonValues{}_All.csv".format(coverFolder, infileLabel), delimiter=",", header=0)
         self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
         self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
-        self.plotSimilarityAgainstobjFunc()
+        self.plotSimilarityAgainstobjFunc(inherit)
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
@@ -280,7 +266,7 @@ class Grapher():
         df.index.name = "Community Detection Method"
         df.to_csv(tableFilename)
 
-    def plotSimilarityAgainstobjFunc(self):
+    def plotSimilarityAgainstobjFunc(self, inherit):
 
         self.objDF.drop('Unnamed: 0', axis=1, inplace=True)
         self.objDF = self.objDF.rename(columns={"objFunction":"method"})
@@ -293,6 +279,11 @@ class Grapher():
         joinedDF.xs("infomap", level="method")
 
         joinedDF = joinedDF.loc[joinedDF.metric.isin(("nmi", "adjusted_rand"))]
+
+        if inherit:
+            fileLabel = "inherit"
+        else:
+            fileLabel = "negatives"
 
         for method in joinedDF.index.unique(level='method'):
             # on the right track. Consider normalisation of map eqn?
@@ -309,7 +300,7 @@ class Grapher():
             g.set_titles(col_template='{col_name}')
             g._legend.set_title("Network")
             # plt.show(block=True)
-            plt.savefig("../outputdevResults_VY/Visualisations_v2/Similarity-vs-objective-{}.pdf".format(method))
+            plt.savefig("../outputdevResults_VY/Visualisations_v2/Similarity-vs-objective-{}-{}.pdf".format(method, fileLabel))
 
 
     def plotSelectedMetrics(self, df, disjoint = True, fileLabel = None, onlyOrders=None):
