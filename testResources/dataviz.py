@@ -251,7 +251,7 @@ class Grapher():
         self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
-        # self.plotSimilarityAgainstobjFunc()
+        self.plotSimilarityAgainstobjFunc()
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
@@ -572,8 +572,10 @@ class Grapher():
 
         print(dataName)
 
-        self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True, inherit=inherit)
-        self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False, inherit=inherit)
+        if disjointMethodsAll.size > 0:
+            self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True, inherit=inherit)
+        if overlapMethodsAll.size > 0:
+            self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False, inherit=inherit)
 
         # todo fix these
         # self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")

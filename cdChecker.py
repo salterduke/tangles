@@ -515,18 +515,18 @@ if __name__ == '__main__':
                     allobjVals.append(objVals)
 
             comparisonsDF = pd.concat(allComparisons)
-            comparisonsDF.to_csv("{}ComparisonValues{}_All.csv".format(coverFolder+subfolder, outfileLabel))
+            comparisonsDF.to_csv("{}{}ComparisonValues{}_All.csv".format(coverFolder,subfolder, outfileLabel))
             modularityDF = pd.concat(allModularities)
             refDF = pd.concat(allRefVals)
             objDF = pd.concat(allobjVals)
-            objDF.to_csv("{}objectiveFns.csv".format(coverFolder+subfolder))
-            refDF.to_csv("{}referenceMetrics_{}.csv".format(coverFolder+subfolder, outfileLabel))
+            objDF.to_csv("{}{}objectiveFns{}.csv".format(coverFolder,subfolder,outfileLabel))
+            refDF.to_csv("{}{}referenceMetrics_{}.csv".format(coverFolder,subfolder, outfileLabel))
             if modularityDF.size > 0:
-                modularityDF.to_csv("{}ModularitiesAll.csv".format(coverFolder+subfolder))
+                modularityDF.to_csv("{}{}ModularitiesAll{}.csv".format(coverFolder,subfolder, outfileLabel))
                 modularityDF.groupby(["dataName"])["modularity"].max()
                 modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
             mshipsDF = pd.concat(allMships)
-            mshipsDF.to_csv("{}Memberships.csv".format(coverFolder+subfolder))
+            mshipsDF.to_csv("{}{}Memberships{}.csv".format(coverFolder,subfolder, outfileLabel))
 
 
 
