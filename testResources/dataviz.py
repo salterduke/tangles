@@ -231,7 +231,7 @@ class Grapher():
 
         self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
 
-        comparisonDataFile = "ComparisonValues_{}_All.csv"
+        comparisonDataFile = "ComparisonValues{}_All.csv".format(infileLabel)
         fname = coverFolder + comparisonDataFile
         dfList.append(pd.read_csv(fname, delimiter=",", header=0))
 
@@ -255,8 +255,8 @@ class Grapher():
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
-            self.processSingleNetwork(dataName, inherit, methodClass)
             # exit()
+            self.processSingleNetwork(dataName, inherit)
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
         outputTableFolder = "../outputdevResults_VY/Tables/"
@@ -923,7 +923,7 @@ grapher = Grapher()
 
 for inherit in (True, False):
     # for methodClass in ("CPM", "Disj"):
-    for methodClass in ("Disj"):
+    for methodClass in ("Disj",):
         grapher.processCDComparisons(inherit, methodClass)
 
 # grapher.plotNetworks(inherit=False)

@@ -450,7 +450,7 @@ if __name__ == '__main__':
 
     # todo
     # for methodClass in ("CPM", "Disj"):
-    for methodClass in ("Disj"):
+    for methodClass in ("Disj",):
         for inheritParent in (True, False):
             allComparisons = []
             allModularities = []
