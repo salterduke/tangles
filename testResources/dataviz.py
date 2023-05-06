@@ -173,7 +173,7 @@ class Grapher():
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
 
 
-    def processCDComparisons(self):
+    def processCDComparisons(self, inherit, methodClass):
 
         # Only using LFK NMI, so remove qualifier.
         self.metricLongNames = {
@@ -222,18 +222,27 @@ class Grapher():
         dfList = []
         coverFolder = "../outputdevResults_VY/inheritComparisons/"
 
-        self.refValsDF = pd.read_csv(coverFolder + "referenceMetrics_Disj_inherit.csv")
+        if inherit:
+            infileLabel = "{}_inherit".format(methodClass)
+        else:
+            infileLabel = "{}_negatives".format(methodClass)
+
+        self.refValsDF = pd.read_csv("{}referenceMetrics_{}.csv".format(coverFolder, infileLabel))
 
         self.objDF = pd.read_csv(coverFolder + "objectiveFns.csv")
 
-        for comparisonDataFile in [
-            # "ComparisonValuesDisj_inherit_All.csv",
-            "ComparisonValuesDisj_negatives_All.csv",
-            # "ComparisonValuesCPM_inherit_All.csv",
-            "ComparisonValuesCPM_negatives_All.csv"
-        ]:
-            fname = coverFolder + comparisonDataFile
-            dfList.append(pd.read_csv(fname, delimiter=",", header=0))
+        comparisonDataFile = "ComparisonValues_{}_All.csv"
+        fname = coverFolder + comparisonDataFile
+        dfList.append(pd.read_csv(fname, delimiter=",", header=0))
+
+        # for comparisonDataFile in [
+        #     "ComparisonValuesDisj_inherit_All.csv",
+        #     # "ComparisonValuesDisj_negatives_All.csv",
+        #     # "ComparisonValuesCPM_inherit_All.csv",
+        #     # "ComparisonValuesCPM_negatives_All.csv"
+        # ]:
+        #     fname = coverFolder + comparisonDataFile
+        #     dfList.append(pd.read_csv(fname, delimiter=",", header=0))
 
         self.compDF = pd.concat(dfList)
         self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
@@ -246,7 +255,7 @@ class Grapher():
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
-            self.processSingleNetwork(dataName)
+            self.processSingleNetwork(dataName, inherit, methodClass)
             # exit()
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
@@ -436,11 +445,11 @@ class Grapher():
             fig.show()
             plt.close()
 
-    def plotMetricsLinegraph(self, df, dataName, disjoint=True):
+    def plotMetricsLinegraph(self, df, dataName, disjoint=True, inherit=True):
 
         if disjoint:
             df = df.loc[df.metric.isin(("nmi", "adjusted_rand"))]
-            fileLabel = dataName + "-disjoint-negatives"
+            fileLabel = dataName + "-disjoint"
             if any(df.method == "modularity"):
                 deleteModMethods = {"eigen", "multilevel", "fastgreedy", "leiden"}
             else:
@@ -448,7 +457,12 @@ class Grapher():
             df = df.loc[~df["method"].isin(deleteModMethods)]
         else:
             df = df.loc[df.metric.isin(("LFK", "omega"))]
-            fileLabel = dataName + "-overlap-negatives"
+            fileLabel = dataName + "-overlap"
+
+        if inherit:
+            fileLabel = fileLabel + "-inherit"
+        else:
+            fileLabel = fileLabel + "-negatives"
 
         g = sns.relplot(x="order", y="value", kind="line", col="metricLongName",
                         hue="methodLongName", marker="o", palette="bright", data=df)
@@ -460,8 +474,7 @@ class Grapher():
         # plt.show(block=True)
         plt.savefig("../outputdevResults_VY/Visualisations_v2/{}-SimilarityLinegraph.pdf".format(fileLabel))
 
-    def processSingleNetwork(self, dataName):
-
+    def processSingleNetwork_Old(self):
         # this is the order currently used in the results discussion in latex
         selectedOrders = {
             "YeastA": (2,3,4,5),
@@ -498,10 +511,6 @@ class Grapher():
         onlyOrders = selectedOrders[dataName]
         print(dataName)
         print(onlyOrders)
-
-        self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True)
-        self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False)
-
         if len(onlyOrders) <= 2:
             self.plotSelectedMetrics(disjointMethodsAll, disjoint=True, fileLabel="selected", onlyOrders = onlyOrders)
             self.plotSelectedMetrics(overlapMethodsAll, disjoint=False, fileLabel="selected", onlyOrders = onlyOrders)
@@ -537,6 +546,38 @@ class Grapher():
 
             self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
             self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
+
+    def processSingleNetwork(self, dataName, inherit):
+
+        singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
+
+        singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
+        meanRefs = singleRefs.groupby("metric")["value"].mean()
+
+        disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
+        overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
+        for order in np.unique(singleDF["order"]):
+            for metric, val in meanRefs.items():
+                rowdict =  {'order':order,
+                            'method':"Reference",
+                            'metric':metric,
+                            'value':val,
+                            'dataName':dataName,
+                            'methodLongName':self.methodLongNames["Reference"],
+                            'metricLongName':self.metricLongNames[metric],
+                            'metricShortName':self.tidyShort[metric]
+                            }
+                newRow = pd.DataFrame([rowdict])
+                disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
+
+        print(dataName)
+
+        self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True, inherit=inherit)
+        self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False, inherit=inherit)
+
+        # todo fix these
+        # self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
+        # self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
 # ---------------------------------------------------------------------------------------
     def readAlgTimingData(self, timingFiles, algName):
@@ -879,7 +920,12 @@ class Grapher():
 
 # processTimingData()
 grapher = Grapher()
-grapher.processCDComparisons()
+
+for inherit in (True, False):
+    # for methodClass in ("CPM", "Disj"):
+    for methodClass in ("Disj"):
+        grapher.processCDComparisons(inherit, methodClass)
+
 # grapher.plotNetworks(inherit=False)
 # grapher.processTimingData()
 
