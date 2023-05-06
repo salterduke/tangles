@@ -486,10 +486,10 @@ if __name__ == '__main__':
         if len(foundcover.columns) != 0:
 
             # todo change this when relevant
-            methodClass = "CPM"
-            # methodClass = "Disj"
+            # methodClass = "CPM"
+            methodClass = "Disj"
 
-            inheritParent = True
+            inheritParent = False
             if inheritParent:
                 outfileLabel = "{}_inherit".format(methodClass)
             else:
