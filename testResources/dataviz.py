@@ -228,6 +228,7 @@ class Grapher():
 
         for comparisonDataFile in [
             # "ComparisonValuesDisj_inherit_All.csv",
+            "ComparisonValuesDisj_negatives_All.csv",
             # "ComparisonValuesCPM_inherit_All.csv",
             "ComparisonValuesCPM_negatives_All.csv"
         ]:
@@ -439,7 +440,7 @@ class Grapher():
 
         if disjoint:
             df = df.loc[df.metric.isin(("nmi", "adjusted_rand"))]
-            fileLabel = dataName + "-disjoint"
+            fileLabel = dataName + "-disjoint-negatives"
             if any(df.method == "modularity"):
                 deleteModMethods = {"eigen", "multilevel", "fastgreedy", "leiden"}
             else:
