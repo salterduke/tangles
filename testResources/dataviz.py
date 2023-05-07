@@ -238,6 +238,7 @@ class Grapher():
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
         self.plotSimilarityAgainstobjFunc(inherit)
+        return  # todo remove after testing
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
         for dataName in np.unique(self.compDF["dataName"]):
@@ -286,19 +287,36 @@ class Grapher():
             fileLabel = "negatives"
 
         for method in joinedDF.index.unique(level='method'):
-            # on the right track. Consider normalisation of map eqn?
-            # do I want to do mod, map eqn separately, or on relplot?
-            # fix labels etc.
             xlabel = {
                 "multilevel": "Modularity",
                 "infomap": "Map equation"
             }
 
-            g = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName",
-                            data=joinedDF.xs(method, level="method"))
+            truncData = joinedDF.xs(method, level="method")
+            # truncData = truncData.loc[truncData["order"] < 10]
+            # testing:
+            g = sns.relplot(x="order", y="value_metric", col="metricLongName", hue="dataName", palette="bright",
+                            data=truncData)
+            g.set_axis_labels("Tangle order", "Similarity metric value")
+            g.set_titles(col_template='{col_name}')
+            g._legend.set_title("Network")
+            plt.savefig("../outputdevResults_VY/Visualisations_v2/Similarity-vs-order-{}-{}.pdf".format(method, fileLabel))
+
+
+            # g = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName", palette="bright",
+            #                 data=joinedDF.xs(method, level="method"))
+            g = sns.relplot(x="value_obj", y="value_metric", col="metricLongName", hue="dataName", palette="bright",
+                            size="order", sizes=(20, 200), data=joinedDF.xs(method, level="method"))
             g.set_axis_labels("{} value".format(xlabel[method]), "Similarity metric value")
             g.set_titles(col_template='{col_name}')
             g._legend.set_title("Network")
+            for textItem in g.legend.texts:
+                if textItem._text == "dataName":
+                    textItem._text = "Network"
+                elif textItem._text == "order":
+                    textItem._text = "Order"
+                    break
+
             # plt.show(block=True)
             plt.savefig("../outputdevResults_VY/Visualisations_v2/Similarity-vs-objective-{}-{}.pdf".format(method, fileLabel))
 

@@ -422,7 +422,6 @@ class cdChecker(bch.commChecker):
 if __name__ == '__main__':
 
 
-
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
         "YeastB": ("../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv","YeastGSCompB_core-TangNodes.csv"),
@@ -436,6 +435,7 @@ if __name__ == '__main__':
         "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
         "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
+
     coverFolder = "./outputdevResults_VY/"
     subfolder = "inheritComparisons/"
     # subfolder = ""
