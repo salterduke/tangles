@@ -362,9 +362,13 @@ class TangleSet():
         #             f.write("{}\n".format(item))
 
         #####################
-        doTreePrint = True
+        doTreePrint = False
         if doTreePrint:
-            self.printTangleTree(k)
+            try:
+                self.printTangleTree(k)
+            except Exception as error:
+                print("There was an error trying to print the tangle tree:")
+                print(error)
 
 
 

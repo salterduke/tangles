@@ -11,7 +11,7 @@ import collections as coll
 from matplotlib import cm
 import igraph as ig
 import itertools as iter
-import Modules.protChecker as protChecker
+# import Modules.protChecker as protChecker
 import cdChecker
 import random
 
@@ -43,13 +43,14 @@ class graphCD():
             fileExt = job["inFile"].split(".")[-1]
             if fileExt in ("png", "ico", "jpg", "jpeg", "bmp"):
                 job["doImage"] = True
-                job["imType"] = "ICON"
+                job["imType"] = "IMAGE"
             if "MNIST" in job["outName"].upper():
                 job["doImage"] = True
                 job["imType"] = "MNIST"
                 job["MNISTid"] = job["outName"].split(".")[-1]
         except:
             print("moocow")
+            exit("Error checking file extension")
 
         if "construct" in job and job["construct"]:
             graph = self.constructRandom(job)
@@ -297,6 +298,8 @@ class graphCD():
             print("moocow")
         self.foundcover.index.values[len(self.foundcover)-1] = "order"
         #
+        print("Found {} tangles total".format(self.foundcover.shape[1]))
+        # self.job["depth"]
         self.foundcover.to_csv(outfile)
         # I *think* we can keep the "order" row in and it won't bugger anything up,
         # except yeast?

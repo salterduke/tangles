@@ -10,6 +10,9 @@ mpl.rc('xtick', labelsize=12)
 mpl.rc('ytick', labelsize=12)
 
 
+# inFile;outName;depth;numColours;cropsize;rowoffset;coloffset
+# ../NetworkData/Images/photos/monalisa0.png;monalisa0;14;4;14;2;14
+
 class ImageParser():
     def __init__(self):
         self.numColoursOrig = 256   # change if type of image changes
@@ -64,7 +67,7 @@ class ImageParser():
 
         return imArray
 
-    def fetchICONasARRAY(self, filename):
+    def fetchIMAGEasARRAY(self, filename):
 
         img = PIL.Image.open(filename)
 
@@ -81,19 +84,20 @@ class ImageParser():
 
     def fetchSingleImage(self, job):
         # provide some defaults. Default default is None
-        imtype = job.get("imType", "ICON")
+        imtype = job.get("imType", "IMAGE")
         id = job.get("MNISTid")
         numColours = job.get("numColours", 256)
         cropsize = job.get("cropsize", 16)
         rowoffset = job.get("rowoffset")
         coloffset = job.get("coloffset")
+        doDiagonal = job.get("doDiagonal", False)
 
         if imtype == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
-        elif imtype == "ICON":
-            imArray = self.fetchICONasARRAY(job.get("inFile"))
+        elif imtype == "IMAGE":
+            imArray = self.fetchIMAGEasARRAY(job.get("inFile"))
         else:
-            exit("invalid image type {}. Must be MNIST or ICON.".format(imtype))
+            exit("invalid image type {}. Must be MNIST or IMAGE.".format(imtype))
 
         imArray = self.crop(imArray, cropsize, rowoffset, coloffset)
 
@@ -110,7 +114,7 @@ class ImageParser():
 
         # so if adj vs have same/similar colour edge weight is *high*
         # ie, small cuts between *different* colours
-        weightExp = 2
+        weightExp = 1
 
         # iterate over *nodes*
         for i in range(self.dim): # rows
@@ -135,50 +139,49 @@ class ImageParser():
                     edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
                 # add diagonal edges
-                if i < self.dim - 1 and j < self.dim - 1:
-                    #add down right diagonal
+                if doDiagonal:
+                    if i < self.dim - 1 and j < self.dim - 1:
+                        #add down right diagonal
 
-                    targetID = (i+1) * self.dim + (j+1)
-                    # -1 is offset for 0 index
-                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+                        targetID = (i+1) * self.dim + (j+1)
+                        # -1 is offset for 0 index
+                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
 
-                    edgeWeight = edgeWeight**weightExp
-                    graph.add_edge(sourceID, targetID, weight = edgeWeight)
+                        edgeWeight = edgeWeight**weightExp
+                        graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
-                if i > 0 and j < self.dim - 1:
-                    #add down left diagonal
-                    targetID = (i-1) * self.dim + (j+1)
-                    # -1 is offset for 0 index
-                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+                    if i > 0 and j < self.dim - 1:
+                        #add down left diagonal
+                        targetID = (i-1) * self.dim + (j+1)
+                        # -1 is offset for 0 index
+                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
 
-                    edgeWeight = edgeWeight**weightExp
-                    graph.add_edge(sourceID, targetID, weight = edgeWeight)
+                        edgeWeight = edgeWeight**weightExp
+                        graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
 
         dummy = 1
 #        graph.delete_edges(weight_eq=0)
         # todo check if this is valid
 
-        if __name__ == '__main__':
+        if True:
+        # if __name__ == '__main__':
             visual_style = {}
-            # visual_style["vertex_label"] = graph.vs["name"]
+            visual_style["vertex_label"] = graph.vs["name"]
 
             visual_style["edge_label"] = graph.es["weight"]
+            visual_style["bbox"] = (0, 0, self.dim * 50, self.dim * 50)
             # visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
 
             pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
-            try:
-                visual_style["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
-                # visual_style["vertex_color"] = [color_list[colCode] for colCode in imArray]
-            except:
-                print("moocow")
+            graph.vs["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
+            visual_style["vertex_color"] = graph.vs["vertex_color"]
 
             graph.es["curved"] = 0
             layout = graph.layout_grid()
             output = ig.plot(graph, layout=layout, **visual_style)
-            outfile = "monalisa{}.png".format(id)
-            # todo make general
+            outfile = "{}/{}_grid_{}col.png".format(job["outputFolder"], job["outName"], job["numColours"])
             output.save(outfile)
 
 
@@ -195,7 +198,7 @@ if __name__ == '__main__':
 
     M.createRandomBackground(0.5)
 
-    # job = {"imType":"ICON",
+    # job = {"imType":"IMAGE",
     #  "MNISTid":0,
     #  "numColours":3,
     #  "cropsize":16,

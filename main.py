@@ -20,6 +20,7 @@ if __name__ == '__main__':
     # default
     configFile = "const.txt"
     # runDepth = 4
+    printTimings = False
 
     if len(sys.argv) >= 2 and "dev" in sys.argv[1].lower():
         # testName = "DevYWS" # note leaving YWS in name so alg is correctly selected later
@@ -29,14 +30,16 @@ if __name__ == '__main__':
         # runDepth = 6
     elif len(sys.argv) >= 2 and "img" in sys.argv[1].lower():
         print("Dev Image testing")
-        testName = "DevVY" # note leaving VY in name so alg is correctly selected later
+        testName = "DevVY" + sys.argv[1] # note leaving VY in name so alg is correctly selected later
         configFile = "configImage.txt"
     elif len(sys.argv) >= 2 and "YWS" in sys.argv[1]:
         print("Running YWS")
         testName = "TestYWS"
+        printTimings = True
     elif len(sys.argv) >= 2 and "VY" in sys.argv[1]:
         print("Running VY")
         testName = "TestVY"
+        printTimings = True
     else:
         exit("No test type specified. Either YWS or VY")
 
@@ -62,38 +65,20 @@ def runAnalysis(job):
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
 
-# def runImage(job, imParser, imType, imageID):
-#     job["outName"] = "{}_id{}_dim{}_cols{}".format(imType, imageID, job["cropsize"], job["numColours"])
-#     log.log("Job: {}".format(job["outName"]))
-#     ticktoken = log.tick("{} RunAnalysis".format(job['outName']))
-#     job["doImage"] = True
-#     job["imType"] = imType
-#     job["MNISTid"] = imageID
-#     job["imParser"] = imParser
-#
+# def runMadeupGraph(job, N, M):
+#     job["outName"] = "constructed_{}_{}".format(N,M)
+#     job["construct"] = True
+#     job["N"] = N
+#     job["M"] = M
+#     log.log("Job: {}".format(job['outName']))
+#     ticktoken = log.tick("{} RunMadeUpGraph".format(job['outName']))
 #     jobGraph = netCD.graphCD(job, log)
 #
-#     n, m, tangCounts, timings = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
+#     n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
 #     secs = log.tock(ticktoken)
 #
-#     # jobGraph.overLapCliquePercolation()
+#     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
 #
-#     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings))])
-
-def runMadeupGraph(job, N, M):
-    job["outName"] = "constructed_{}_{}".format(N,M)
-    job["construct"] = True
-    job["N"] = N
-    job["M"] = M
-    log.log("Job: {}".format(job['outName']))
-    ticktoken = log.tick("{} RunMadeUpGraph".format(job['outName']))
-    jobGraph = netCD.graphCD(job, log)
-
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = 4, sepsOnly=False)
-    secs = log.tock(ticktoken)
-
-    return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
-
 
 def copyPicsToLatex():
     picFolder = "./output{}".format(testName)
@@ -160,8 +145,8 @@ if __name__ == '__main__':
     if copyPics:
         copyPicsToLatex()
 
-    resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings', 'sepCounts'])
-
-    resultsDF.to_csv("./output{}/results{}.csv".format(testName, log.timeString))
+    if printTimings:
+        resultsDF = pd.DataFrame(jobResults, columns=['network', 'Vs', 'Es', 'secs', 'tangCounts', 'timings', 'sepCounts'])
+        resultsDF.to_csv("./output{}/results{}.csv".format(testName, log.timeString))
 
     log.end()

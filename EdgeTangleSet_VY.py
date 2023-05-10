@@ -19,7 +19,6 @@ def extractComponents(mcut, vcount):
     return (comps)
 
 
-
 def extCutIsSuperset(currCuts, newCut):
     for cut in currCuts:
         if newCut.issuperset(cut):
@@ -50,7 +49,7 @@ def externalExtractMinPart(partcut, Gdir, kmax):
         newpcut[sidetoaddto].add(newnode)
 
         Gdircopy, s, t = externalMergeVertices(Gdir, newpcut)
-        mincut = Gdircopy.mincut(source=s, target=t)
+        mincut = Gdircopy.mincut(source=s, target=t, capacity="weight")
 
         if mincut.value <= kmax:
             pcutlen = uid + len(SuT) + 1
@@ -69,7 +68,9 @@ def externalMergeVertices(Gdir, pcut):
     # todo - can I think of a faster way of doing this?
     mapvector = [minS if v in pcut[0] else (minT if v in pcut[1] else v) for v in Gdircopy.vs.indices]
 
-    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames))
+    Gdircopy.contract_vertices(mapvector, combine_attrs=dict(name=mergeVnames, vertex_color=functools.partial(max, default=(1.0, 1.0, 1.0, 1.0))))
+    Gdircopy.simplify(combine_edges="sum")
+
     return Gdircopy, minS, minT
 
 
@@ -80,8 +81,7 @@ def externalBasicPartitionBranch(uid, tangset):
         set([tangset.U[uid]])
     ]
     Gdircopy, s, t = externalMergeVertices(tangset.Gdirected, newpcut)
-    mincut = Gdircopy.mincut(source=s, target=t)
-    dummy = 1
+    mincut = Gdircopy.mincut(source=s, target=t, capacity="weight")
     if len(mincut.partition) == 2:
         return partialCut(tangset.Gdirected, Gdircopy, mincut, newpcut, uid+2) # todo note, 2 for: node 0, and 0 indexing
         # note that partialCut takes care of the vids re the adjusted graph
@@ -183,7 +183,7 @@ class EdgeTangleSet(btang.TangleSet):
         with multiprocessing.Pool() as pool:
             if k is None:  ### ie, first time running
                 # slight waste of time, but saves memory by being able to avoid putting things on heap
-                self.kmin = int(self.Gdirected.mincut().value)
+                self.kmin = int(self.Gdirected.mincut(capacity="weight").value)
                 k = self.kmin
                 self.kmax = k + maxdepth - 1
                 basicPartition(pool)
@@ -309,13 +309,16 @@ class EdgeTangleSet(btang.TangleSet):
             sideNodes = sorted([self.names[node] for node in components[0]])
             complementNodes = sorted([self.names[node] for node in components[1]])
 
+            edge_sum = 0
+
             cutLong = []
             for eid in cut:
                 edge = self.Gdirected.es[eid]
+                edge_sum+=edge["weight"]
                 eString = "('{}', '{}')".format(self.Gdirected.vs[edge.source]["name"], self.Gdirected.vs[edge.target]["name"])
                 cutLong.append(eString)
 
-            text = "{}\t{}\t{}\t{}\t{}\n".format(len(cut), sorted(cutLong), sideNodes, complementNodes, orientation)
+            text = "{}\t{}\t{}\t{}\t{}\n".format(edge_sum, sorted(cutLong), sideNodes, complementNodes, orientation)
             text = text.replace('\"', '')
             with open(self.sepFilename, 'a') as the_file:
                 the_file.write(text)
@@ -325,7 +328,6 @@ class EdgeTangleSet(btang.TangleSet):
         components = extractComponents(partial.mcut, self.Gdirected.vcount())
         components = sorted(components, key=len)
 
-        # size = len(partial.cutEdges)
         sep_k = int(partial.weight)
 
         ######## ******* do other checks for "easy" seps (do shit here)

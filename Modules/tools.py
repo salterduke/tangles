@@ -1,6 +1,22 @@
 import numpy as np
 import functools
 
+def plotG(G, outfile):
+
+    visual_style = {}
+    visual_style["vertex_label"] = G.vs.indices
+
+    visual_style["edge_label"] = G.es["weight"]
+    visual_style["bbox"] = (0, 0, 14 * 50, 14 * 50)
+
+    pal = ig.GradientPalette("black", "white", 3)
+    visual_style["vertex_color"] = G.vs["vertex_color"]
+
+    G.es["curved"] = 0
+    layout = G.layout_grid()
+    output = ig.plot(G, layout=layout, **visual_style)
+    output.save(outfile)
+
 def ifelse(cond, valifTrue, valifFalse):
     if cond:
         return valifTrue
