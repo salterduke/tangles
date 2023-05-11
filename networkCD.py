@@ -1,4 +1,3 @@
-import math
 import numpy as np
 import ete3
 
@@ -7,12 +6,10 @@ import EdgeTangleSet_YWS
 
 
 import pandas as pd
-import collections as coll
 from matplotlib import cm
 import igraph as ig
-import itertools as iter
-# import Modules.protChecker as protChecker
-import cdChecker
+import Modules.dataviz as dataviz
+from Modules import cdChecker
 import random
 
 
@@ -149,7 +146,7 @@ class graphCD():
             #     quality = self.evaluateCommunities()
             # todo add evaluation for images
 
-        self.doPrint = False
+        self.doPrint = True
         if self.doPrint:
             self.igPrint()
 
@@ -395,16 +392,27 @@ class graphCD():
             # print(rendError)
 
 
-    def igPrint(self):
-        visual_style = {
-            "vertex_label": self.giantComp.vs["name"],
-            "vertex_shape": "rectangle",
-            "vertex_width": max(map(len, self.giantComp.vs["name"])) * 10 + 10,
-            "vertex_height": 20
-        }
+    def igPrint(self, doGrid=True):
 
-        ig.plot(self.giantComp, **visual_style)
+        if self.cdChecker is None:
+            self.cdChecker = cdChecker.cdChecker(self.giantComp)
 
+        plotCover = self.foundcover.loc[:, self.foundcover.loc["order"].duplicated(keep=False)]
+
+        plotter = dataviz.Grapher(outputFolder="./outputDevVYimgTest1/tanglePlots/")
+
+        for order in np.unique(plotCover.loc["order"]):
+            orderCover = plotCover.loc[:, plotCover.loc["order"] == order]
+            orderCover = orderCover.drop(index="order")
+            mship, expMship = self.cdChecker.getMembershipFromCover(orderCover, expandVs=True, useNegative=True)
+
+            outname = "{}_{}cols".format(self.job["outName"], self.job["numColours"])
+            plotter.plotSingleClustering(dataName = outname,
+                                         clusteringName = str(order),
+                                         G = self.giantComp,
+                                         clustering = expMship,
+                                         inherit=0,
+                                         doGrid=doGrid)
 
     def evaluateCommunities(self):
         # see analyseOverlapComms (currently commented out)

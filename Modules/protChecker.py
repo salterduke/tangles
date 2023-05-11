@@ -3,10 +3,9 @@ import os
 from ftplib import FTP
 import gzip
 import pandas as pd
-from collections import defaultdict
-import csv
 import numpy as np
-import baseChecker as bch
+from Modules import baseChecker as bch
+
 
 class protChecker(bch.commChecker):
     def __init__(self, protList, organism = "Yeast"):

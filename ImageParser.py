@@ -32,14 +32,14 @@ class ImageParser():
     def crop(self, longA, newdim, rowstart = None, colstart = None):
         A = longA.reshape((self.dim, self.dim))
 
-        if rowstart is None:
+        if rowstart is None or np.isnan(rowstart):
             rowstart = int((self.dim - newdim) / 2) # int truncates if odd, which is fine here
         rowend = int(rowstart + newdim)
 
         if rowstart < 0 or rowend > self.dim:
             exit("crack the sads, row crop outside existing border: rowstart {}, rowend {}, current dim {} ".format(rowstart, rowend, self.dim))
 
-        if colstart is None:
+        if colstart is None or np.isnan(colstart):
             colstart = int((self.dim - newdim) / 2)  # int truncates if odd, which is fine here
         colend = int(colstart + newdim)
 
@@ -88,8 +88,8 @@ class ImageParser():
         id = job.get("MNISTid")
         numColours = job.get("numColours", 256)
         cropsize = job.get("cropsize", 16)
-        rowoffset = job.get("rowoffset")
-        coloffset = job.get("coloffset")
+        rowoffset = job.get("rowoffset", None)
+        coloffset = job.get("coloffset", None)
         doDiagonal = job.get("doDiagonal", False)
 
         if imtype == "MNIST":
@@ -167,7 +167,8 @@ class ImageParser():
         if True:
         # if __name__ == '__main__':
             visual_style = {}
-            visual_style["vertex_label"] = graph.vs["name"]
+            # visual_style["vertex_label"] = graph.vs["name"]
+            visual_style["vertex_label"] = graph.vs.indices
 
             visual_style["edge_label"] = graph.es["weight"]
             visual_style["bbox"] = (0, 0, self.dim * 50, self.dim * 50)

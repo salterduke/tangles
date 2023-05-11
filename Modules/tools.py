@@ -1,15 +1,21 @@
 import numpy as np
 import functools
 
-def plotG(G, outfile):
+def plotG(G, outfile, vlabel = None):
 
     visual_style = {}
-    visual_style["vertex_label"] = G.vs.indices
+    if vlabel == "name":
+        visual_style["vertex_label"] = G.vs["name"]
+    elif vlabel == "index":
+        visual_style["vertex_label"] = G.vs.indices
+    else:
+        visual_style["vertex_label"] = ""
 
     visual_style["edge_label"] = G.es["weight"]
-    visual_style["bbox"] = (0, 0, 14 * 50, 14 * 50)
+    dim = sqrt(G.vcount())
+    visual_style["bbox"] = (0, 0, dim * 50, dim * 50)
 
-    pal = ig.GradientPalette("black", "white", 3)
+    # pal = ig.GradientPalette("black", "white", 3)
     visual_style["vertex_color"] = G.vs["vertex_color"]
 
     G.es["curved"] = 0
@@ -47,9 +53,11 @@ def pruneToStubs(G):
             mapvector[i] = min(vids_inG)
             # probably a oneliner way of doing this, but eh.
 
-    G.contract_vertices(mapvector, combine_attrs=dict(name=functools.partial(mergeVnames, sep=";")))
-    G.simplify(combine_edges="sum")
-    G.delete_vertices([v.index for v in G.vs if v["name"] == ''])
+    # todo generalise this so attrs get kept when contracting instead of just for grid (no contraction)
+    if len(np.unique(mapvector)) < len(mapvector):
+        G.contract_vertices(mapvector, combine_attrs=dict(name=functools.partial(mergeVnames, sep=";")))
+        G.simplify(combine_edges="sum")
+        G.delete_vertices([v.index for v in G.vs if v["name"] == ''])
     return G
 
 def mergeVnames(names, sep=","):

@@ -21,8 +21,19 @@ warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" 
 sns.set()
 
 class Grapher():
+    def __init__(self, dataFolder = None, outputFolder=None):
+        if dataFolder is not None:
+            self.dataFolder = dataFolder
+
+        if outputFolder is not None:
+            self.outputFolder = outputFolder # overwrite if have info
+        elif dataFolder is not None:
+            self.outputFolder = dataFolder # set default
+        else:
+            self.outputFolder = "./"
+
+
     def plotNetworks(self, inherit = False):
-        self.dataFolder = "../outputdevResults_VY/inheritComparisons/"
 
         dataSets = {
             # "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
@@ -130,7 +141,7 @@ class Grapher():
         return newMships, len(allUnique)
 
 
-    def plotSingleClustering(self, dataName, clusteringName, G, clustering, inherit=0):
+    def plotSingleClustering(self, dataName, clusteringName, G, clustering, inherit=0, doGrid=False):
 
         G.es["curved"] = 0
 
@@ -156,10 +167,23 @@ class Grapher():
                 # make the colour ids non-negative, and order by frequency so biggest comm first
                 commIDS = {val: id for id, val in enumerate(clustering.value_counts().index)}
 
-                G.vs['color'] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
-                for v in G.vs:
-                    if clustering.loc[v["name"]] == -1:
-                        v['color'] = "white"
+                if doGrid:
+                    visual_style["vertex_frame_width"] = 2
+                    visual_style["vertex_frame_color"] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
+                    visual_style["vertex_color"] = G.vs["vertex_color"]
+                    visual_style["vertex_label"] = G.vs["name"]
+                    visual_style["edge_label"] = list(map(int, G.es["weight"]))
+                    dim = np.sqrt(G.vcount())
+                    visual_style["bbox"] = (0, 0, dim * 50, dim * 50)
+
+                    for idx, v in enumerate(G.vs):
+                        if clustering.loc[v["name"]] == -1:
+                            visual_style["vertex_frame_color"][idx] = "white"
+                else:
+                    G.vs['color'] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
+                    for v in G.vs:
+                        if clustering.loc[v["name"]] == -1:
+                            v['color'] = "white"
             except:
                 exit("Arrg, something wrong other than keyerror")
 
@@ -167,9 +191,12 @@ class Grapher():
             filelabel = "-inherit"
         else:
             filelabel = "-unassigned"
-        imageFilename = "{}{}-{}{}.pdf".format(self.dataFolder, dataName, clusteringName, filelabel)
+        imageFilename = "{}{}-{}{}.pdf".format(self.outputFolder, dataName, clusteringName, filelabel)
 
-        layout = G.layout_kamada_kawai()
+        if doGrid:
+            layout = G.layout_grid()
+        else:
+            layout = G.layout_kamada_kawai()
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
 
 
@@ -929,14 +956,15 @@ class Grapher():
         # plt.savefig("./Timings/highOrder.png")
         #
 
-# processTimingData()
-grapher = Grapher()
+if __name__ == '__main__':
+    # processTimingData()
+    grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
-for inherit in (True, False):
-    # for methodClass in ("CPM", "Disj"):
-    for methodClass in ("Disj",):
-        grapher.processCDComparisons(inherit, methodClass)
+    for inherit in (True, False):
+        # for methodClass in ("CPM", "Disj"):
+        for methodClass in ("Disj",):
+            grapher.processCDComparisons(inherit, methodClass)
 
-# grapher.plotNetworks(inherit=False)
-# grapher.processTimingData()
+    # grapher.plotNetworks(inherit=False)
+    # grapher.processTimingData()
 

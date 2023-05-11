@@ -2,7 +2,7 @@ import pandas as pd
 from collections import defaultdict
 import csv
 import numpy as np
-import baseChecker as bch
+import Modules.baseChecker as bch
 import itertools as iter
 import igraph as ig
 import Modules.CliquePercolationMethod as cpm
