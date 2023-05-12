@@ -116,6 +116,10 @@ class ImageParser():
         # ie, small cuts between *different* colours
         weightExp = 1
 
+        numSubtractFrom = self.numColoursNew - 1
+        # numSubtractFrom = self.numColoursNew
+
+
         # iterate over *nodes*
         for i in range(self.dim): # rows
             for j in range(self.dim): # columns
@@ -126,7 +130,7 @@ class ImageParser():
                     # add right edge
                     targetID = (i+1) * self.dim + j
                     # -1 is offset for 0 index
-                    edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+                    edgeWeight = numSubtractFrom - np.abs(imArray[sourceID] - imArray[targetID])
 
                     edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
@@ -134,7 +138,7 @@ class ImageParser():
                     # add down edge
                     targetID = (i) * self.dim + (j+1)
                     # -1 is offset for 0 index
-                    edgeWeight = self.numColoursNew - 1 - np.abs(imArray[sourceID] - imArray[targetID])
+                    edgeWeight = numSubtractFrom - np.abs(imArray[sourceID] - imArray[targetID])
 
                     edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
@@ -145,7 +149,7 @@ class ImageParser():
 
                         targetID = (i+1) * self.dim + (j+1)
                         # -1 is offset for 0 index
-                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+                        edgeWeight = numSubtractFrom  - np.abs(imArray[sourceID] - imArray[targetID])
 
                         edgeWeight = edgeWeight**weightExp
                         graph.add_edge(sourceID, targetID, weight = edgeWeight)
@@ -154,7 +158,7 @@ class ImageParser():
                         #add down left diagonal
                         targetID = (i-1) * self.dim + (j+1)
                         # -1 is offset for 0 index
-                        edgeWeight = self.numColoursNew - 1  - np.abs(imArray[sourceID] - imArray[targetID])
+                        edgeWeight = numSubtractFrom  - np.abs(imArray[sourceID] - imArray[targetID])
 
                         edgeWeight = edgeWeight**weightExp
                         graph.add_edge(sourceID, targetID, weight = edgeWeight)
@@ -167,8 +171,8 @@ class ImageParser():
         if True:
         # if __name__ == '__main__':
             visual_style = {}
-            # visual_style["vertex_label"] = graph.vs["name"]
-            visual_style["vertex_label"] = graph.vs.indices
+            visual_style["vertex_label"] = graph.vs["name"]
+            # visual_style["vertex_label"] = graph.vs.indices
 
             visual_style["edge_label"] = graph.es["weight"]
             visual_style["bbox"] = (0, 0, self.dim * 50, self.dim * 50)
@@ -184,7 +188,6 @@ class ImageParser():
             output = ig.plot(graph, layout=layout, **visual_style)
             outfile = "{}/{}_grid_{}col.png".format(job["outputFolder"], job["outName"], job["numColours"])
             output.save(outfile)
-
 
         return graph
 
