@@ -95,6 +95,8 @@ class ImageParser():
         coloffset = job.get("coloffset", None)
         doDiagonal = job.get("doDiagonal", False)
 
+        job["outName"] = "{}-{}cols-size{}-at-{}-{}".format(job["outName"], numColours, cropsize, rowoffset, coloffset)
+
         if imtype == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
         elif imtype == "IMAGE":
