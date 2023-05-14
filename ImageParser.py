@@ -1,5 +1,6 @@
 import igraph as ig
 import numpy as np
+import pandas as pd
 import random
 import matplotlib as mpl
 import PIL
@@ -32,14 +33,14 @@ class ImageParser():
     def crop(self, longA, newdim, rowstart = None, colstart = None):
         A = longA.reshape((self.dim, self.dim))
 
-        if rowstart is None or np.isnan(rowstart):
+        if pd.isna(rowstart) or rowstart is None:
             rowstart = int((self.dim - newdim) / 2) # int truncates if odd, which is fine here
         rowend = int(rowstart + newdim)
 
         if rowstart < 0 or rowend > self.dim:
             exit("crack the sads, row crop outside existing border: rowstart {}, rowend {}, current dim {} ".format(rowstart, rowend, self.dim))
 
-        if colstart is None or np.isnan(colstart):
+        if pd.isna(colstart) or colstart is None:
             colstart = int((self.dim - newdim) / 2)  # int truncates if odd, which is fine here
         colend = int(colstart + newdim)
 
@@ -67,18 +68,20 @@ class ImageParser():
 
         return imArray
 
-    def fetchIMAGEasARRAY(self, filename):
+    def fetchIMAGEasARRAY(self, filename, transparent=False):
 
-        img = PIL.Image.open(filename)
+        img = PIL.Image.open(filename).convert("L")
 
-        new_image = PIL.Image.new("RGBA", img.size, "WHITE")  # Create a white rgba background
-        new_image.paste(img, (0, 0), img)  # Paste the image on the background. Go to the links given below for details.
+        if transparent:
+            new_image = PIL.Image.new("L", img.size, "WHITE")  # Create a white rgba background
+            new_image.paste(img, (0, 0), img)  # Paste the image on the background. Go to the links given below for details.
+            img = new_image
 
         # colArray = np.asarray(img)
-        imArray = np.asarray(new_image.convert(mode="L")).reshape(-1)
-        if new_image.size[0] != new_image.size[1]:
+        imArray = np.asarray(img).reshape(-1)
+        if img.size[0] != img.size[1]:
             exit("crack the sads, image not square")
-        self.dim = new_image.size[0]
+        self.dim = img.size[0]
 
         return imArray
 
@@ -107,7 +110,8 @@ class ImageParser():
         # plt.imshow(image, cmap=mpl.cm.binary, interpolation="nearest")
         # plt.axis("off")
 
-        imArray = np.array(list(map(lambda x: int(np.round(x / self.numColoursOrig * (self.numColoursNew -1))), imArray)))
+        imArray = np.array(list(map(lambda x: \
+                    int(np.round(x / (self.numColoursOrig-1) * (self.numColoursNew -1))), imArray)))
 
         graph = ig.Graph()
         graph.add_vertices(self.dim*self.dim)

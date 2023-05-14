@@ -14,6 +14,7 @@ import igraph as ig
 import random
 import seaborn as sns
 import warnings
+import platform
 
 # warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
 warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" )
@@ -191,12 +192,26 @@ class Grapher():
             filelabel = "-inherit"
         else:
             filelabel = "-unassigned"
-        imageFilename = "{}{}-{}{}.pdf".format(self.outputFolder, dataName, clusteringName, filelabel)
 
         if doGrid:
             layout = G.layout_grid()
         else:
             layout = G.layout_kamada_kawai()
+
+
+        if platform.system() == "Windows":
+            filetype = "png"
+        else:
+            filetype = "pdf"
+
+        # with labels:
+        imageFilename = "{}{}-{}{}-labelled.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
+        ig.plot(G, target=imageFilename, layout=layout, **visual_style)
+
+        # unlabelled
+        visual_style["vertex_label"] = ""
+        visual_style["edge_label"] = ""
+        imageFilename = "{}{}-{}{}-plain.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
 
 

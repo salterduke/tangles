@@ -123,6 +123,7 @@ if __name__ == '__main__':
             job['outputFolder'] = "./output{}".format(testName)
             job['testName'] = testName
             job["imParser"] = parser
+            job = {key: val for key, val in job.items() if not pd.isna(val)}
             jobres = runAnalysis(job)
             jobResults.append(jobres)
 
