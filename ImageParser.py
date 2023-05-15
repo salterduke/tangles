@@ -169,31 +169,31 @@ class ImageParser():
                         edgeWeight = edgeWeight**weightExp
                         graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
-
-        dummy = 1
-#        graph.delete_edges(weight_eq=0)
-        # todo check if this is valid
-
-        if True:
-        # if __name__ == '__main__':
-            visual_style = {}
+        labels = ""
+        visual_style = {}
+        if labels == "name":
             visual_style["vertex_label"] = graph.vs["name"]
-            # visual_style["vertex_label"] = graph.vs.indices
+        elif labels == "index":
+            visual_style["vertex_label"] = graph.vs.indices
+        else:
+            visual_style["vertex_label"] = ""
 
+        if labels:
             visual_style["edge_label"] = graph.es["weight"]
             visual_style["bbox"] = (0, 0, self.dim * 50, self.dim * 50)
-            # visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
+        else:
+            visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
 
-            pal = ig.GradientPalette("black", "white", self.numColoursNew)
+        pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
-            graph.vs["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
-            visual_style["vertex_color"] = graph.vs["vertex_color"]
+        graph.vs["vertex_color"] = [pal[int(colCode)] for colCode in imArray]
+        visual_style["vertex_color"] = graph.vs["vertex_color"]
 
-            graph.es["curved"] = 0
-            layout = graph.layout_grid()
-            output = ig.plot(graph, layout=layout, **visual_style)
-            outfile = "{}/{}_grid_{}col.png".format(job["outputFolder"], job["outName"], job["numColours"])
-            output.save(outfile)
+        graph.es["curved"] = 0
+        layout = graph.layout_grid()
+        output = ig.plot(graph, layout=layout, **visual_style)
+        outfile = "{}/{}_grid_{}col.png".format(job["outputFolder"], job["outName"], job["numColours"])
+        output.save(outfile)
 
         return graph
 

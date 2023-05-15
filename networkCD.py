@@ -11,7 +11,7 @@ import igraph as ig
 import Modules.dataviz as dataviz
 from Modules import cdChecker
 import random
-
+import os
 
 class graphCD():
     def __init__(self, job, log):
@@ -163,31 +163,7 @@ class graphCD():
         else:
             self.assignCommunitiesAllSeps() # not currently working, but ignore
 
-
-        # This bit is working with the tangle tree to assign colours to the comms.
-        # note that traverse default is BFS, which is what we want - deeper comms will
-        # overwrite colours for parent comms.
-        # todo if change to every level, need to do on *copy* of tangletree.
-        for node in self.giantComp.vs:
-            node["color"] = "#ffffff"
-
-        # for treenode in self.TangleSet.TangleTree.traverse():
-        #     if "T" not in treenode.name:
-        #         # keeps only complete tangles
-        #         # print("deleting non-tangle treenodes")
-        #         treenode.delete(prevent_nondicotomic=False)
-        #     elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
-        #         # keeps only tangles with >= 3 nodes
-        #         # print("deleting trivial tangle treenodes")
-        #         treenode.delete(prevent_nondicotomic=False)
-        #     else:
-        #         # these are the actual communities we want to colour
-        #         commIndex = int(treenode.name.replace("T", ""))
-        #         treedep = treenode.get_distance(self.TangleSet.TangleTree)
-        #         for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
-        #             if nodeName != "order":
-        #                 self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
-        self.printCommTree()
+        # self.printCommTree()
 
 
     def assignCommunitiesDistSeps(self):
@@ -291,11 +267,9 @@ class graphCD():
         # not sure why the above was removed, but eh.
         # the astype is necessary as results_wide init as NaNs, which are stored as floats.
         self.foundcover = self.foundcover.astype(np.int8)
-        try:
-            self.foundcover.loc[len(self.foundcover)] = [ord+1 for ord in sepOrders]
-            # as tangle orders are +1 to the highest order seps in them
-        except:
-            print("moocow")
+        self.foundcover.loc[len(self.foundcover)] = [ord+1 for ord in sepOrders]
+        # as tangle orders are +1 to the highest order seps in them
+
         self.foundcover.index.values[len(self.foundcover)-1] = "order"
         #
         print("Found {} tangles total".format(self.foundcover.shape[1]))
@@ -355,6 +329,31 @@ class graphCD():
         # except yeast?
 
     def printCommTree(self):
+        # This bit is working with the tangle tree to assign colours to the comms.
+        # note that traverse default is BFS, which is what we want - deeper comms will
+        # overwrite colours for parent comms.
+        # todo if change to every level, need to do on *copy* of tangletree.
+        for node in self.giantComp.vs:
+            node["color"] = "#ffffff"
+
+        # for treenode in self.TangleSet.TangleTree.traverse():
+        #     if "T" not in treenode.name:
+        #         # keeps only complete tangles
+        #         # print("deleting non-tangle treenodes")
+        #         treenode.delete(prevent_nondicotomic=False)
+        #     elif int(treenode.name.replace("T", "")) not in self.foundcover.columns:
+        #         # keeps only tangles with >= 3 nodes
+        #         # print("deleting trivial tangle treenodes")
+        #         treenode.delete(prevent_nondicotomic=False)
+        #     else:
+        #         # these are the actual communities we want to colour
+        #         commIndex = int(treenode.name.replace("T", ""))
+        #         treedep = treenode.get_distance(self.TangleSet.TangleTree)
+        #         for nodeName in self.foundcover.index[self.foundcover[commIndex]==1].tolist():
+        #             if nodeName != "order":
+        #                 self.giantComp.vs.find(nodeName)["color"] = self.getColour(treedep)
+
+
         outfile = "{}/{}-CommTree.png". \
             format(self.job['outputFolder'], self.job['outName'])
 
@@ -390,6 +389,7 @@ class graphCD():
         try:
             # Note that this shit doesn't work correctly in Python 3.10. It's a known issue.
             self.TangleSet.TangleTree.render(outfile, tree_style=ts)
+
         except Exception as rendError:
             print("Render doesn't work correctly in Python 3.10. Use 3.9 or lower.")
             # print(rendError)
@@ -402,7 +402,11 @@ class graphCD():
 
         plotCover = self.foundcover.loc[:, self.foundcover.loc["order"].duplicated(keep=False)]
 
-        plotter = dataviz.Grapher(outputFolder="./outputDevVYimgTest1/tanglePlots/")
+        tangPlotFolder = "{}/tanglePlots/".format(self.job['outputFolder'])
+        if not os.path.isdir(tangPlotFolder):
+            print("About to create dir {}".format(tangPlotFolder))
+            os.makedirs(tangPlotFolder)
+        plotter = dataviz.Grapher(outputFolder=tangPlotFolder)
 
         for order in np.unique(plotCover.loc["order"]):
             orderCover = plotCover.loc[:, plotCover.loc["order"] == order]

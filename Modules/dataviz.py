@@ -204,6 +204,7 @@ class Grapher():
         else:
             filetype = "pdf"
 
+
         # with labels:
         imageFilename = "{}{}-{}{}-labelled.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
@@ -213,6 +214,7 @@ class Grapher():
         visual_style["edge_label"] = ""
         imageFilename = "{}{}-{}{}-plain.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
         ig.plot(G, target=imageFilename, layout=layout, **visual_style)
+
 
 
     def processCDComparisons(self, inherit, methodClass):
