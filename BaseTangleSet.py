@@ -60,7 +60,7 @@ class TangleSet():
             # ### see Evrendilek for heuristic?
             self.log.tick("kTangle{} (min) Build Tangle".format(self.kmin))
             if not self.kTangle(self.kmin):
-                print("No tangles exist")
+                self.log.log("No tangles exist at min order {}".format(self.kmin))
                 self.log.tock()
                 return(timings, sepCounts)
             else:
@@ -81,7 +81,7 @@ class TangleSet():
 
             # check if found AND STORED any separations
             kSeps = len(self.separations[k]) + len(self.definitelySmall[k])
-            print("Found {} seps at order k = {}".format(kSeps, k))
+            self.log.log("Found {} seps at order k = {}".format(kSeps, k))
             if kSeps > 0:
                 orderCount+=1
             else:
@@ -90,13 +90,13 @@ class TangleSet():
             if not sepsOnly and kSeps > 0:
                 self.log.tick("kTangle{} Build Tangle".format(k))
                 if not self.kTangle(k):
-                    print("No tangles at k: {}".format(k))
+                    self.log.log("No tangles at tangle order k: {}".format(k+1))
                     self.kmax = k-1  # todo: make sure not off-by-one
                     self.log.tock()
                     self.log.end()
                     return(timings, sepCounts)
                 else:
-                    print("Moocow")
+                    self.log.log("Found tangles at tangle order k: {}".format(k+1))
                 self.log.tock()
         self.log.end()
         return(timings, sepCounts)
