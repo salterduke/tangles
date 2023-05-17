@@ -30,7 +30,9 @@ class ImageParser():
             from sklearn.datasets import fetch_mldata
             self.mnist = fetch_mldata('MNIST original')
 
-    def crop(self, longA, newdim, rowstart = None, colstart = None):
+    def crop(self, longA, newdim, newdim2, rowstart = None, colstart = None):
+        # all right, currently input image has to be square, but can be cropped not square
+        # change if needed
         A = longA.reshape((self.dim, self.dim))
 
         if pd.isna(rowstart) or rowstart is None:
@@ -41,14 +43,15 @@ class ImageParser():
             exit("crack the sads, row crop outside existing border: rowstart {}, rowend {}, current dim {} ".format(rowstart, rowend, self.dim))
 
         if pd.isna(colstart) or colstart is None:
-            colstart = int((self.dim - newdim) / 2)  # int truncates if odd, which is fine here
-        colend = int(colstart + newdim)
+            colstart = int((self.dim - newdim2) / 2)  # int truncates if odd, which is fine here
+        colend = int(colstart + newdim2)
 
         if colstart < 0 or colend > self.dim:
             exit("crack the sads, col crop outside existing border: colstart {}, colend {}, current dim {} ".format(colstart, colend, self.dim))
 
         imArray = A[rowstart:rowend, colstart:colend].reshape(-1)
         self.dim = newdim
+        self.dim2 = newdim2
         return imArray
 
 
@@ -95,7 +98,13 @@ class ImageParser():
         coloffset = job.get("coloffset", None)
         doDiagonal = job.get("doDiagonal", False)
 
-        job["outName"] = "{}-{}cols-size{}-at-{}-{}".format(job["outName"], numColours, cropsize, rowoffset, coloffset)
+
+        crop2 = job.get("crop2", None)
+        if pd.isna(crop2) or crop2 is None:
+            crop2 = cropsize
+            job["crop2"] = cropsize
+
+        job["outName"] = "{}-{}cols-size{}x{}-at-{}-{}".format(job["outName"], numColours, cropsize, crop2, rowoffset, coloffset)
 
         if imtype == "MNIST":
             imArray = self.fetchMNISTasARRAY(id)
@@ -104,7 +113,7 @@ class ImageParser():
         else:
             exit("invalid image type {}. Must be MNIST or IMAGE.".format(imtype))
 
-        imArray = self.crop(imArray, cropsize, rowoffset, coloffset)
+        imArray = self.crop(imArray, cropsize, crop2, rowoffset, coloffset)
 
         self.numColoursNew = numColours
 
@@ -116,7 +125,7 @@ class ImageParser():
                     int(np.round(x / (self.numColoursOrig-1) * (self.numColoursNew -1))), imArray)))
 
         graph = ig.Graph()
-        graph.add_vertices(self.dim*self.dim)
+        graph.add_vertices(self.dim*self.dim2)
 
         # so if adj vs have same/similar colour edge weight is *high*
         # ie, small cuts between *different* colours
@@ -128,21 +137,21 @@ class ImageParser():
 
         # iterate over *nodes*
         for i in range(self.dim): # rows
-            for j in range(self.dim): # columns
-                sourceID = i * self.dim + j
+            for j in range(self.dim2): # columns
+                sourceID = i * self.dim2 + j
                 graph.vs[sourceID]["name"] = "{}_{}".format(i,j)
                 # add only edges going "right" or "down" to avoid double count
                 if i < self.dim - 1:
                     # add right edge
-                    targetID = (i+1) * self.dim + j
+                    targetID = (i+1) * self.dim2 + j
                     # -1 is offset for 0 index
                     edgeWeight = numSubtractFrom - np.abs(imArray[sourceID] - imArray[targetID])
 
                     edgeWeight = edgeWeight**weightExp
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
-                if j < self.dim - 1:
+                if j < self.dim2 - 1:
                     # add down edge
-                    targetID = (i) * self.dim + (j+1)
+                    targetID = (i) * self.dim2 + (j+1)
                     # -1 is offset for 0 index
                     edgeWeight = numSubtractFrom - np.abs(imArray[sourceID] - imArray[targetID])
 
@@ -150,19 +159,19 @@ class ImageParser():
                     graph.add_edge(sourceID, targetID, weight = edgeWeight)
                 # add diagonal edges
                 if doDiagonal:
-                    if i < self.dim - 1 and j < self.dim - 1:
+                    if i < self.dim - 1 and j < self.dim2 - 1:
                         #add down right diagonal
 
-                        targetID = (i+1) * self.dim + (j+1)
+                        targetID = (i+1) * self.dim2 + (j+1)
                         # -1 is offset for 0 index
                         edgeWeight = numSubtractFrom  - np.abs(imArray[sourceID] - imArray[targetID])
 
                         edgeWeight = edgeWeight**weightExp
                         graph.add_edge(sourceID, targetID, weight = edgeWeight)
 
-                    if i > 0 and j < self.dim - 1:
+                    if i > 0 and j < self.dim2 - 1:
                         #add down left diagonal
-                        targetID = (i-1) * self.dim + (j+1)
+                        targetID = (i-1) * self.dim2 + (j+1)
                         # -1 is offset for 0 index
                         edgeWeight = numSubtractFrom  - np.abs(imArray[sourceID] - imArray[targetID])
 
@@ -180,9 +189,9 @@ class ImageParser():
 
         if labels:
             visual_style["edge_label"] = graph.es["weight"]
-            visual_style["bbox"] = (0, 0, self.dim * 50, self.dim * 50)
+            visual_style["bbox"] = (0, 0, self.dim2 * 50, self.dim * 50)
         else:
-            visual_style["bbox"] = (0, 0, self.dim * 25, self.dim * 25)
+            visual_style["bbox"] = (0, 0, self.dim2 * 25, self.dim * 25)
 
         pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
@@ -190,9 +199,9 @@ class ImageParser():
         visual_style["vertex_color"] = graph.vs["vertex_color"]
 
         graph.es["curved"] = 0
-        layout = graph.layout_grid()
+        layout = graph.layout_grid(self.dim, self.dim2)
         output = ig.plot(graph, layout=layout, **visual_style)
-        outfile = "{}/{}_grid_{}col.png".format(job["outputFolder"], job["outName"], job["numColours"])
+        outfile = "{}/{}_grid.png".format(job["outputFolder"], job["outName"])
         output.save(outfile)
 
         return graph
