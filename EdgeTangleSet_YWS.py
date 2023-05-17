@@ -583,16 +583,16 @@ class EdgeTangleSet(btang.TangleSet):
 
 
         def sideIsDefSmall(side, sep_k):
-            if (len(side) == 1) or (self.G.maxdegree(side) <= 2 and sep_k >= 2):
+            if (len(side) == 1) or (max(self.G.strength(side, weights="weight")) <= 2 and sep_k >= 2):
                 return True
 
-            if (len(side) == 2) and (self.G.maxdegree(side) <= sep_k):
+            if (len(side) == 2) and (max(self.G.strength(side, weights="weight")) <= sep_k):
                 # ie, each of two v's makes the small side of some sep,
                 # and the union of two small sides is small if the k of each <= k of the union
                 return True
 
             # todo this might be extendable to maxdeg <= sep_k?
-            if (self.G.maxdegree(side) <= sep_k) and (sep_k >= 3):
+            if (max(self.G.strength(side, weights="weight")) <= sep_k) and (sep_k >= 3):
                 subG = self.G.induced_subgraph(side)
                 comps = subG.clusters()
                 if len(comps) == 1 and comps.subgraph(0).is_tree(mode="all"):
@@ -601,31 +601,17 @@ class EdgeTangleSet(btang.TangleSet):
                     isTree = [1 if comp.is_tree(mode = "all") else 0 for comp in comps.subgraphs() ]
                     if all(isTree):
                         return True
-                    elif sum(isTree) == len(comps) - 1:
-                        notTree = comps.subgraph(isTree.index(0))
-                        notTreeNames = notTree.vs["name"]
-                        notTree.delete_vertices(notTree.vs.select(_degree_eq=1))
-                        if notTree.maxdegree() <= 2:
-                            # if this higher order sep is small this way, the subcomponent sep must be small
-                            # therefore terminate any tangles that contradict this
-                            notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
-                            comp = self.groundset - notTreeIDs
-                            # some error with this. Should be okay to just remove?
-                            # try:
-                            #     self.prevBranches = [branch for branch in self.prevBranches if comp not in branch.smallSides]
-                            #     for branch in self.prevBranches:
-                            #         branch.smallSides.remove(notTreeIDs)
-                            #         # is not necessary, as is subset of this larger side.
-                            # except:
-                            #     # if sepsOnly, prevBranches is not defined, so error.
-                            #     # but the above is only necessary when building tangles,
-                            #     # so can ignore
-                            #     pass
-                            return True
-
-
-
-
+                    # elif sum(isTree) == len(comps) - 1:
+                    #     notTree = comps.subgraph(isTree.index(0))
+                    #     notTreeNames = notTree.vs["name"]
+                    #     # todo not quite sure if this is right for weighted graphs, but this doesn't apply
+                    #     # to grids and the other ones I've used are unweighted, so I'm just going to ignore it....
+                    #     notTree.delete_vertices(notTree.vs.select(_degree_eq=1))
+                    #     if notTree.maxdegree() <= 2:
+                    #         # if this higher order sep is small this way, the subcomponent sep must be small
+                    #         # therefore terminate any tangles that contradict this
+                    #         notTreeIDs = set(self.G.vs.select(name_in=notTreeNames).indices)
+                    #         return True
 
             # if we get to here
             return False
