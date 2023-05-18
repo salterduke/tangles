@@ -15,9 +15,11 @@ import random
 import seaborn as sns
 import warnings
 import platform
+import math
 
 # warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
 warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" )
+warnings.filterwarnings( "ignore", message = ".*deprecated" )
 
 sns.set()
 
@@ -142,7 +144,7 @@ class Grapher():
         return newMships, len(allUnique)
 
 
-    def plotSingleClustering(self, dataName, clusteringName, G, clustering, inherit=0, doGrid=False):
+    def plotSingleClustering(self, dataName, clusteringName, G, clustering, inherit=0, doGrid=False, gridWidth=None):
 
         G.es["curved"] = 0
 
@@ -174,8 +176,12 @@ class Grapher():
                     visual_style["vertex_color"] = G.vs["vertex_color"]
                     visual_style["vertex_label"] = G.vs["name"]
                     visual_style["edge_label"] = list(map(int, G.es["weight"]))
-                    dim = np.sqrt(G.vcount())
-                    visual_style["bbox"] = (0, 0, dim * 50, dim * 50)
+
+                    if gridWidth is not None:
+                        gridHeight = math.ceil(G.vcount() / gridWidth)
+                    else:
+                        gridHeight = np.sqrt(G.vcount())
+                        gridWidth = gridHeight
 
                     for idx, v in enumerate(G.vs):
                         if clustering.loc[v["name"]] == -1:
@@ -194,7 +200,7 @@ class Grapher():
             filelabel = "-unassigned"
 
         if doGrid:
-            layout = G.layout_grid()
+            layout = G.layout_grid(gridWidth)
         else:
             layout = G.layout_kamada_kawai()
 
@@ -204,12 +210,13 @@ class Grapher():
         else:
             filetype = "pdf"
 
-
         # with labels:
-        imageFilename = "{}{}-{}{}-labelled.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
-        ig.plot(G, target=imageFilename, layout=layout, **visual_style)
+        # visual_style["bbox"] = (0, 0, gridWidth * 50, gridHeight * 50)
+        # imageFilename = "{}{}-{}{}-labelled.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
+        # ig.plot(G, target=imageFilename, layout=layout, **visual_style)
 
         # unlabelled
+        visual_style["bbox"] = (0, 0, gridWidth * 30, gridHeight * 30)
         visual_style["vertex_label"] = ""
         visual_style["edge_label"] = ""
         imageFilename = "{}{}-{}{}-plain.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
@@ -746,11 +753,6 @@ class Grapher():
             # plt.show(block=True)
             plt.savefig("./Timings/Vs-{}-against-edges.pdf".format(vs))
 
-
-    # ------------------------------------------------------------
-    def regressResults(self, results):
-        pass
-
     # ------------------------------------------------------------
 
     def readSepCounts(self, countFiles, algName):
@@ -949,39 +951,41 @@ class Grapher():
 
         results = self.combineSepcounts(timings, sepCounts)
 
+        self.plotRestrictedTimings(results)
         self.plotTimingResults(results)
 
-        # self.regressResults(results)
+    def plotRestrictedTimings(self, results):
 
-        # nomDiffs = results.groupby(["network"]).agg({
-        #     "NominalVs":"mean",
-        #     "Vs":"mean",
-        #     "NominalEs":"mean",
-        #     "Es":"mean"
-        # })
+        bins = list(range(10, 210, 10))
+        labels = list(range(20, 210, 10))
+        results["Vcat"] = pd.cut(results["Vs"], bins=bins, labels=labels)
 
-        # shortres = results.loc[results.NominalVs.isin([20, 50, 90])]
-        # # shortres_noOutlier = shortres.loc[shortres.time < 1500]
-        #
-        # lowOrder = shortres.loc[shortres.order<=4].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-        # highOrder = shortres.loc[shortres.order>=5].groupby(["NominalEs", "NominalVs", "order", "algorithm"])["time"].mean().reset_index()
-        #
-        # sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=lowOrder)
-        # plt.savefig("./Timings/lowOrder.png")
-        #
-        # sns.relplot(x="NominalEs", y="time", col="order", row="NominalVs", hue="algorithm", data=highOrder)
-        # plt.savefig("./Timings/highOrder.png")
-        #
+        timeSummary = results.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["delay"].mean().reset_index()
+
+        timeSummary["sepOrder"] = timeSummary["order"] - 1
+
+        for vs in (20,50,100,150,200):
+            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
+                "delay"].mean().reset_index()
+            # singleVs = singleVs[singleVs["order"] < 5]
+            singleVs["sepOrder"] = singleVs["order"] - 1
+            eplots = sns.relplot(x="NominalEs", y="delay", col="sepOrder", col_wrap=2, hue="algorithm", data=singleVs)
+            eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
+            eplots.set_titles(col_template='Order {col_name} Separations')
+            eplots._legend.set_title("Algorithm")
+            # plt.show(block=True)
+            plt.savefig("./Timings/Vs-{}-against-edges.pdf".format(vs))
+
 
 if __name__ == '__main__':
     # processTimingData()
     grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
-    for inherit in (True, False):
-        # for methodClass in ("CPM", "Disj"):
-        for methodClass in ("Disj",):
-            grapher.processCDComparisons(inherit, methodClass)
+    # for inherit in (True, False):
+    #     # for methodClass in ("CPM", "Disj"):
+    #     for methodClass in ("Disj",):
+    #         grapher.processCDComparisons(inherit, methodClass)
 
     # grapher.plotNetworks(inherit=False)
-    # grapher.processTimingData()
+    grapher.processTimingData()
 

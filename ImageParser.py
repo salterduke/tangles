@@ -103,6 +103,11 @@ class ImageParser():
         if pd.isna(crop2) or crop2 is None:
             crop2 = cropsize
             job["crop2"] = cropsize
+        else:
+            # don't know why it's not int already, but at this point I don't care...
+            crop2 = int(crop2)
+            job["crop2"] = crop2
+
 
         job["outName"] = "{}-{}cols-size{}x{}-at-{}-{}".format(job["outName"], numColours, cropsize, crop2, rowoffset, coloffset)
 
@@ -191,7 +196,7 @@ class ImageParser():
             visual_style["edge_label"] = graph.es["weight"]
             visual_style["bbox"] = (0, 0, self.dim2 * 50, self.dim * 50)
         else:
-            visual_style["bbox"] = (0, 0, self.dim2 * 25, self.dim * 25)
+            visual_style["bbox"] = (0, 0, self.dim2 * 30, self.dim * 30)
 
         pal = ig.GradientPalette("black", "white", self.numColoursNew)
 
@@ -199,7 +204,7 @@ class ImageParser():
         visual_style["vertex_color"] = graph.vs["vertex_color"]
 
         graph.es["curved"] = 0
-        layout = graph.layout_grid(self.dim, self.dim2)
+        layout = graph.layout_grid(self.dim2)
         output = ig.plot(graph, layout=layout, **visual_style)
         outfile = "{}/{}_grid.png".format(job["outputFolder"], job["outName"])
         output.save(outfile)

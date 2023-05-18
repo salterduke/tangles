@@ -419,7 +419,8 @@ class graphCD():
                                          G = self.giantComp,
                                          clustering = expMship,
                                          inherit=0,
-                                         doGrid=doGrid)
+                                         doGrid=doGrid,
+                                         gridWidth=self.job["crop2"])
 
     def evaluateCommunities(self):
         # see analyseOverlapComms (currently commented out)
