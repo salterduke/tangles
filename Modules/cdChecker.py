@@ -2,15 +2,21 @@ import pandas as pd
 from collections import defaultdict
 import csv
 import numpy as np
-import Modules.baseChecker as bch
+# import Modules.baseChecker as bch
 import itertools as iter
 import igraph as ig
-import Modules.CliquePercolationMethod as cpm
-import Modules.tools as tools
+import os
+if "Modules" in os.getcwd():
+    import CliquePercolationMethod as cpm
+    import tools as tools
+else:
+    import Modules.CliquePercolationMethod as cpm
+    import Modules.tools as tools
 import cdlib
 import platform
 
-class cdChecker(bch.commChecker):
+# class cdChecker(bch.commChecker):
+class cdChecker():
     def __init__(self, G):
         before = pd.Series(G.vs["name"])
 
@@ -18,7 +24,7 @@ class cdChecker(bch.commChecker):
 
         self.G = tools.pruneToStubs(G)
         after = pd.Series(self.G.vs["name"])
-        bch.commChecker.__init__(self, self.G.vs["name"])
+        # bch.commChecker.__init__(self, self.G.vs["name"])
 
     def compareCovers(self, cov1, cov2):
         # print(otherFile)
@@ -421,6 +427,112 @@ class cdChecker(bch.commChecker):
 
 if __name__ == '__main__':
 
+    def compareDatafileAgaintMethods(runID, dataSets, coverFolder, subfolder, outfileLabel):
+
+        if platform.system() != "Linux":
+            for dname in dataSets.keys():
+                dataSets[dname] = (
+                    dataSets[dname][0].replace("../", "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/"),
+                    dataSets[dname][1]
+                )
+
+        # for methodClass in ("CPM", "Disj"):
+        for methodClass in ("Disj",):
+            # for inheritParent in (True, False):
+            for inheritParent in (True,):
+                allComparisons = []
+                allModularities = []
+                allMships = []
+                allRefVals = []
+                allobjVals = []
+
+                for dataName, dataFiles in dataSets.items():
+                    print("Running data {}".format(dataName))
+                    graphFile = dataFiles[0]
+                    G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+                    G = G.connected_components().giant()
+                    checker = cdChecker(G) # should condense nodes in __init__
+
+                    colTypes = defaultdict(lambda:int, {0:str})
+                    fullFilename = coverFolder + dataFiles[1]
+                    foundcover = pd.read_csv(fullFilename, index_col=0, dtype=colTypes)
+                    foundcover.columns = foundcover.columns.astype(int)
+
+                    # make sure vertices match
+                    graphVSeries = pd.Series(checker.G.vs["name"]).sort_values(ignore_index=True)
+                    coverVSeries = pd.Series(foundcover.index)
+                    order = foundcover.loc["order"]
+                    coverVSeries = coverVSeries[coverVSeries != "order"]
+                    coverVSeries = coverVSeries.sort_values(ignore_index=True)
+                    # tweak so sorted *after* removing order so doesn't get sorted into the midddle.
+                    if not graphVSeries.equals(coverVSeries):
+                        print("vertices don't match up for datafile {} ----------------------------.".format(dataName))
+                        continue
+                    else:
+                        print("yay vertices match")
+                        # stuff it, I couldn't be stuffed to avoid the redundancy here
+                        sortOrder = pd.Series(checker.G.vs["name"])
+                        foundcover = foundcover.loc[sortOrder]
+                        foundcover.loc["order"] = order
+                        # The order in foundcover now matches the order in the graph.
+
+                    foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
+                    if len(foundcover.columns) != 0:
+                        if inheritParent:
+                            outfileLabel = "{}_inherit".format(methodClass)
+                        else:
+                            outfileLabel = "{}_negatives".format(methodClass)
+                        if methodClass == "Disj":
+                            checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
+                        elif methodClass == "CPM":
+                            methods = ["CPM3", "CPM4", "CPM5"]
+                            checkresults, modularityVals, mships, expMships, refVals, objVals  = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
+                        else:
+                            exit("crack the sads, invalid methodClass {}".format(methodClass))
+
+                        expMships.to_csv("{}{}_expandedTangleComms{}.csv".format(coverFolder+subfolder, dataName, outfileLabel))
+                        checkresults["dataName"] = dataName
+                        modularityVals["dataName"] = dataName
+                        refVals["dataName"] = dataName
+                        objVals["dataName"] = dataName
+                        mships["dataName"] = dataName
+                        allComparisons.append(checkresults)
+                        allModularities.append(modularityVals)
+                        allMships.append(mships)
+                        allRefVals.append(refVals)
+                        allobjVals.append(objVals)
+
+                comparisonsDF = pd.concat(allComparisons)
+                comparisonsDF.to_csv("{}{}ComparisonValues{}_All_{}.csv".format(coverFolder,subfolder, outfileLabel, runID))
+                modularityDF = pd.concat(allModularities)
+                refDF = pd.concat(allRefVals)
+                objDF = pd.concat(allobjVals)
+                objDF.to_csv("{}{}objectiveFns{}_{}.csv".format(coverFolder,subfolder,outfileLabel, runID))
+                refDF.to_csv("{}{}referenceMetrics_{}_{}.csv".format(coverFolder,subfolder, outfileLabel, runID))
+                if modularityDF.size > 0:
+                    modularityDF.to_csv("{}{}ModularitiesAll{}_{}.csv".format(coverFolder,subfolder, outfileLabel, runID))
+                    modularityDF.groupby(["dataName"])["modularity"].max()
+                    modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
+                mshipsDF = pd.concat(allMships)
+                mshipsDF.to_csv("{}{}Memberships{}_{}.csv".format(coverFolder,subfolder, outfileLabel, runID))
+
+        return comparisonsDF, objDF, refDF
+        # note, this doesn't work properly if doing more than 1 combo of disj/cpm and inherit/not
+
+            # This stuff is for comparing two covers to ensure they're the same.
+            # Not what we want to do to get CD comparison results
+            # otherCoverFiles = [
+            #     "outputDevYWS/YeastGSCompB_core-TangNodes.csv",
+            #     "outputDevVY/YeastGSCompB_core-TangNodes.csv"
+            # ]
+            #
+            # for otherFile in otherCoverFiles:
+            #     othercover = pd.read_csv(otherFile, index_col=0, dtype=colTypes)
+            #     othercover.columns = othercover.columns.astype(int)
+            #
+            #     # checkresults, mships = checker.compareCDMethods(foundcover, othercover, methods=["CPM3", "CPM4"])
+            #     checkresults, mships = checker.compareCDMethods(foundcover, methods=["CPM3", "CPM4"])
+
 
     dataSets = {
         # "Karate": ("../NetworkData/SmallNWs/KarateEdges.csv","Karate-TangNodes.csv"),
@@ -435,111 +547,22 @@ if __name__ == '__main__':
         "Zebra": ("../NetworkData/MediumSize/Zebra.csv", "Zebra-TangNodes.csv"),
         "Dolphins": ("../NetworkData/MediumSize/Dolphins.csv", "Dolphins-TangNodes.csv")
     }
-
     coverFolder = "./outputdevResults_VY/"
-    subfolder = "inheritComparisons/"
-    # subfolder = ""
+    subfolder = "inheritComparisons/Allresults/"
     outfileLabel = "Disj"
 
-    if platform.system() != "Linux":
-        for dname in dataSets.keys():
-            dataSets[dname] = (
-                dataSets[dname][0].replace("../", "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/"),
-                dataSets[dname][1]
-            )
-
-    # todo
-    # for methodClass in ("CPM", "Disj"):
-    for methodClass in ("Disj",):
-        for inheritParent in (True, False):
-            allComparisons = []
-            allModularities = []
-            allMships = []
-            allRefVals = []
-            allobjVals = []
-
-            for dataName, dataFiles in dataSets.items():
-                print("Running data {}".format(dataName))
-                graphFile = dataFiles[0]
-                G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
-                G = G.connected_components().giant()
-                checker = cdChecker(G) # should condense nodes in __init__
-
-                colTypes = defaultdict(lambda:int, {0:str})
-                fullFilename = coverFolder + dataFiles[1]
-                foundcover = pd.read_csv(fullFilename, index_col=0, dtype=colTypes)
-                foundcover.columns = foundcover.columns.astype(int)
-
-                # make sure vertices match
-                graphVSeries = pd.Series(checker.G.vs["name"]).sort_values(ignore_index=True)
-                coverVSeries = pd.Series(foundcover.index)
-                order = foundcover.loc["order"]
-                coverVSeries = coverVSeries[coverVSeries != "order"]
-                coverVSeries = coverVSeries.sort_values(ignore_index=True)
-                # tweak so sorted *after* removing order so doesn't get sorted into the midddle.
-                if not graphVSeries.equals(coverVSeries):
-                    print("vertices don't match up for datafile {} ----------------------------.".format(dataName))
-                    continue
-                else:
-                    print("yay vertices match")
-                    # stuff it, I couldn't be stuffed to avoid the redundancy here
-                    sortOrder = pd.Series(checker.G.vs["name"])
-                    foundcover = foundcover.loc[sortOrder]
-                    foundcover.loc["order"] = order
-                    # The order in foundcover now matches the order in the graph.
-
-                foundcover = checker.getInterestingOrders(foundcover) # remove orders where only one tangle
-                if len(foundcover.columns) != 0:
-                    if inheritParent:
-                        outfileLabel = "{}_inherit".format(methodClass)
-                    else:
-                        outfileLabel = "{}_negatives".format(methodClass)
-                    if methodClass == "Disj":
-                        checkresults, modularityVals, mships, expMships, refVals, objVals = checker.compareCDMethods(foundcover, inheritParent = inheritParent)
-                    elif methodClass == "CPM":
-                        methods = ["CPM3", "CPM4", "CPM5"]
-                        checkresults, modularityVals, mships, expMships, refVals, objVals  = checker.compareCDMethods(foundcover, inheritParent = inheritParent, methods = methods)
-                    else:
-                        exit("crack the sads, invalid methodClass {}".format(methodClass))
-
-                    expMships.to_csv("{}{}_expandedTangleComms{}.csv".format(coverFolder+subfolder, dataName, outfileLabel))
-                    checkresults["dataName"] = dataName
-                    modularityVals["dataName"] = dataName
-                    refVals["dataName"] = dataName
-                    objVals["dataName"] = dataName
-                    mships["dataName"] = dataName
-                    allComparisons.append(checkresults)
-                    allModularities.append(modularityVals)
-                    allMships.append(mships)
-                    allRefVals.append(refVals)
-                    allobjVals.append(objVals)
-
-            comparisonsDF = pd.concat(allComparisons)
-            comparisonsDF.to_csv("{}{}ComparisonValues{}_All.csv".format(coverFolder,subfolder, outfileLabel))
-            modularityDF = pd.concat(allModularities)
-            refDF = pd.concat(allRefVals)
-            objDF = pd.concat(allobjVals)
-            objDF.to_csv("{}{}objectiveFns{}.csv".format(coverFolder,subfolder,outfileLabel))
-            refDF.to_csv("{}{}referenceMetrics_{}.csv".format(coverFolder,subfolder, outfileLabel))
-            if modularityDF.size > 0:
-                modularityDF.to_csv("{}{}ModularitiesAll{}.csv".format(coverFolder,subfolder, outfileLabel))
-                modularityDF.groupby(["dataName"])["modularity"].max()
-                modularityDF[modularityDF['modularity'] == modularityDF.groupby(['dataName'])['modularity'].transform(max)]
-            mshipsDF = pd.concat(allMships)
-            mshipsDF.to_csv("{}{}Memberships{}.csv".format(coverFolder,subfolder, outfileLabel))
-
-
-
-        # This stuff is for comparing two covers to ensure they're the same.
-        # Not what we want to do to get CD comparison results
-        # otherCoverFiles = [
-        #     "outputDevYWS/YeastGSCompB_core-TangNodes.csv",
-        #     "outputDevVY/YeastGSCompB_core-TangNodes.csv"
-        # ]
-        #
-        # for otherFile in otherCoverFiles:
-        #     othercover = pd.read_csv(otherFile, index_col=0, dtype=colTypes)
-        #     othercover.columns = othercover.columns.astype(int)
-        #
-        #     # checkresults, mships = checker.compareCDMethods(foundcover, othercover, methods=["CPM3", "CPM4"])
-        #     checkresults, mships = checker.compareCDMethods(foundcover, methods=["CPM3", "CPM4"])
+    allComparisons = []
+    allObjectives = []
+    allReference = []
+    for runID in range(10):
+        compDF, objDF, refDF = compareDatafileAgaintMethods(runID, dataSets, coverFolder, subfolder, outfileLabel)
+        allComparisons.append(compDF)
+        allObjectives.append(objDF)
+        allReference.append(refDF)
+    subfolder = "inheritComparisons/SelectResults/"
+    comparisonsDF = pd.concat(allComparisons)
+    objectiveDF = pd.concat(allObjectives)
+    referenceDF = pd.concat(allReference)
+    comparisonsDF.to_csv("{}{}ComparisonValues{}_All.csv".format(coverFolder, subfolder, outfileLabel))
+    objectiveDF.to_csv("{}{}objectiveFns{}.csv".format(coverFolder, subfolder, outfileLabel))
+    referenceDF.to_csv("{}{}referenceMetrics_{}.csv".format(coverFolder, subfolder, outfileLabel))

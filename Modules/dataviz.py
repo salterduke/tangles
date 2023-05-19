@@ -271,7 +271,7 @@ class Grapher():
         # to ensure graphs put them in the same place on the x axis (since only one is included)
 
         dfList = []
-        coverFolder = "../outputdevResults_VY/inheritComparisons/"
+        coverFolder = "../outputdevResults_VY/inheritComparisons/SelectResults/"
 
         if inherit:
             infileLabel = "{}_inherit".format(methodClass)
@@ -952,29 +952,32 @@ class Grapher():
         results = self.combineSepcounts(timings, sepCounts)
 
         self.plotRestrictedTimings(results)
-        self.plotTimingResults(results)
+        # self.plotTimingResults(results)
 
     def plotRestrictedTimings(self, results):
 
         bins = list(range(10, 210, 10))
         labels = list(range(20, 210, 10))
-        results["Vcat"] = pd.cut(results["Vs"], bins=bins, labels=labels)
-
-        timeSummary = results.groupby(["NominalEs", "NominalVs", "order", "algorithm"])["delay"].mean().reset_index()
-
-        timeSummary["sepOrder"] = timeSummary["order"] - 1
+        results["Vcategory"] = pd.cut(results["Vs"], bins=bins, labels=labels)
+        results = results.reset_index()
+        results["sepOrder"] = results["order"] - 1
 
         for vs in (20,50,100,150,200):
-            singleVs = results.loc[results.NominalVs == vs].groupby(["NominalEs", "NominalVs", "order", "algorithm"])[
-                "delay"].mean().reset_index()
-            # singleVs = singleVs[singleVs["order"] < 5]
-            singleVs["sepOrder"] = singleVs["order"] - 1
-            eplots = sns.relplot(x="NominalEs", y="delay", col="sepOrder", col_wrap=2, hue="algorithm", data=singleVs)
-            eplots.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
-            eplots.set_titles(col_template='Order {col_name} Separations')
-            eplots._legend.set_title("Algorithm")
+            singleVs = results.loc[results["Vcategory"] == vs]
+            p = sns.relplot(data=singleVs, x="Es", y="delay", col="sepOrder", col_wrap=2, hue="algorithm",
+                            palette="bright", errorbar=('ci', 95), kind='line')
+            p.set_axis_labels("Number of Edges (m)", "Delay per cut (seconds)")
+            p.set_titles(col_template='Order {col_name} Separations')
+            p._legend.set_title("Algorithm")
             # plt.show(block=True)
-            plt.savefig("./Timings/Vs-{}-against-edges.pdf".format(vs))
+            plt.savefig("../TimingPlots/Vs-{}-against-edges.pdf".format(vs))
+
+            # if want bars instead:
+            # p = sns.relplot(data=singleVs, x="Es", y="delay", col="sepOrder", col_wrap=2, hue="algorithm",
+            #     err_style="bars", errorbar=('ci', 95), kind='line', err_kws={"capsize": 3})
+            # plt.show()
+
+
 
 
 if __name__ == '__main__':
@@ -982,10 +985,11 @@ if __name__ == '__main__':
     grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
     # for inherit in (True, False):
-    #     # for methodClass in ("CPM", "Disj"):
-    #     for methodClass in ("Disj",):
-    #         grapher.processCDComparisons(inherit, methodClass)
+    for inherit in (True,):
+        # for methodClass in ("CPM", "Disj"):
+        for methodClass in ("Disj",):
+            grapher.processCDComparisons(inherit, methodClass)
 
     # grapher.plotNetworks(inherit=False)
-    grapher.processTimingData()
+    # grapher.processTimingData()
 
