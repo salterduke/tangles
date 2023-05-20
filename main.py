@@ -60,7 +60,7 @@ def runAnalysis(job):
 
     # modified so dep is total number of orders, not total after the first one
     # n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, sepsOnly=False)
-    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, maxEmptyOrders=8, sepsOnly=False)
+    n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, maxEmptyOrders=4, sepsOnly=False)
 
 
     secs = log.tock(ticktoken)
