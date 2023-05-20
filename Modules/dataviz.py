@@ -265,7 +265,7 @@ class Grapher():
             'multilevel': "Louvain Modularity",
             'spinglass': "Spinglass",
             'walktrap': "Walktrap",
-            'Reference': "Ref. Infomap vs Louvain"
+            'reference': "Ref. Infomap vs Louvain"
         }
         # Note that modularity and multilevel (Louvain) have to be one after another
         # to ensure graphs put them in the same place on the x axis (since only one is included)
@@ -273,27 +273,35 @@ class Grapher():
         dfList = []
         coverFolder = "../outputdevResults_VY/inheritComparisons/SelectResults/"
 
-        if inherit:
-            infileLabel = "{}_inherit".format(methodClass)
-        else:
-            infileLabel = "{}_negatives".format(methodClass)
+        infileLabel = methodClass
+        # if inherit:
+        #     infileLabel = "{}_inherit".format(methodClass)
+        # else:
+        #     infileLabel = "{}_negatives".format(methodClass)
 
         self.refValsDF = pd.read_csv("{}referenceMetrics_{}.csv".format(coverFolder, infileLabel))
 
         self.objDF = pd.read_csv("{}objectiveFns{}.csv".format(coverFolder, infileLabel))
         self.compDF = pd.read_csv("{}ComparisonValues{}_All.csv".format(coverFolder, infileLabel), delimiter=",", header=0)
-        self.compDF = self.compDF.drop_duplicates(subset=["dataName", "method", "metric", "order"])
 
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
         self.compDF["metricShortName"] = self.compDF["metric"].map(self.tidyShort)
         self.compDF["value"] = self.compDF["value"].round(3)
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
-        self.plotSimilarityAgainstobjFunc(inherit)
-        return  # todo remove after testing
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
+        self.refValsDF.drop('Unnamed: 0', axis=1, inplace=True)
+        self.refValsDF["method"] = "reference"
+        self.refValsDF["metricLongName"] = self.refValsDF["metric"].map(self.metricLongNames)
+        self.refValsDF["metricShortName"] = self.refValsDF["metric"].map(self.tidyShort)
+        self.refValsDF["methodLongName"] = self.refValsDF["method"].map(self.methodLongNames)
+        self.refValsDF.drop('method1', axis=1, inplace=True)
+        self.refValsDF.drop('method2', axis=1, inplace=True)
+
+        # todo this for average CD as well
+        # self.plotSimilarityAgainstobjFunc(inherit)
+
         for dataName in np.unique(self.compDF["dataName"]):
-            # exit()
             self.processSingleNetwork(dataName, inherit)
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
@@ -524,15 +532,20 @@ class Grapher():
         else:
             fileLabel = fileLabel + "-negatives"
 
-        g = sns.relplot(x="order", y="value", kind="line", col="metricLongName",
-                        hue="methodLongName", marker="o", palette="bright", data=df)
+        if disjoint:
+            # p = sns.relplot(data=singleVs, x="Es", y="delay", col="sepOrder", col_wrap=2, hue="algorithm",
+            #                 palette="bright", errorbar=('ci', 95), kind='line')
+            g = sns.relplot(x="order", y="value", kind="line", col="metricLongName", errorbar=('ci', 95),
+                            hue="methodLongName", marker="o", palette="bright", data=df)
+        else:
+            g = sns.relplot(x="order", y="value", kind="line", col="metricLongName",
+                            hue="methodLongName", marker="o", palette="bright", data=df)
         g.set_axis_labels("Tangle order", "Similarity metric value")
         g.set_titles(col_template='{col_name}')
         g._legend.set_title("CD Method")
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        # plt.show(block=True)
-        plt.savefig("../outputdevResults_VY/Visualisations_v2/{}-SimilarityLinegraph.pdf".format(fileLabel))
+        plt.savefig("../outputdevResults_VY/Visualisations_CI/{}-SimilarityLinegraph.pdf".format(fileLabel))
 
     def processSingleNetwork_Old(self):
         # this is the order currently used in the results discussion in latex
@@ -612,23 +625,27 @@ class Grapher():
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
 
         singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
-        meanRefs = singleRefs.groupby("metric")["value"].mean()
 
         disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
         overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
-        for order in np.unique(singleDF["order"]):
-            for metric, val in meanRefs.items():
-                rowdict =  {'order':order,
-                            'method':"Reference",
-                            'metric':metric,
-                            'value':val,
-                            'dataName':dataName,
-                            'methodLongName':self.methodLongNames["Reference"],
-                            'metricLongName':self.metricLongNames[metric],
-                            'metricShortName':self.tidyShort[metric]
-                            }
-                newRow = pd.DataFrame([rowdict])
-                disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
+        for order in singleDF["order"].unique():
+            for metric in singleRefs["metric"].unique():
+                # 10 reps hard coded I know, but I don't care at this stage.
+                # pick 10 ref metricss to add to DF
+                refMetrics = singleRefs.loc[singleRefs["metric"] == metric]
+                for rep in range(10):
+
+                    rowdict =  {'order':order,
+                                'method':"reference",
+                                'metric':metric,
+                                'value':refMetrics.iloc[rep]["value"],
+                                'dataName':dataName,
+                                'methodLongName':self.methodLongNames["reference"],
+                                'metricLongName':self.metricLongNames[metric],
+                                'metricShortName':self.tidyShort[metric]
+                                }
+                    newRow = pd.DataFrame([rowdict])
+                    disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
 
         print(dataName)
 
