@@ -171,7 +171,8 @@ class Grapher():
                 commIDS = {val: id for id, val in enumerate(clustering.value_counts().index)}
 
                 if doGrid:
-                    visual_style["vertex_frame_width"] = 2
+                    visual_style["vertex_frame_width"] = [1 if commIDS[clustering.loc[v["name"]]] == 0 else 2 for v in G.vs ]
+                    # visual_style["vertex_frame_width"] = 2
                     visual_style["vertex_frame_color"] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
                     visual_style["vertex_color"] = G.vs["vertex_color"]
                     visual_style["vertex_label"] = G.vs["name"]
