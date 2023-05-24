@@ -134,7 +134,7 @@ class ImageParser():
 
         # so if adj vs have same/similar colour edge weight is *high*
         # ie, small cuts between *different* colours
-        weightExp = 2
+        weightExp = 1
 
         numSubtractFrom = self.numColoursNew - 1
         # numSubtractFrom = self.numColoursNew
