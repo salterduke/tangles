@@ -62,9 +62,7 @@ def runAnalysis(job):
     # n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, sepsOnly=False)
     n, m, tangCounts, timings, sepCounts = jobGraph.findTangleComms(dep = runDepth, maxEmptyOrders=4, sepsOnly=False)
 
-exit
     secs = log.tock(ticktoken)
-
 
     return([job['outName'], n, m, secs, "-".join(map(str, tangCounts)), "-".join(map(str, timings)), "-".join(map(str, sepCounts))])
 

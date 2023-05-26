@@ -17,7 +17,7 @@ import warnings
 import platform
 import math
 
-# warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
+# warnings.filterwarnings( "ignore", module = "matplotlib/..*" )
 warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" )
 warnings.filterwarnings( "ignore", message = ".*deprecated" )
 
@@ -49,16 +49,27 @@ class Grapher():
             # "Dolphins": "../../NetworkData/MediumSize/Dolphins.csv"
         }
 
-        plainOnly = {
-            "Karate": "../../NetworkData/SmallNWs/KarateEdges.csv",
-            "Celegans": "../../NetworkData/Celegans/NeuronConnect.csv",
-            "Football": "../../NetworkData/MediumSize/Football.csv"
-        }
+        # plainOnly = {
+        #     "Karate": "../../NetworkData/SmallNWs/KarateEdges.csv",
+        #     "Celegans": "../../NetworkData/Celegans/NeuronConnect.csv",
+        #     "Football": "../../NetworkData/MediumSize/Football.csv"
+        # }
 
-        # for datakey, graphFile in plainOnly.items():
-        #     G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
-        #     G = G.connected_components().giant().simplify()
-        #     self.plotSingleClustering(datakey, "plain", G, None)
+        plainOnly = dict()
+        self.outputFolder = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/Diagrams/"
+        for n in (20, 50, 100, 150, 200):
+            for m in range(n + 10, 3 * n+10, 20):
+                nwName = "constructed_{}_{}".format(n, m)
+                nwFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/constructed_{}_{}.ncol".format(n, m)
+                plainOnly[nwName] = nwFile
+
+
+        for datakey, graphFile in plainOnly.items():
+            G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+            G = G.connected_components().giant().simplify()
+            self.plotSingleClustering(datakey, "plain", G, None)
+
+        exit()
 
         for datakey, graphFile in dataSets.items():
             print(datakey)
@@ -100,7 +111,7 @@ class Grapher():
                     uniqueComms = commVs[tangOrds[nextColumnID]].unique()
                     if len(uniqueComms) == 1 and uniqueComms[0] != -1:
                         # if there's only one value, the communities are equivalent
-                        # (higher order tangle must be \subseteq lower order, so no need to check other way round)
+                        # (higher order tangle must be /subseteq lower order, so no need to check other way round)
                         higherOrdCommID = uniqueComms[0]
                         if higherOrdCommID != commID:
                             replacementTable[higherOrdCommID] = commID
@@ -205,10 +216,11 @@ class Grapher():
             layout = G.layout_kamada_kawai()
 
 
-        if platform.system() == "Windows":
-            filetype = "png"
-        else:
-            filetype = "pdf"
+        # if platform.system() == "Windows":
+        #     filetype = "png"
+        # else:
+        #     filetype = "pdf"
+        filetype = "pdf"
 
         # with labels:
         # visual_style["bbox"] = (0, 0, gridWidth * 50, gridHeight * 50)
@@ -216,7 +228,8 @@ class Grapher():
         # ig.plot(G, target=imageFilename, layout=layout, **visual_style)
 
         # unlabelled
-        visual_style["bbox"] = (0, 0, gridWidth * 30, gridHeight * 30)
+        if doGrid:
+            visual_style["bbox"] = (0, 0, gridWidth * 30, gridHeight * 30)
         visual_style["vertex_label"] = ""
         visual_style["edge_label"] = ""
         imageFilename = "{}{}-{}{}-plain.{}".format(self.outputFolder, dataName, clusteringName, filelabel, filetype)
@@ -1001,7 +1014,7 @@ if __name__ == '__main__':
     # processTimingData()
     grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
-    # for inherit in (True, False):
+    for inherit in (True, False):
     for inherit in (True,):
         # for methodClass in ("CPM", "Disj"):
         for methodClass in ("Disj",):
