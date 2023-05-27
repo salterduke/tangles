@@ -205,9 +205,8 @@ class ImageParser():
 
         graph.es["curved"] = 0
         layout = graph.layout_grid(self.dim2)
-        output = ig.plot(graph, layout=layout, **visual_style)
-        outfile = "{}/{}_grid.png".format(job["outputFolder"], job["outName"])
-        output.save(outfile)
+        outfile = "{}/{}_grid.pdf".format(job["outputFolder"], job["outName"])
+        ig.plot(graph, target=outfile, layout=layout, **visual_style)
 
         return graph
 

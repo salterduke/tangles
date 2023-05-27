@@ -17,7 +17,7 @@ import warnings
 import platform
 import math
 
-# warnings.filterwarnings( "ignore", module = "matplotlib/..*" )
+# warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
 warnings.filterwarnings( "ignore", message = ".*required_interactive_framework" )
 warnings.filterwarnings( "ignore", message = ".*deprecated" )
 
@@ -111,7 +111,7 @@ class Grapher():
                     uniqueComms = commVs[tangOrds[nextColumnID]].unique()
                     if len(uniqueComms) == 1 and uniqueComms[0] != -1:
                         # if there's only one value, the communities are equivalent
-                        # (higher order tangle must be /subseteq lower order, so no need to check other way round)
+                        # (higher order tangle must be \subseteq lower order, so no need to check other way round)
                         higherOrdCommID = uniqueComms[0]
                         if higherOrdCommID != commID:
                             replacementTable[higherOrdCommID] = commID
@@ -182,7 +182,8 @@ class Grapher():
                 commIDS = {val: id for id, val in enumerate(clustering.value_counts().index)}
 
                 if doGrid:
-                    visual_style["vertex_frame_width"] = 2
+                    visual_style["vertex_frame_width"] = [1 if commIDS[clustering.loc[v["name"]]] == 0 else 2 for v in G.vs ]
+                    # visual_style["vertex_frame_width"] = 2
                     visual_style["vertex_frame_color"] = pal.get_many((commIDS[clustering.loc[v["name"]]] for v in G.vs))
                     visual_style["vertex_color"] = G.vs["vertex_color"]
                     visual_style["vertex_label"] = G.vs["name"]
@@ -283,18 +284,28 @@ class Grapher():
         # Note that modularity and multilevel (Louvain) have to be one after another
         # to ensure graphs put them in the same place on the x axis (since only one is included)
 
-        dfList = []
         coverFolder = "../outputdevResults_VY/inheritComparisons/SelectResults/"
 
         infileLabel = methodClass
-        # if inherit:
-        #     infileLabel = "{}_inherit".format(methodClass)
-        # else:
-        #     infileLabel = "{}_negatives".format(methodClass)
+        if methodClass == "CPM":
+            if inherit:
+                infileLabel = "{}_inherit".format(methodClass)
+            else:
+                infileLabel = "{}_negatives".format(methodClass)
 
-        self.refValsDF = pd.read_csv("{}referenceMetrics_{}.csv".format(coverFolder, infileLabel))
+        if methodClass == "disj":
+            self.refValsDF = pd.read_csv("{}referenceMetrics_{}.csv".format(coverFolder, infileLabel))
+            self.objDF = pd.read_csv("{}objectiveFns{}.csv".format(coverFolder, infileLabel))
 
-        self.objDF = pd.read_csv("{}objectiveFns{}.csv".format(coverFolder, infileLabel))
+            self.refValsDF.drop('Unnamed: 0', axis=1, inplace=True)
+            self.refValsDF["method"] = "reference"
+            self.refValsDF["metricLongName"] = self.refValsDF["metric"].map(self.metricLongNames)
+            self.refValsDF["metricShortName"] = self.refValsDF["metric"].map(self.tidyShort)
+            self.refValsDF["methodLongName"] = self.refValsDF["method"].map(self.methodLongNames)
+            self.refValsDF.drop('method1', axis=1, inplace=True)
+            self.refValsDF.drop('method2', axis=1, inplace=True)
+
+
         self.compDF = pd.read_csv("{}ComparisonValues{}_All.csv".format(coverFolder, infileLabel), delimiter=",", header=0)
 
         self.compDF["metricLongName"] = self.compDF["metric"].map(self.metricLongNames)
@@ -303,19 +314,12 @@ class Grapher():
         self.compDF.drop('Unnamed: 0', axis=1, inplace=True)
         self.compDF["methodLongName"] = self.compDF["method"].map(self.methodLongNames)
 
-        self.refValsDF.drop('Unnamed: 0', axis=1, inplace=True)
-        self.refValsDF["method"] = "reference"
-        self.refValsDF["metricLongName"] = self.refValsDF["metric"].map(self.metricLongNames)
-        self.refValsDF["metricShortName"] = self.refValsDF["metric"].map(self.tidyShort)
-        self.refValsDF["methodLongName"] = self.refValsDF["method"].map(self.methodLongNames)
-        self.refValsDF.drop('method1', axis=1, inplace=True)
-        self.refValsDF.drop('method2', axis=1, inplace=True)
 
         # todo this for average CD as well
         # self.plotSimilarityAgainstobjFunc(inherit)
 
         for dataName in np.unique(self.compDF["dataName"]):
-            self.processSingleNetwork(dataName, inherit)
+            self.processSingleNetwork(dataName, inherit, methodClass)
 
     def makeNetworkOrderTable(self, df, disjoint = True, fileLabel = "table"):
         outputTableFolder = "../outputdevResults_VY/Tables/"
@@ -633,41 +637,45 @@ class Grapher():
             self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
             self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
-    def processSingleNetwork(self, dataName, inherit):
+    def processSingleNetwork(self, dataName, inherit, methodClass="disj"):
 
         singleDF = self.compDF.loc[self.compDF["dataName"] == dataName]
 
-        singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
+        if methodClass == "disj":
+            singleRefs = self.refValsDF.loc[self.refValsDF["dataName"] == dataName]
+            disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
 
-        disjointMethodsAll = singleDF.loc[~singleDF["method"].str.contains("CPM")]
-        overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
-        for order in singleDF["order"].unique():
-            for metric in singleRefs["metric"].unique():
-                # 10 reps hard coded I know, but I don't care at this stage.
-                # pick 10 ref metricss to add to DF
-                refMetrics = singleRefs.loc[singleRefs["metric"] == metric]
-                for rep in range(10):
+            for order in singleDF["order"].unique():
+                for metric in singleRefs["metric"].unique():
+                    # 10 reps hard coded I know, but I don't care at this stage.
+                    # pick 10 ref metricss to add to DF
+                    refMetrics = singleRefs.loc[singleRefs["metric"] == metric]
+                    for rep in range(10):
 
-                    rowdict =  {'order':order,
-                                'method':"reference",
-                                'metric':metric,
-                                'value':refMetrics.iloc[rep]["value"],
-                                'dataName':dataName,
-                                'methodLongName':self.methodLongNames["reference"],
-                                'metricLongName':self.metricLongNames[metric],
-                                'metricShortName':self.tidyShort[metric]
-                                }
-                    newRow = pd.DataFrame([rowdict])
-                    disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
+                        rowdict =  {'order':order,
+                                    'method':"reference",
+                                    'metric':metric,
+                                    'value':refMetrics.iloc[rep]["value"],
+                                    'dataName':dataName,
+                                    'methodLongName':self.methodLongNames["reference"],
+                                    'metricLongName':self.metricLongNames[metric],
+                                    'metricShortName':self.tidyShort[metric]
+                                    }
+                        newRow = pd.DataFrame([rowdict])
+                        disjointMethodsAll = pd.concat([disjointMethodsAll, newRow], ignore_index=True)
+
+            if disjointMethodsAll.size > 0:
+                self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True, inherit=inherit)
+
+        else:
+            overlapMethodsAll = singleDF.loc[singleDF["method"].str.contains("CPM")]
+            if overlapMethodsAll.size > 0:
+                self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False, inherit=inherit)
 
         print(dataName)
 
-        if disjointMethodsAll.size > 0:
-            self.plotMetricsLinegraph(disjointMethodsAll, dataName=dataName, disjoint=True, inherit=inherit)
-        if overlapMethodsAll.size > 0:
-            self.plotMetricsLinegraph(overlapMethodsAll, dataName=dataName, disjoint=False, inherit=inherit)
 
-        # todo fix these
+        # Note, these probably don't work anymore due to other changes, but not using so don't worry right now.
         # self.makeNetworkOrderTable(disjointMethods, fileLabel="disj")
         # self.makeNetworkOrderTable(overlapMethods, fileLabel="overlap")
 
@@ -1014,8 +1022,8 @@ if __name__ == '__main__':
     # processTimingData()
     grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
-    for inherit in (True, False):
-    for inherit in (True,):
+    # for inherit in (True, False):
+    for inherit in (True,False):
         # for methodClass in ("CPM", "Disj"):
         for methodClass in ("Disj",):
             grapher.processCDComparisons(inherit, methodClass)
