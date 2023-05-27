@@ -15,15 +15,15 @@ def drawGraphExample(format = "png"):
 
     visual_style = {}
     visual_style["vertex_color"] = "white"
-    visual_style["vertex_label"] = G.vs["name"]
+    # visual_style["vertex_label"] = G.vs["name"]
+    visual_style["vertex_label"] = G.vs.indices
     visual_style["bbox"] = (0, 0, 500, 250)
 
-    outfile = outfolder + "tinyedges." + format
+    outfile = outfolder + "tinyedges_ids." + format
 
-    g = ig.plot(G, layout=layout, **visual_style)
+    ig.plot(G, target=outfile, layout=layout, **visual_style)
     # g = ig.plot(G, layout=layout, target=outfile, **visual_style)
     # g.show()
-    g.save(outfile)
 
 # --------------------------------------------------------------------
 # branch decomp of tinyEdges
@@ -126,7 +126,7 @@ def drawCutFinderTree(format = "png"):
 # drawCutFinderTree()
 
 # note that it appears that saving as pdf *doesn't* mean it's saved as a vector format,
-# it's just an image within a pdf. Similarly for svg.
+# it's just an image within a pdf. Similarly for svg. (Unless it's done as target = outfile?)
 outformat = "pdf"
 
 drawGraphExample(format = outformat)
