@@ -15,11 +15,11 @@ def drawGraphExample(format = "png"):
 
     visual_style = {}
     visual_style["vertex_color"] = "white"
-    # visual_style["vertex_label"] = G.vs["name"]
-    visual_style["vertex_label"] = G.vs.indices
+    visual_style["vertex_label"] = G.vs["name"]
+    # visual_style["vertex_label"] = G.vs.indices
     visual_style["bbox"] = (0, 0, 500, 250)
 
-    outfile = outfolder + "tinyedges_ids." + format
+    outfile = outfolder + "tinyedges." + format
 
     ig.plot(G, target=outfile, layout=layout, **visual_style)
     # g = ig.plot(G, layout=layout, target=outfile, **visual_style)
