@@ -56,16 +56,18 @@ class Grapher():
         # }
 
         plainOnly = dict()
-        self.outputFolder = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/Diagrams/"
+        # self.outputFolder = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/Diagrams/"
+        self.outputFolder = "../../NetworkData/Constructed/Diagrams/"
         for n in (20, 50, 100, 150, 200):
             for m in range(n + 10, 3 * n+10, 20):
                 nwName = "constructed_{}_{}".format(n, m)
-                nwFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/constructed_{}_{}.ncol".format(n, m)
+                # nwFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/constructed_{}_{}.ncol".format(n, m)
+                nwFile = "../../NetworkData/Constructed/constructed_{}_{}.ncol".format(n, m)
                 plainOnly[nwName] = nwFile
 
-        plainOnly = {
-             "Hicks": "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/Hicks2.csv"
-        }
+        # plainOnly = {
+        #      "Hicks": "../NetworkData/SmallNWs/Hicks2.csv"
+        # }
 
 
         for datakey, graphFile in plainOnly.items():
