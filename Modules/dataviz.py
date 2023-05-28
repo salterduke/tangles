@@ -64,7 +64,7 @@ class Grapher():
                 plainOnly[nwName] = nwFile
 
         plainOnly = {
-             "Hicks": "../NetworkData/SmallNWs/Hicks2.csv",
+             "Hicks": "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/SmallNWs/Hicks2.csv"
         }
 
 
