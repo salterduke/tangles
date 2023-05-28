@@ -469,3 +469,9 @@ import matplotlib.pyplot as plt
 # # # # self.partcutConn.commit()
 
 
+import igraph as ig
+
+G = ig.Graph([(0,1), (0,2), (1,3), (1,2)])
+
+G.modularity([0,1,2,3])
+G.modularity([0,0,1,2]) * 64
