@@ -63,6 +63,10 @@ class Grapher():
                 nwFile = "C:/Users/mrousset/Documents/PhDThesisLaptop/Code/NetworkData/Constructed/constructed_{}_{}.ncol".format(n, m)
                 plainOnly[nwName] = nwFile
 
+        plainOnly = {
+             "Hicks": "../NetworkData/SmallNWs/Hicks2.csv",
+        }
+
 
         for datakey, graphFile in plainOnly.items():
             G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
@@ -1023,11 +1027,11 @@ if __name__ == '__main__':
     grapher = Grapher(dataFolder="../outputdevResults_VY/inheritComparisons/")
 
     # for inherit in (True, False):
-    for inherit in (True,False):
-        # for methodClass in ("CPM", "Disj"):
-        for methodClass in ("Disj",):
-            grapher.processCDComparisons(inherit, methodClass)
+    #for inherit in (True,False):
+    #    # for methodClass in ("CPM", "Disj"):
+    #    for methodClass in ("Disj",):
+    #        grapher.processCDComparisons(inherit, methodClass)
 
-    # grapher.plotNetworks(inherit=False)
+    grapher.plotNetworks(inherit=False)
     # grapher.processTimingData()
 
