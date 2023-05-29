@@ -70,11 +70,22 @@ class Grapher():
         # }
 
 
-        for datakey, graphFile in plainOnly.items():
+        # for datakey, graphFile in plainOnly.items():
+        #     G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
+        #     G = G.connected_components().giant().simplify()
+        #     self.plotSingleClustering(datakey, "plain", G, None)
+
+        doDegreeSeq = {
+            "YeastA": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompA.csv",
+            "YeastB": "../../NetworkData/BioDBs/YeastPPI/YuEtAlGSCompB.csv",
+            "Bsubtilis": "../../NetworkData/BioDBs/HINTformatted/BacillusSubtilisSubspSubtilisStr168-htb-hq.txt",
+            "const50": "../../NetworkData/Constructed/constructed_50_80.ncol",
+            "const200": "../../NetworkData/Constructed/constructed_200_590.ncol",
+        }
+        for datakey, graphFile in doDegreeSeq.items():
             G = ig.Graph.Read_Ncol(graphFile, names=True, directed=False)
             G = G.connected_components().giant().simplify()
-            self.plotSingleClustering(datakey, "plain", G, None)
-
+            self.plotDegreeSeq(datakey, G)
         exit()
 
         for datakey, graphFile in dataSets.items():
@@ -101,6 +112,21 @@ class Grapher():
                     self.plotSingleClustering(datakey, clusteringName, G, mships[clusteringName], inherit = 0)
 
             self.plotSingleClustering(datakey, "plain", G, None)
+
+    def plotDegreeSeq(self, dataName, G):
+        degdist = G.degree_distribution()
+        dummy = 1
+
+        xs, ys = zip(*[(left, count) for left, _, count in degdist.bins()])
+        plt.bar(xs, ys)
+        plt.title(dataName)
+        imageFilename = "{}DegreeSeq-{}.png".format(self.outputFolder, dataName)
+        print(dataName)
+
+        # plt.show()
+        plt.savefig(imageFilename)
+        plt.clf()
+
 
     # if diff order tangles equivalent, make sure they've got the same comm ID
     def consolidateTangleComms(self, mships):
